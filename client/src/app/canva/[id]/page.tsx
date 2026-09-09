@@ -13,6 +13,9 @@ import { designInterface } from '@/app/types/works.type';
 import { successAlert, errorAlert, confirmAlert } from '@/app/utils/alert';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { imageFile } from '@/lib/validation/fields';
+
+const canvaImageSchema = imageFile({ maxMB: 12 });
 
 interface ImageLayer {
   id: string;
@@ -557,6 +560,12 @@ const TattooEditor: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
+      const check = canvaImageSchema.safeParse(files[0]);
+      if (!check.success) {
+        errorAlert(check.error.issues[0]?.message ?? "That image can't be used");
+        e.target.value = "";
+        return;
+      }
       loadImage(files[0]);
     }
   };

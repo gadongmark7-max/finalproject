@@ -9,50 +9,47 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
-import { Plus, ImageIcon, LoaderCircle, DollarSign , File} from "lucide-react"
+import { useState } from "react"
+import { LoaderCircle, DollarSign, File } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
-import { bussinessInfoInterface } from "@/app/types/accounts.type"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, dateStringField } from "@/lib/validation/fields"
 
+const expirationSchema = dateStringField("Expiration date", { future: true })
 
 export function SubmitDocs({ id, document, hasExpiration, refetch  } : {id : string, hasExpiration : boolean, document : string,  refetch : () => void, }) {
 
   const [open, setOpen] = useState(false);
 
-  
+  const { file: documentFile, preview, error: fileError, onSelect, reset } = useImageField()
 
-  const [documentFile, setDocumentFile] = useState<File | null>(null)
-
-  const [preview, setPreview] = useState<string | null>(null)
-  
   const [expirationDate, setExpirationDate] = useState("");
-
-
+  const expirationError = hasExpiration ? firstError(expirationSchema, expirationDate) : undefined
+  const canSubmit = !!documentFile && (!hasExpiration || expirationSchema.safeParse(expirationDate).success)
 
   const submitMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.put("/account/documents", data),
     onSuccess : () => {
         successAlert("Permit Updated")
         setOpen(false)
-        setDocumentFile(null)
-        setPreview(null)
+        reset()
+        setExpirationDate("")
         refetch()
     },
     onError : () => errorAlert("Error occurred")
   })
 
-  const handleFileChange = (file: File | null) => {
-    setDocumentFile(file)
-    setPreview(file ? URL.createObjectURL(file) : null)
-  }
-
   const handleSubmit = () => {
-    if (!documentFile )  return errorAlert("no selected image")
-    if (!expirationDate && hasExpiration )  return errorAlert("expiration date missing")
+    if (!documentFile )  return errorAlert(fileError ?? "Please choose an image")
+    if (hasExpiration) {
+      const res = expirationSchema.safeParse(expirationDate)
+      if (!res.success) return errorAlert(res.error.issues[0]?.message ?? "Expiration date is invalid")
+    }
 
     const formData = new FormData()
     formData.append("file", documentFile)
@@ -108,12 +105,14 @@ export function SubmitDocs({ id, document, hasExpiration, refetch  } : {id : str
                 )}
                 <Input
                     type="file"
-                    accept="image/*"
-                    onChange={e => handleFileChange(e.target.files?.[0] || null)}
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={e => onSelect(e.target.files?.[0] || null)}
+                    aria-invalid={!!fileError}
                     className="text-sm"
                 />
+                <FieldError>{fileError}</FieldError>
             </div>
-            
+
             {hasExpiration && (
               <div className="space-y-2 mt-5">
                 <div className="flex justify-between">
@@ -121,17 +120,18 @@ export function SubmitDocs({ id, document, hasExpiration, refetch  } : {id : str
                     <DollarSign className="w-4 h-4" />
                     Expiration Date
                   </Label>
-                
+
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-1">
                   <Input
                     placeholder="Permit Expiration Date"
                     value={expirationDate}
-                    min={0}
                     type="date"
+                    aria-invalid={!!expirationError}
                     onChange={(e) => setExpirationDate(e.target.value)}
                   />
+                  <FieldError>{expirationError}</FieldError>
                 </div>
 
             </div>
@@ -143,7 +143,7 @@ export function SubmitDocs({ id, document, hasExpiration, refetch  } : {id : str
 
   
         <DialogFooter className="flex justify-center">
-          <Button disabled={submitMutation.isPending} className="w-full" onClick={handleSubmit}>
+          <Button disabled={submitMutation.isPending || !canSubmit} className="w-full" onClick={handleSubmit}>
             {submitMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
             Submit Documents
           </Button>

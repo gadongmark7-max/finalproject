@@ -9,15 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { successAlert, errorAlert } from "@/app/utils/alert"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useMemo, useState } from "react"
 import { bookingInterface } from "@/app/types/booking.type"
 import { payMongoBooking } from "@/app/utils/payMongo"
-import { LoaderCircle, ArrowDown, Wallet, DollarSign } from "lucide-react"
+import { LoaderCircle, DollarSign } from "lucide-react"
+import { Controller } from "react-hook-form"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { makeOnlinePaymentSchema } from "@/lib/validation/schemas/payment"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
 
 
 export function OnlinePayment({ booking } : { booking : bookingInterface}) {
@@ -25,20 +25,22 @@ export function OnlinePayment({ booking } : { booking : bookingInterface}) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const balance = Number(booking.balance)
+  const schema = useMemo(() => makeOnlinePaymentSchema(balance), [balance])
 
-  const [amount, setAmount] = useState(booking.balance.toString())
+  const {
+    control,
+    handleSubmit: rhfSubmit,
+    formState: { errors, isValid },
+  } = useZodForm(schema, { defaultValues: { amount: booking.balance?.toString() ?? "" } })
 
-  const isInvalidAmount = () => !amount || Number(amount) > Number(booking.balance)
- 
-
-  const handleSubmit = () => {
-    if(isInvalidAmount()) return errorAlert("invalid amount")
+  const handleSubmit = rhfSubmit((values) => {
     setIsLoading(true)
     const sender = booking.client._id
     const receiver = booking.bussiness?._id ?? booking.artist._id
     const bookingId = booking._id
-    payMongoBooking(amount,sender, receiver, bookingId)
-  }
+    payMongoBooking(String(values.amount), sender, receiver, bookingId)
+  })
 
 
     
@@ -80,25 +82,27 @@ export function OnlinePayment({ booking } : { booking : bookingInterface}) {
             {/* Amount */}
             <div className="space-y-2">
             <label className="text-sm font-medium text-gold">Amount</label>
-            <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                ₱
-                </span>
-                <Input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className={`pl-8 ${isInvalidAmount() && "border-red-500 focus-visible:ring-red-500"}`}
-                placeholder="Enter amount"
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field }) => (
+                <MoneyInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  aria-invalid={!!errors.amount}
+                  placeholder="Enter amount"
                 />
-            </div>
+              )}
+            />
+            <FieldError>{errors.amount?.message}</FieldError>
             </div>
 
         </div>
 
 
         <DialogFooter className="mt-6">
-          <Button onClick={handleSubmit} disabled={isLoading} className="w-full">
+          <Button onClick={handleSubmit} disabled={isLoading || !isValid} className="w-full">
             {isLoading && (
               <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
             )}

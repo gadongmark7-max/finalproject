@@ -8,16 +8,24 @@ import { errorAlert } from "@/app/utils/alert";
 import { LoaderCircle, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field-error";
+import { useZodForm } from "@/lib/validation/useZodForm";
+import { loginSchema, type LoginValues } from "@/lib/validation/schemas/auth";
 import { gsap } from "gsap";
 
 const ATTEMPTS_PER_BATCH = 3;
 const BASE_LOCKOUT_SECONDS = 20;
 
 export default function LoginPage() {
-  const [email, setEmail]               = useState("");
-  const [password, setPassword]         = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading]       = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useZodForm(loginSchema, { defaultValues: { email: "", password: "" } });
 
   // ── Lockout state ──
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -182,8 +190,8 @@ export default function LoginPage() {
       }
     },
     onError: (err: { request: { response: string } }) => {
-      setPassword("")
-      setEmail("")
+      setValue("password", "")
+      setValue("email", "")
       errorAlert(err.request.response);
       setIsLoading(false);
       gsap.fromTo(rightRef.current, { x: -10 }, { x: 0, duration: 0.55, ease: "elastic.out(1, 0.35)" });
@@ -204,13 +212,10 @@ export default function LoginPage() {
     },
   });
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = (values: LoginValues) => {
     if (isLocked) return;
-    if (!email || !password) return errorAlert("Please fill in all fields");
-
     gsap.to(btnRef.current, { scale: 0.97, duration: 0.1, yoyo: true, repeat: 1, ease: "power1.inOut" });
-    mutation.mutate({ email, password });
+    mutation.mutate(values);
     setIsLoading(true);
   };
 
@@ -335,7 +340,7 @@ export default function LoginPage() {
           <div ref={dividerRef} className="w-full h-px bg-border my-6" />
 
           <fieldset disabled={isLocked} className="contents">
-            <form onSubmit={handleLogin}>
+            <form onSubmit={handleSubmit(handleLogin)} noValidate>
 
               {/* Email */}
               <div ref={f1Ref} className="mb-5">
@@ -354,14 +359,14 @@ export default function LoginPage() {
                   </svg>
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    {...register("email")}
                     placeholder="you@example.com"
-                    required
-                    className="w-full pl-10 pr-3.5 py-3 bg-primary border border-border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40"
+                    aria-invalid={!!errors.email}
+                    className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.email ? "border-danger" : "border-border"}`}
                     style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                   />
                 </div>
+                <FieldError>{errors.email?.message}</FieldError>
               </div>
 
               {/* Password */}
@@ -381,11 +386,10 @@ export default function LoginPage() {
                   </svg>
                   <input
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    {...register("password")}
                     placeholder="••••••••"
-                    required
-                    className="w-full pl-10 pr-10 py-3 bg-primary border border-border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40"
+                    aria-invalid={!!errors.password}
+                    className={`w-full pl-10 pr-10 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.password ? "border-danger" : "border-border"}`}
                     style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                   />
                   <button
@@ -398,6 +402,7 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
+                <FieldError>{errors.password?.message}</FieldError>
               </div>
 
               {/* Attempts-remaining hint (shows only after a failed try, before lockout) */}

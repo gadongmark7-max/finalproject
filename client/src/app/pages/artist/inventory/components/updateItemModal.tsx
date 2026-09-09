@@ -1,3 +1,4 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
@@ -11,7 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { inventoryInterfaceInput, inventoryInterface } from "@/app/types/inventory.type"
+import { inventoryInterface } from "@/app/types/inventory.type"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
@@ -24,6 +25,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Controller } from "react-hook-form"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { updateItemSchema } from "@/lib/validation/schemas/inventory"
+import { FieldError } from "@/components/ui/field-error"
 
 export function UpdateItemModal({ setInventory , inventory} : { inventory : inventoryInterface , setInventory : (data : inventoryInterface[]) => void }) {
 
@@ -31,10 +36,19 @@ export function UpdateItemModal({ setInventory , inventory} : { inventory : inve
 
     const { user } = useUserStore()
 
-    const [item, setItem] = useState(inventory.item)
-    const [category, setCategory] = useState(inventory.category)
-    const [stocks, setStocks] = useState(inventory.stocks)
-    const [safeStocks, setSafeStocks] = useState(inventory.safeStock)
+    const {
+      register,
+      control,
+      handleSubmit,
+      formState: { errors, isValid },
+    } = useZodForm(updateItemSchema, {
+      defaultValues: {
+        item: inventory.item,
+        category: inventory.category,
+        stocks: String(inventory.stocks ?? ""),
+        safeStock: String(inventory.safeStock ?? ""),
+      },
+    })
 
     const updateMutation = useMutation({
         mutationFn : (inventory : inventoryInterface, ) => axiosInstance.put("/inventory", {inventory, recordedBy : "none"}),
@@ -53,19 +67,19 @@ export function UpdateItemModal({ setInventory , inventory} : { inventory : inve
         }, onError : () => errorAlert("error accour")
     })
 
-    const updateHandler = () => {
-        if(!user || !item.trim() || !category.trim()) return errorAlert("empty field")
+    const updateHandler = handleSubmit((values) => {
+        if(!user) return errorAlert("empty field")
           updateMutation.mutate({
             _id : inventory._id,
             account : user,
-            item,
-            stocks,
-            category,
+            item : values.item,
+            stocks : values.stocks,
+            category : values.category,
             type : inventory.type,
-            safeStock : safeStocks,
+            safeStock : values.safeStock,
             price : inventory.price
         })
-    }
+    })
 
     
     const deleteHandler = () => {
@@ -91,54 +105,63 @@ export function UpdateItemModal({ setInventory , inventory} : { inventory : inve
 
                 <div className="mt-3 w-full">
                     <h1 className="font-bold text-stone-600"> Item Name </h1>
-                    <Input 
-                        value={item}
-                        onChange={(e) => setItem(e.target.value)}
+                    <Input
+                        {...register("item")}
+                        aria-invalid={!!errors.item}
                         placeholder="item name"
                         className="w-full"
                     />
+                    <FieldError>{errors.item?.message}</FieldError>
                 </div>
 
                 <div className="space-y-2 mt-2">
                     <Label>Category</Label>
-                    <Select onValueChange={setCategory}>
-                      <SelectTrigger className=" w-full">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Tattoo Equipment">Tattoo Equipment</SelectItem>
-                        <SelectItem value="Needles & Cartridges">Needles & Cartridges</SelectItem>
-                        <SelectItem value="Inks & Pigments">Inks & Pigments</SelectItem>
-                        <SelectItem value="kin Prep & Aftercare">kin Prep & Aftercare</SelectItem>
-                        <SelectItem value="Hygiene & Safety">Hygiene & Safety</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Controller
+                      control={control}
+                      name="category"
+                      render={({ field }) => (
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className=" w-full">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Tattoo Equipment">Tattoo Equipment</SelectItem>
+                            <SelectItem value="Needles & Cartridges">Needles & Cartridges</SelectItem>
+                            <SelectItem value="Inks & Pigments">Inks & Pigments</SelectItem>
+                            <SelectItem value="kin Prep & Aftercare">kin Prep & Aftercare</SelectItem>
+                            <SelectItem value="Hygiene & Safety">Hygiene & Safety</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <FieldError>{errors.category?.message}</FieldError>
                 </div>
 
 
 
                 <div className="mt-3 w-full">
                     <h1 className="font-bold text-stone-600">  Stocks </h1>
-                    <Input 
-                        value={stocks}
-                        type="number"
-                        onChange={(e) => setStocks(Number(e.target.value))}
-                        placeholder="initial stocks"
+                    <Input
+                        {...register("stocks")}
+                        inputMode="numeric"
+                        aria-invalid={!!errors.stocks}
+                        placeholder="stock on hand"
                         className="w-full"
                     />
+                    <FieldError>{errors.stocks?.message}</FieldError>
                 </div>
 
 
-                
                 <div className="mt-3 w-full">
                     <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
-                    <Input 
-                        value={safeStocks}
-                        type="number"
-                        onChange={(e) => setSafeStocks(Number(e.target.value))}
-                        placeholder="initial stocks"
+                    <Input
+                        {...register("safeStock")}
+                        inputMode="numeric"
+                        aria-invalid={!!errors.safeStock}
+                        placeholder="safe stock level"
                         className="w-full"
                     />
+                    <FieldError>{errors.safeStock?.message}</FieldError>
                 </div>
                
 
@@ -150,7 +173,7 @@ export function UpdateItemModal({ setInventory , inventory} : { inventory : inve
           
             </div>
         <SheetFooter>
-          <Button onClick={updateHandler}>Update Item</Button>
+          <Button onClick={updateHandler} disabled={!isValid || updateMutation.isPending}>Update Item</Button>
           <SheetClose asChild>
             <Button variant="outline">Close</Button>
           </SheetClose>

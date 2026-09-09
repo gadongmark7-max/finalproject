@@ -9,56 +9,46 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
-import { Plus, ImageIcon, LoaderCircle, DollarSign } from "lucide-react"
+import { useState } from "react"
+import { LoaderCircle, DollarSign } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import { bussinessInfoInterface } from "@/app/types/accounts.type"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, dateStringField } from "@/lib/validation/fields"
 
+const expirationSchema = dateStringField("Expiration date", { future: true })
 
 export function UpdatePermit({ bussinessInfo, refetch } : { bussinessInfo : bussinessInfoInterface, refetch : () => void}) {
 
   const [open, setOpen] = useState(false);
 
+  const { file: businessPermit, preview, error: fileError, onSelect, reset } = useImageField()
 
-  const [businessPermit, setBusinessPermit] = useState<File | null>(null)
-
-  const [preview, setPreview] = useState<string | null>(null)
-  
-  const [document, setDocument] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
-
-  
+  const expirationError = firstError(expirationSchema, expirationDate)
+  const canSubmit = !!businessPermit && expirationSchema.safeParse(expirationDate).success
 
   const submitMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.put("/account/documents", data),
     onSuccess : () => {
         successAlert("Permit Updated")
         setOpen(false)
-        setBusinessPermit(null)
-        setPreview(null)
+        reset()
+        setExpirationDate("")
         refetch()
     },
     onError : () => errorAlert("Error occurred")
   })
 
-  const handleFileChange = (file: File | null) => {
-    setBusinessPermit(file)
-    setPreview(file ? URL.createObjectURL(file) : null)
-  }
-
   const handleSubmit = () => {
-    if (!businessPermit || !expirationDate)  return errorAlert("Please select both files")
+    if (!businessPermit) return errorAlert(fileError ?? "Please choose an image")
+    const res = expirationSchema.safeParse(expirationDate)
+    if (!res.success) return errorAlert(res.error.issues[0]?.message ?? "Expiration date is invalid")
 
     const formData = new FormData()
     formData.append("file", businessPermit)
@@ -116,10 +106,12 @@ export function UpdatePermit({ bussinessInfo, refetch } : { bussinessInfo : buss
                 )}
                 <Input
                     type="file"
-                    accept="image/*"
-                    onChange={e => handleFileChange(e.target.files?.[0] || null)}
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={e => onSelect(e.target.files?.[0] || null)}
+                    aria-invalid={!!fileError}
                     className="text-sm"
                 />
+                <FieldError>{fileError}</FieldError>
             </div>
 
             
@@ -132,23 +124,24 @@ export function UpdatePermit({ bussinessInfo, refetch } : { bussinessInfo : buss
                    
                   </div>
               
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-1">
                     <Input
                       placeholder="Permit Expiration Date"
                       value={expirationDate}
-                      min={0}
                       type="date"
+                      aria-invalid={!!expirationError}
                       onChange={(e) => setExpirationDate(e.target.value)}
                     />
+                    <FieldError>{expirationError}</FieldError>
                   </div>
 
             </div>
-            
+
             </div>
 
-  
+
         <DialogFooter className="flex justify-center">
-          <Button disabled={submitMutation.isPending} className="w-full" onClick={handleSubmit}>
+          <Button disabled={submitMutation.isPending || !canSubmit} className="w-full" onClick={handleSubmit}>
             {submitMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
             Submit Documents
           </Button>

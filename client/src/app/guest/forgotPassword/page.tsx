@@ -5,6 +5,13 @@ import axiosInstance from "@/app/utils/axios";
 import { errorAlert, successAlert } from "@/app/utils/alert";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FieldError } from "@/components/ui/field-error";
+import { useZodForm } from "@/lib/validation/useZodForm";
+import {
+  forgotEmailSchema,
+  forgotOtpSchema,
+  resetPasswordSchema,
+} from "@/lib/validation/schemas/auth";
 import {
   Mail,
   KeyRound,
@@ -25,13 +32,16 @@ export default function ForgotPasswordPage() {
 
   const [step, setStep]              = useState<1 | 2 | 3>(1);
   const [email, setEmail]            = useState("");
-  const [otpInput, setOtpInput]      = useState("");
   const [isCorrect, setIsCorrect]    = useState<boolean | null>(null);
-  const [password, setPassword]      = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [timer, setTimer]            = useState(0);
+
+  const emailForm = useZodForm(forgotEmailSchema, { defaultValues: { email: "" } });
+  const otpForm   = useZodForm(forgotOtpSchema, { defaultValues: { code: "" } });
+  const resetForm = useZodForm(resetPasswordSchema, {
+    defaultValues: { password: "", confirmPassword: "" },
+  });
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -90,28 +100,23 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return errorAlert("Please enter your email");
-    sendOtpMutation.mutate(email);
-  };
+  const handleSendOtp = emailForm.handleSubmit((values) => {
+    setEmail(values.email);
+    sendOtpMutation.mutate(values.email);
+  });
 
-  const handleVerify = () => {
-    if (!otpInput.trim()) return;
-    verifyMutation.mutate(otpInput);
-  };
+  const handleVerify = otpForm.handleSubmit((values) => {
+    verifyMutation.mutate(values.code);
+  });
 
   const handleResend = () => {
     if (timer > 0) return;
     resendMutation.mutate();
   };
 
-  const handleUpdate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password.length < 8) return errorAlert("password too weak");
-    if (password !== confirmPassword) return errorAlert("Passwords do not match");
-    updateMutation.mutate(password);
-  };
+  const handleUpdate = resetForm.handleSubmit((values) => {
+    updateMutation.mutate(values.password);
+  });
 
   const inputBase = "w-full pl-10 pr-3.5 py-3 bg-primary border border-border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)]";
   const labelBase = "block text-[0.62rem] font-light tracking-[0.2em] uppercase text-text-muted mb-2";
@@ -227,14 +232,14 @@ export default function ForgotPasswordPage() {
                   </svg>
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    {...emailForm.register("email")}
                     placeholder="you@example.com"
-                    required
-                    className={inputBase}
+                    aria-invalid={!!emailForm.formState.errors.email}
+                    className={`${inputBase} ${emailForm.formState.errors.email ? "!border-danger" : ""}`}
                     style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                   />
                 </div>
+                <FieldError>{emailForm.formState.errors.email?.message}</FieldError>
               </div>
 
               <button
@@ -261,13 +266,15 @@ export default function ForgotPasswordPage() {
                 <label className={labelBase}>One-Time Passcode</label>
                 <input
                   type="text"
-                  value={otpInput}
-                  onChange={(e) => { setOtpInput(e.target.value); setIsCorrect(null); }}
-                  onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+                  inputMode="numeric"
+                  {...otpForm.register("code", { onChange: () => setIsCorrect(null) })}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleVerify(); }}
                   placeholder="— — — — — —"
-                  maxLength={8}
-                  className="bg-surface border border-border rounded-none text-text text-center text-xl tracking-[0.4em] px-4 py-3 placeholder:text-text-dim focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 transition-all duration-300 w-full"
+                  maxLength={6}
+                  aria-invalid={!!otpForm.formState.errors.code}
+                  className={`bg-surface border rounded-none text-text text-center text-xl tracking-[0.4em] px-4 py-3 placeholder:text-text-dim focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 transition-all duration-300 w-full ${otpForm.formState.errors.code ? "border-danger" : "border-border"}`}
                 />
+                <FieldError>{otpForm.formState.errors.code?.message}</FieldError>
               </div>
 
               {/* Status: Error */}
@@ -298,7 +305,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 onClick={handleVerify}
-                disabled={verifyMutation.isPending || !otpInput.trim() || isCorrect === true}
+                disabled={verifyMutation.isPending || !otpForm.formState.isValid || isCorrect === true}
                 className="w-full bg-gold text-primary text-[11px] uppercase tracking-[0.24em] px-6 py-3 flex items-center justify-center gap-2 hover:bg-gold-light transition-colors duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {verifyMutation.isPending ? (
@@ -337,11 +344,10 @@ export default function ForgotPasswordPage() {
                     </svg>
                     <input
                       type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      {...resetForm.register("password")}
                       placeholder="Min. 8 characters"
-                      required
-                      className={`${inputBase} pr-10`}
+                      aria-invalid={!!resetForm.formState.errors.password}
+                      className={`${inputBase} pr-10 ${resetForm.formState.errors.password ? "!border-danger" : ""}`}
                       style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                     />
                     <button
@@ -353,6 +359,7 @@ export default function ForgotPasswordPage() {
                       {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
+                  <FieldError>{resetForm.formState.errors.password?.message}</FieldError>
                 </div>
 
                 <div>
@@ -364,11 +371,10 @@ export default function ForgotPasswordPage() {
                     </svg>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      {...resetForm.register("confirmPassword")}
                       placeholder="Repeat password"
-                      required
-                      className={`${inputBase} pr-10`}
+                      aria-invalid={!!resetForm.formState.errors.confirmPassword}
+                      className={`${inputBase} pr-10 ${resetForm.formState.errors.confirmPassword ? "!border-danger" : ""}`}
                       style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                     />
                     <button
@@ -380,16 +386,14 @@ export default function ForgotPasswordPage() {
                       {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
-                  {confirmPassword && confirmPassword === password && (
-                    <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-[#7AAE87] mt-1.5">
-                      <CheckCircle2 size={11} /> Passwords match
-                    </p>
-                  )}
-                  {confirmPassword && confirmPassword !== password && (
-                    <p className="text-[0.65rem] tracking-[0.1em] uppercase font-light text-text-muted mt-1.5">
-                      Passwords don&apos;t match
-                    </p>
-                  )}
+                  {resetForm.watch("confirmPassword") &&
+                    resetForm.watch("confirmPassword") === resetForm.watch("password") &&
+                    !resetForm.formState.errors.confirmPassword && (
+                      <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-[#7AAE87] mt-1.5">
+                        <CheckCircle2 size={11} /> Passwords match
+                      </p>
+                    )}
+                  <FieldError>{resetForm.formState.errors.confirmPassword?.message}</FieldError>
                 </div>
               </div>
 

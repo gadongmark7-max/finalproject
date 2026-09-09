@@ -18,6 +18,12 @@ import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import axios from "axios"
 import { idVerificationFormat } from "@/app/utils/idverification"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, requiredText, dateStringField, imageFile } from "@/lib/validation/fields"
+
+const nameSchema = requiredText("Business name", { min: 2, max: 120 })
+const dateSchema = dateStringField("Expiration date", { future: true })
+const docImageSchema = imageFile({ maxMB: 8 })
  
 export function BussinessVerifiactionModal() {
   const [open, setOpen] = useState(false);
@@ -113,6 +119,9 @@ export function BussinessVerifiactionModal() {
   const handleFileChange = (file: File | null, type: "BarangayClearance" | "businessPermit") => {
     if(!file) return
 
+    const check = docImageSchema.safeParse(file)
+    if (!check.success) return errorAlert(check.error.issues[0]?.message ?? "That file can't be used")
+
     const formData = new FormData()
     formData.append("file", file)
     formData.append("apikey", "K85466001188957")
@@ -128,10 +137,20 @@ export function BussinessVerifiactionModal() {
     }
   }
 
+  const nameError = firstError(nameSchema, bussinessName)
+  const clearanceDateError = firstError(dateSchema, clearanceDate)
+  const expirationDateError = firstError(dateSchema, expirationDate)
+  const formValid = nameSchema.safeParse(bussinessName).success &&
+    dateSchema.safeParse(clearanceDate).success &&
+    dateSchema.safeParse(expirationDate).success
+
   const handleSubmit = () => {
-    if (!BarangayClearance || !businessPermit || !bussinessName || !expirationDate || !clearanceDate) {
-      return errorAlert("Please fill all required fields and select both files")
+    if (!BarangayClearance || !businessPermit) {
+      return errorAlert("Please select both document images")
     }
+    if (!nameSchema.safeParse(bussinessName).success) return errorAlert(nameError ?? "Enter the business name")
+    if (!dateSchema.safeParse(clearanceDate).success) return errorAlert("Please choose a valid clearance expiration date")
+    if (!dateSchema.safeParse(expirationDate).success) return errorAlert("Please choose a valid permit expiration date")
 
     const formData = new FormData()
     formData.append("BarangayClearance", BarangayClearance)
@@ -168,8 +187,10 @@ export function BussinessVerifiactionModal() {
                 placeholder="Business Name"
                 value={bussinessName}
                 type="text"
+                aria-invalid={!!nameError}
                 onChange={(e) => setBussinessName(e.target.value)}
               />
+              <FieldError>{nameError}</FieldError>
           </div>
 
 
@@ -188,8 +209,10 @@ export function BussinessVerifiactionModal() {
                 type="date"
                 placeholder="Clearance Expiration"
                 value={clearanceDate}
+                aria-invalid={!!clearanceDateError}
                 onChange={(e) => setClearanceDate(e.target.value)}
               />
+              <FieldError>{clearanceDateError}</FieldError>
             </div>
 
 
@@ -203,8 +226,10 @@ export function BussinessVerifiactionModal() {
               type="date"
               placeholder="Permit Expiration Date"
               value={expirationDate}
+              aria-invalid={!!expirationDateError}
               onChange={(e) => setExpirationDate(e.target.value)}
             />
+            <FieldError>{expirationDateError}</FieldError>
           </div>
 
           </div>
@@ -247,7 +272,7 @@ export function BussinessVerifiactionModal() {
           )}
           <Input
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             onChange={e => handleFileChange(e.target.files?.[0] || null, "BarangayClearance")}
             className="text-sm"
           />
@@ -288,7 +313,7 @@ export function BussinessVerifiactionModal() {
           )}
           <Input
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp"
             onChange={e => handleFileChange(e.target.files?.[0] || null, "businessPermit")}
             className="text-sm"
           />
@@ -298,7 +323,7 @@ export function BussinessVerifiactionModal() {
         </div>
 
         <DialogFooter className="flex justify-center">
-          <Button disabled={submitMutation.isPending || !clearanceIsCorrectFormat || !permitIsCorrectFormat} className="w-full" onClick={handleSubmit}>
+          <Button disabled={submitMutation.isPending || !clearanceIsCorrectFormat || !permitIsCorrectFormat || !formValid} className="w-full" onClick={handleSubmit}>
             {submitMutation.isPending && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
             Submit Documents
           </Button>

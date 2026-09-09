@@ -12,20 +12,16 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
-import {
-  Calendar,
-  Clock,
-  LoaderCircle,
-  User,
-  Edit,
-  DollarSignIcon
-} from "lucide-react"
+import { Calendar, Clock, LoaderCircle, Edit, DollarSignIcon } from "lucide-react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import { convertToAmPm } from "@/app/utils/customFunction"
 import { accountInterface } from "@/app/types/accounts.type"
 import { Input } from "@/components/ui/input"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, moneyField } from "@/lib/validation/fields"
 import {
     Select,
     SelectContent,
@@ -33,6 +29,8 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
+
+const salarySchema = moneyField({ label: "Salary", allowZero: true })
   
 
 const times = [
@@ -57,8 +55,19 @@ export function EditSchedule({ employee, currentDays, CurrentTime, hrs , current
   const [dutyHours, setDutyHours] = useState<number>(hrs)
   const [time, setTime] = useState(CurrentTime)
 
-  const [salary, setSalary] = useState(currentSalary || 0)
+  const [salary, setSalary] = useState(String(currentSalary || ""))
   const [salaryType, setSalaryType] = useState(currentSalaryType || "hr")
+
+  const salaryError = firstError(salarySchema, salary)
+
+  const setDutyHoursInput = (raw: string) => {
+    if (raw === "") return
+    const n = Number(raw)
+    if (Number.isInteger(n) && n >= 1 && n <= 24) {
+      setDutyHours(n)
+      setTime([])
+    }
+  }
 
 
   /* TOGGLE DAY (PUSH / POP) */
@@ -94,12 +103,14 @@ export function EditSchedule({ employee, currentDays, CurrentTime, hrs , current
     if (!selectedDays.length || !time.length) {
       return errorAlert("Select days and time")
     }
+    const parsedSalary = salarySchema.safeParse(salary)
+    if (!parsedSalary.success) return errorAlert(parsedSalary.error.issues[0]?.message ?? "Enter a valid salary")
     uploadMutation.mutate({
       id: employee._id,
       day: selectedDays,
       time,
       type : "bussiness_employee",
-      salary,
+      salary: parsedSalary.data,
       salaryType
     })
   }
@@ -177,7 +188,7 @@ export function EditSchedule({ employee, currentDays, CurrentTime, hrs , current
                 {hour} hrs
               </Button>
             ))}
-            <Input className="w-24"   placeholder="custom hrs" onChange={(e) => setDutyHours(Number(e.target.value)) }/>
+            <Input className="w-24" inputMode="numeric" placeholder="custom hrs" onChange={(e) => setDutyHoursInput(e.target.value)} />
           </div>
         </div>
 
@@ -226,14 +237,16 @@ export function EditSchedule({ employee, currentDays, CurrentTime, hrs , current
 
     
 
-            <div className="flex gap-2 ">
-                <Input
-                type="number"
-                min={0}
-                placeholder="Salary amount"
-                value={salary}
-                onChange={(e) => setSalary(Number(e.target.value))}
-                />
+            <div className="flex gap-2 items-start">
+                <div className="w-full">
+                  <MoneyInput
+                    placeholder="Salary amount"
+                    value={salary}
+                    onChange={setSalary}
+                    aria-invalid={!!salaryError}
+                  />
+                  <FieldError>{salaryError}</FieldError>
+                </div>
 
                 <Select value={salaryType} onValueChange={setSalaryType}>
                 <SelectTrigger className="w-full">
@@ -253,7 +266,7 @@ export function EditSchedule({ employee, currentDays, CurrentTime, hrs , current
         <DialogFooter>
           <Button
             className="w-full gap-2"
-            disabled={uploadMutation.isPending}
+            disabled={uploadMutation.isPending || !!salaryError}
             onClick={handleSave}
           >
             {uploadMutation.isPending && (

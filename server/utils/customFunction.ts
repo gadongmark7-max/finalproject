@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const sendPin = async (email: string, pin: string) => {
-  const apiKey = process.env.brevoKey || "";
+  const apiKey = process.env.BREVO_API_KEY || "";
 
   try {
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -69,7 +69,7 @@ export const sendEmail = async (
   email : string, title : string,  message : string
 ) => {
 
-  const apiKey =  process.env.brevoKey || ""
+  const apiKey =  process.env.BREVO_API_KEY || ""
   const senderEmail = "krelianquimson@gmail.com"
   const senderName = "from Ink Of Baphomet"
 

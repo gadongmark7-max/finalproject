@@ -15,6 +15,9 @@ import { employeeInfo } from "@/app/types/accounts.type"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { employeeInfoSchema, type EmployeeInfoValues } from "@/lib/validation/schemas/staff"
+import { FieldError } from "@/components/ui/field-error"
 
 const palceHolder = {
     fullname : "",
@@ -45,20 +48,23 @@ export function EmployeeInfo({
   
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<employeeInfo>(info || palceHolder);
 
-  const handleChange = (key: keyof employeeInfo, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }))
-  }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useZodForm(employeeInfoSchema, {
+    defaultValues: { ...palceHolder, ...(info ?? {}) },
+  })
 
   // ✅ UPDATE
   const updateMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (values: EmployeeInfoValues) =>
       axiosInstance.put("/account/employee/info", {
         employeeId,
         businessId,
         type: "artist",
-        info: form
+        info: values
       }),
     onSuccess: () => {
       successAlert("Employee updated")
@@ -84,6 +90,8 @@ export function EmployeeInfo({
     onError: () => errorAlert("Delete failed")
   })
 
+
+  const handleSave = handleSubmit((values) => updateMutation.mutate(values))
 
   const handleRemove = () => {
     setOpen(false)
@@ -127,83 +135,110 @@ export function EmployeeInfo({
         {/* ✅ 2 COLUMN GRID */}
         <div className="grid grid-cols-2 gap-3 mb-4">
 
-          <Input
-            placeholder="Fullname"
-            value={form.fullname}
-            onChange={(e) => handleChange("fullname", e.target.value)}
-            className="col-span-2"
-          />
+          <div className="col-span-2">
+            <Input
+              placeholder="Fullname"
+              aria-invalid={!!errors.fullname}
+              {...register("fullname")}
+            />
+            <FieldError>{errors.fullname?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="Email"
+              aria-invalid={!!errors.email}
+              {...register("email")}
+            />
+            <FieldError>{errors.email?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="Contact"
-            value={form.contact}
-            onChange={(e) => handleChange("contact", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="Contact"
+              aria-invalid={!!errors.contact}
+              {...register("contact")}
+            />
+            <FieldError>{errors.contact?.message}</FieldError>
+          </div>
 
-          <Input
-            type="date"
-            value={form.dateOfBirth}
-            onChange={(e) => handleChange("dateOfBirth", e.target.value)}
-          />
+          <div>
+            <Input type="date" aria-invalid={!!errors.dateOfBirth} {...register("dateOfBirth")} />
+            <FieldError>{errors.dateOfBirth?.message}</FieldError>
+          </div>
 
           {/* ✅ Gender Select */}
-          <select
-            value={form.Gender}
-            onChange={(e) => handleChange("Gender", e.target.value)}
-            className="border rounded px-2 py-2 text-white"
-          >
-            <option value="">Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-          </select>
+          <div>
+            <select
+              {...register("Gender")}
+              aria-invalid={!!errors.Gender}
+              className="border rounded px-2 py-2 text-white w-full"
+            >
+              <option value="">Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+            <FieldError>{errors.Gender?.message}</FieldError>
+          </div>
 
           {/* ✅ Civil Status Select */}
-          <select
-            value={form.civilStatus}
-            onChange={(e) => handleChange("civilStatus", e.target.value)}
-            className="border rounded px-2 py-2 text-white"
-          >
-            <option value="">Civil Status</option>
-            <option value="Single">Single</option>
-            <option value="Married">Married</option>
-          </select>
+          <div>
+            <select
+              {...register("civilStatus")}
+              aria-invalid={!!errors.civilStatus}
+              className="border rounded px-2 py-2 text-white w-full"
+            >
+              <option value="">Civil Status</option>
+              <option value="Single">Single</option>
+              <option value="Married">Married</option>
+            </select>
+            <FieldError>{errors.civilStatus?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="TIN"
-            value={form.TIN}
-            onChange={(e) => handleChange("TIN", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="TIN"
+              aria-invalid={!!errors.TIN}
+              {...register("TIN")}
+            />
+            <FieldError>{errors.TIN?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="SSS"
-            value={form.SSS}
-            onChange={(e) => handleChange("SSS", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="SSS"
+              aria-invalid={!!errors.SSS}
+              {...register("SSS")}
+            />
+            <FieldError>{errors.SSS?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="PhilHealth"
-            value={form.PhilHealth}
-            onChange={(e) => handleChange("PhilHealth", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="PhilHealth"
+              aria-invalid={!!errors.PhilHealth}
+              {...register("PhilHealth")}
+            />
+            <FieldError>{errors.PhilHealth?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="Pag-IBIG"
-            value={form.PagIbig}
-            onChange={(e) => handleChange("PagIbig", e.target.value)}
-          />
+          <div>
+            <Input
+              placeholder="Pag-IBIG"
+              aria-invalid={!!errors.PagIbig}
+              {...register("PagIbig")}
+            />
+            <FieldError>{errors.PagIbig?.message}</FieldError>
+          </div>
 
-          <Input
-            placeholder="Address"
-            value={form.address}
-            onChange={(e) => handleChange("address", e.target.value)}
-            className="col-span-2"
-          />
+          <div className="col-span-2">
+            <Input
+              placeholder="Address"
+              aria-invalid={!!errors.address}
+              {...register("address")}
+            />
+            <FieldError>{errors.address?.message}</FieldError>
+          </div>
 
         </div>
 
@@ -213,8 +248,8 @@ export function EmployeeInfo({
         
           {/* 💾 SAVE BUTTON */}
           <Button
-            onClick={() => updateMutation.mutate()}
-            disabled={updateMutation.isPending}
+            onClick={handleSave}
+            disabled={updateMutation.isPending || !isValid}
             className="w-full"
           >
             {updateMutation.isPending ? "Updating..." : "Save"}

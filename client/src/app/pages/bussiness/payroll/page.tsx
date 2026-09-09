@@ -1,8 +1,8 @@
 "use client"
 import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios";
-import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
+import { errorAlert } from "@/app/utils/alert"
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import useUserStore from "@/app/store/useUserStore";
 import { attendanceInterface } from "@/app/types/attendance.type";
@@ -138,11 +138,22 @@ export default function Page() {
   };
 
   const generatePayRoll = () => {
-    if ((salaryType === "hr" || salaryType === "day") && (!startDate || !endDate)) {
-      return errorAlert("Empty date range");
+    if (salaryType === "hr" || salaryType === "day") {
+      if (!startDate || !endDate) {
+        return errorAlert("Please choose a start and end date");
+      }
+      if (Number.isNaN(Date.parse(startDate)) || Number.isNaN(Date.parse(endDate))) {
+        return errorAlert("Please choose valid dates");
+      }
+      if (new Date(startDate) > new Date(endDate)) {
+        return errorAlert("The start date can't be after the end date");
+      }
     }
     if (salaryType === "month" && !selectedMonth) {
-      return errorAlert("Empty month");
+      return errorAlert("Please select a month");
+    }
+    if (selectedEmployees.length === 0) {
+      return errorAlert("Select at least one employee");
     }
 
     setAttendanceByRange(null);

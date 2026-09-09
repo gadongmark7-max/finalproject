@@ -3,12 +3,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, Zap, Calendar, CalendarDays, Settings2, ArrowRight } from "lucide-react";
 import useUserStore from "@/app/store/useUserStore";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios";
-import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
+import { errorAlert, confirmAlert } from "@/app/utils/alert"
 import { accountInterface } from "@/app/types/accounts.type";
 import { payMongoSubs } from "@/app/utils/payMongo";
 import LoadingScreen from "@/components/ui/loadingScreen";
+import { FieldError } from "@/components/ui/field-error";
+import { firstError, countField } from "@/lib/validation/fields";
+
+const customDaysSchema = countField("Number of days", { min: 1, max: 365 });
 
 const BASE_PRICE = 150;
 
@@ -63,8 +67,11 @@ function formatPeso(amount: number) {
 
 export default function Subscription() {
   const [selected, setSelected] = useState("month");
-  const [customDays, setCustomDays] = useState(1);
+  const [customDays, setCustomDays] = useState("1");
   const [isLoading, setIsLoading] = useState(false);
+
+  const customDaysNum = Number(customDays) || 0;
+  const customDaysError = firstError(customDaysSchema, customDays);
 
   const { user } = useUserStore();
 
@@ -78,12 +85,15 @@ export default function Subscription() {
 
   const handleSubscribe = () => {
     if (!user || !adminData) return;
+    const plan = PLANS.find((p) => p.key === selected)!;
+    if (plan.key === "custom" && !customDaysSchema.safeParse(customDays).success) {
+      return errorAlert(customDaysError ?? "Enter a valid number of days");
+    }
     confirmAlert(`you want to avail ${selected} Plan?`, "Avail", () => {
-      const plan = PLANS.find((p) => p.key === selected)!;
-      const days = plan.key === "custom" ? customDays : plan.days!;
+      const days = plan.key === "custom" ? customDaysNum : plan.days!;
       const price =
         plan.key === "custom"
-          ? customDays * BASE_PRICE
+          ? customDaysNum * BASE_PRICE
           : getPrice(plan.days!, plan.discount);
       setIsLoading(true);
       payMongoSubs(price.toString(), user._id, adminData._id, days);
@@ -91,10 +101,10 @@ export default function Subscription() {
   };
 
   const selectedPlan = PLANS.find((p) => p.key === selected)!;
-  const currentDays = selectedPlan.key === "custom" ? customDays : selectedPlan.days!;
+  const currentDays = selectedPlan.key === "custom" ? customDaysNum : selectedPlan.days!;
   const currentPrice =
     selectedPlan.key === "custom"
-      ? customDays * BASE_PRICE
+      ? customDaysNum * BASE_PRICE
       : getPrice(selectedPlan.days!, selectedPlan.discount);
   const originalPrice =
     selectedPlan.key === "custom" ? null : selectedPlan.days! * BASE_PRICE;
@@ -213,11 +223,12 @@ export default function Subscription() {
                           Number of days
                         </label>
                         <input
-                          type="number"
-                          min={1}
+                          type="text"
+                          inputMode="numeric"
                           value={customDays}
                           disabled={!isSelected}
-                          onChange={(e) => setCustomDays(Math.max(1, Number(e.target.value)))}
+                          aria-invalid={isSelected && !!customDaysError}
+                          onChange={(e) => setCustomDays(e.target.value.replace(/\D/g, ""))}
                           className={`w-28 px-3 py-2 text-sm font-light border bg-primary text-text focus:outline-none transition-all
                             ${isSelected
                               ? "border-gold focus:border-gold"
@@ -225,6 +236,7 @@ export default function Subscription() {
                             }`}
                           style={{ borderRadius: 0 }}
                         />
+                        {isSelected && <FieldError>{customDaysError}</FieldError>}
                       </div>
                     )}
                   </div>
@@ -237,7 +249,7 @@ export default function Subscription() {
                           className={`text-2xl font-light ${isSelected ? "text-gold" : "text-text-muted"}`}
                           style={{ fontFamily: "'Cormorant Garamond', serif" }}
                         >
-                          {formatPeso(customDays * BASE_PRICE)}
+                          {formatPeso(customDaysNum * BASE_PRICE)}
                         </div>
                         <div className="text-[10px] uppercase tracking-[0.16em] text-text-dim mt-1">₱{BASE_PRICE}/day</div>
                       </div>
@@ -345,7 +357,7 @@ export default function Subscription() {
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b border-l border-gold opacity-40" />
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-gold opacity-40" />
             <div className="p-4">
-              <Button onClick={handleSubscribe} className="w-full">
+              <Button onClick={handleSubscribe} disabled={selected === "custom" && !!customDaysError} className="w-full">
                 Subscribe Now
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

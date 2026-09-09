@@ -14,14 +14,15 @@ import { Input } from "@/components/ui/input"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
+import { useMediaField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
 
 export function UploadImageModal({ type }: { type: string }) {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
 
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [fileType, setFileType] = useState<"image" | "video" | null>(null)
+  const { file, preview, error: fileError, onSelect, reset } = useMediaField()
+  const fileType = file?.type.startsWith("video") ? "video" : file ? "image" : null
 
   const uploadMutation = useMutation({
     mutationFn: (data: FormData) =>
@@ -29,35 +30,14 @@ export function UploadImageModal({ type }: { type: string }) {
     onSuccess: () => {
       successAlert("Uploaded successfully")
       setOpen(false)
-      setFile(null)
-      setPreview(null)
-      setFileType(null)
+      reset()
       queryClient.invalidateQueries({ queryKey: ["artist_profile"] })
     },
     onError: () => errorAlert("Upload error"),
   })
 
-  const handleFileChange = (file: File | null) => {
-    setFile(file)
-    if (!file) {
-      setPreview(null)
-      setFileType(null)
-      return
-    }
-
-    setPreview(URL.createObjectURL(file))
-
-    if (file.type.startsWith("video")) {
-      setFileType("video")
-    } else if (file.type.startsWith("image")) {
-      setFileType("image")
-    } else {
-      setFileType(null)
-    }
-  }
-
   const handleUpload = () => {
-    if (!file) return errorAlert("No file selected")
+    if (!file) return errorAlert(fileError ?? "Please choose a file")
     const formData = new FormData()
     formData.append("file", file)
     formData.append("type", type)
@@ -112,15 +92,17 @@ export function UploadImageModal({ type }: { type: string }) {
             <Input
               type="file"
               accept="image/*,video/*"
-              onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              aria-invalid={!!fileError}
             />
+            <FieldError>{fileError}</FieldError>
           </div>
         </div>
 
         <DialogFooter className="flex justify-center">
           <Button
             className="w-full"
-            disabled={uploadMutation.isPending}
+            disabled={uploadMutation.isPending || !file}
             onClick={handleUpload}
           >
             {uploadMutation.isPending && (

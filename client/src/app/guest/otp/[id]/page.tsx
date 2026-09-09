@@ -6,14 +6,22 @@ import { successAlert, errorAlert } from "@/app/utils/alert";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldX, RotateCcw, ArrowRight, KeyRound } from "lucide-react";
+import { FieldError } from "@/components/ui/field-error";
+import { useZodForm } from "@/lib/validation/useZodForm";
+import { otpSchema, type OtpValues } from "@/lib/validation/schemas/auth";
 
 export default function OtpPage() {
   const params = useParams();
   const paramsId = params.id as string;
 
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [input, setInput] = useState("");
   const [timer, setTimer] = useState(0);
+
+  const {
+    register,
+    handleSubmit: rhfSubmit,
+    formState: { errors, isValid },
+  } = useZodForm(otpSchema, { defaultValues: { code: "" } });
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -27,8 +35,8 @@ export default function OtpPage() {
   }, [timer]);
 
   const submitMutation = useMutation({
-    mutationFn: (input: string) =>
-      axiosInstance.post("/auth/otp", { id: paramsId, input: input }),
+    mutationFn: (code: string) =>
+      axiosInstance.post("/auth/otp", { id: paramsId, input: code }),
     onSuccess: () => { setIsCorrect(true); },
     onError: () => { errorAlert("invalid code"); setIsCorrect(false); },
   });
@@ -47,10 +55,9 @@ export default function OtpPage() {
     setTimer(30);
   };
 
-  const handleSubmit = () => {
-    if (!input.trim()) return;
-    submitMutation.mutate(input);
-  };
+  const handleSubmit = rhfSubmit((values: OtpValues) => {
+    submitMutation.mutate(values.code);
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary flex-col gap-6 px-4">
@@ -124,13 +131,15 @@ export default function OtpPage() {
             </label>
             <input
               type="text"
-              value={input}
-              onChange={(e) => { setInput(e.target.value); setIsCorrect(null); }}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              inputMode="numeric"
+              {...register("code", { onChange: () => setIsCorrect(null) })}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
               placeholder="— — — — — —"
-              maxLength={8}
-              className="bg-surface border border-border rounded-none text-text text-center text-xl tracking-[0.4em] px-4 py-3 placeholder:text-text-dim focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 transition-all duration-300 w-full"
+              maxLength={6}
+              aria-invalid={!!errors.code}
+              className={`bg-surface border rounded-none text-text text-center text-xl tracking-[0.4em] px-4 py-3 placeholder:text-text-dim focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 transition-all duration-300 w-full ${errors.code ? "border-danger" : "border-border"}`}
             />
+            <FieldError>{errors.code?.message}</FieldError>
           </div>
 
           {/* Status: Error */}
@@ -176,7 +185,7 @@ export default function OtpPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={submitMutation.isPending || !input.trim()}
+                disabled={submitMutation.isPending || !isValid}
                 className="w-full bg-gold text-primary text-[11px] uppercase tracking-[0.24em] px-6 py-3 flex items-center justify-center gap-2 hover:bg-gold-light transition-colors duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {submitMutation.isPending ? (
