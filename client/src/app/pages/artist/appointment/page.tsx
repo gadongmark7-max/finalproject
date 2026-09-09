@@ -19,12 +19,11 @@ import axiosInstance from "@/app/utils/axios"
 import { useRouter } from "next/navigation"
 import Swal from "sweetalert2"
 import { BookModal } from "./components/bookModal"
-import { convoInterface } from "@/app/types/convo.type"
 import useUserStore from "@/app/store/useUserStore"
-import { getChatIndex } from "@/app/utils/customFunction"
 import { bussinessInfoInterface, artistInfoInterface } from "@/app/types/accounts.type"
 import LoadingScreen from "@/components/ui/loadingScreen"
 import { UserCheck, UserX } from "lucide-react"
+import { ClientPicker } from "@/components/ui/client-picker"
 
 interface appointmentType {
   sessions : number[], 
@@ -44,18 +43,6 @@ export default function Page() {
 
 
   const {user} = useUserStore()
-
-
-  const [convos, setConvos] = useState<convoInterface[]>([])
-
-  const { data : convoData } = useQuery({
-    queryKey : ['convos'],
-    queryFn : () => axiosInstance.get(`/convo`)
-  })
-
-  useEffect(() => {
-    if(convoData?.data) setConvos(convoData?.data)
-  }, [convoData])
 
 
   const { data: bussinessInfoData } = useQuery({
@@ -162,7 +149,7 @@ export default function Page() {
     }) 
   }
 
-  if(!convoData || !bussinessInfoData || !artistInfoData) return <LoadingScreen />
+  if(!bussinessInfoData || !artistInfoData) return <LoadingScreen />
  
   
   return (
@@ -224,61 +211,8 @@ export default function Page() {
 
             {/* Client */}
             <div className="space-y-2 flex-1 min-w-0">
-              <Label>Client</Label>
-              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                {isNoClientAccount ? (
-                  <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
-                    <div className="w-full">
-                      <Input
-                        placeholder="Name"
-                        value={clientName}
-                        type="text"
-                        aria-invalid={!!clientNameError}
-                        onChange={(e) => setClientName(e.target.value)}
-                      />
-                      <FieldError>{clientNameError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Email"
-                        value={clientEmail}
-                        type="email"
-                        aria-invalid={!!clientEmailError}
-                        onChange={(e) => setClientEmail(e.target.value)}
-                      />
-                      <FieldError>{clientEmailError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Contact"
-                        value={clientContact}
-                        type="text"
-                        inputMode="numeric"
-                        aria-invalid={!!clientContactError}
-                        onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))}
-                      />
-                      <FieldError>{clientContactError}</FieldError>
-                    </div>
-                  </div>
-                ) : (
-                  <Select onValueChange={setClient}>
-                    <SelectTrigger className="w-full flex-1">
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {convos.map((convo) => {
-                        if (convo.accounts[getChatIndex(user?._id!, convo)].type !== "client") return;
-                        return (
-                          <SelectItem key={convo._id} value={convo.accounts[getChatIndex(user?._id!, convo)]._id}>
-                            <img src={convo.accounts[getChatIndex(user?._id!, convo)].profile} className="w-5 h-5 object-cover rounded-full" />
-                            {convo.accounts[getChatIndex(user?._id!, convo)].name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
-
+              <div className="flex items-center justify-between gap-2">
+                <Label>Client</Label>
                 <Button onClick={() => setIsNoClientAccount((prev) => !prev)} className="flex-shrink-0">
                   {isNoClientAccount ? (
                     <><UserCheck className="w-4 h-4" /> Has Account</>
@@ -287,6 +221,49 @@ export default function Page() {
                   )}
                 </Button>
               </div>
+
+              {isNoClientAccount ? (
+                <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
+                  <div className="w-full">
+                    <Input
+                      placeholder="Name"
+                      value={clientName}
+                      type="text"
+                      aria-invalid={!!clientNameError}
+                      onChange={(e) => setClientName(e.target.value)}
+                    />
+                    <FieldError>{clientNameError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input
+                      placeholder="Email"
+                      value={clientEmail}
+                      type="email"
+                      aria-invalid={!!clientEmailError}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                    />
+                    <FieldError>{clientEmailError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input
+                      placeholder="Contact"
+                      value={clientContact}
+                      type="text"
+                      inputMode="numeric"
+                      aria-invalid={!!clientContactError}
+                      onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    />
+                    <FieldError>{clientContactError}</FieldError>
+                  </div>
+                </div>
+              ) : (
+                <ClientPicker
+                  endpoint="/booking/appointment/clients"
+                  value={client}
+                  onSelect={(id) => setClient(id)}
+                  noRecordsLabel="No appointments found."
+                />
+              )}
             </div>
 
           </div>

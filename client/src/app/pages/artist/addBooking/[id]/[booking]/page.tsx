@@ -37,9 +37,8 @@ import { useParams } from "next/navigation"
 import { useRouter } from "next/navigation"
 import Swal from "sweetalert2"
 import { BookModal } from "./components/bookModal"
-import { convoInterface } from "@/app/types/convo.type"
 import useUserStore from "@/app/store/useUserStore"
-import { getChatIndex } from "@/app/utils/customFunction"
+import { ClientPicker } from "@/components/ui/client-picker"
 import { artistInfoInterface, bussinessInfoInterface } from "@/app/types/accounts.type"
 import { inventoryInterface } from "@/app/types/inventory.type"
 import { getInventoryName , getInventoryPrice, getInventoryType} from "@/app/utils/customFunction"
@@ -202,17 +201,6 @@ export default function Page() {
     }
   }, [bussiness, artistInfoData, bussinessInfoData])
 
-
-  const [convos, setConvos] = useState<convoInterface[]>([])
-
-  const { data : convoData } = useQuery({
-    queryKey : ['convos'],
-    queryFn : () => axiosInstance.get(`/convo`)
-  })
-
-  useEffect(() => {
-    if(convoData?.data) setConvos(convoData?.data)
-  }, [convoData])
 
 
   
@@ -502,40 +490,7 @@ export default function Page() {
                 <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">Required</span>
               </div>
 
-              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                {isNoClientAccount ? (
-                  <div className="flex flex-col sm:flex-row gap-2 w-full">
-                    <div className="w-full">
-                      <Input placeholder="Client name" value={clientName} type="text" aria-invalid={!!clientNameError} onChange={(e) => setClientName(e.target.value)} />
-                      <FieldError>{clientNameError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input placeholder="Client email" value={clientEmail} type="email" aria-invalid={!!clientEmailError} onChange={(e) => setClientEmail(e.target.value)} />
-                      <FieldError>{clientEmailError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input placeholder="Client contact" value={clientContact} type="text" inputMode="numeric" aria-invalid={!!clientContactError} onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))} />
-                      <FieldError>{clientContactError}</FieldError>
-                    </div>
-                  </div>
-                ) : (
-                  <Select onValueChange={setClient} value={client}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {convos.map((convo) => {
-                        if (convo.accounts[getChatIndex(user?._id!, convo)].type !== "client") return;
-                        return (
-                          <SelectItem key={convo._id} value={convo.accounts[getChatIndex(user?._id!, convo)]._id}>
-                            <img src={convo.accounts[getChatIndex(user?._id!, convo)].profile} className="w-5 h-5 object-cover rounded-full" />
-                            {convo.accounts[getChatIndex(user?._id!, convo)].name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
+              <div className="flex justify-end">
                 <Button onClick={() => setIsNoClientAccount((prev) => !prev)}>
                   {isNoClientAccount ? (
                     <><UserCheck className="w-4 h-4" /> Has account</>
@@ -544,6 +499,30 @@ export default function Page() {
                   )}
                 </Button>
               </div>
+
+              {isNoClientAccount ? (
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  <div className="w-full">
+                    <Input placeholder="Client name" value={clientName} type="text" aria-invalid={!!clientNameError} onChange={(e) => setClientName(e.target.value)} />
+                    <FieldError>{clientNameError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input placeholder="Client email" value={clientEmail} type="email" aria-invalid={!!clientEmailError} onChange={(e) => setClientEmail(e.target.value)} />
+                    <FieldError>{clientEmailError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input placeholder="Client contact" value={clientContact} type="text" inputMode="numeric" aria-invalid={!!clientContactError} onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))} />
+                    <FieldError>{clientContactError}</FieldError>
+                  </div>
+                </div>
+              ) : (
+                <ClientPicker
+                  endpoint="/booking/custom/clients"
+                  value={client}
+                  onSelect={(id) => setClient(id)}
+                  noRecordsLabel="No clients found."
+                />
+              )}
             </div>
           )}
 

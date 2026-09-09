@@ -6,16 +6,16 @@ import { Card } from "@/components/ui/card"
 import { MapPin, Phone, Mail, Clock, Instagram, Sun, Moon, ChevronDown, Navigation, Menu, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { postInterface } from "@/app/types/post.type"
 import { artistInfoInterface } from "@/app/types/accounts.type"
 import useLightModeStore from "./store/displayModeStore"
 import dynamic from "next/dynamic"
 import { useZodForm } from "@/lib/validation/useZodForm"
-import { consultationSchema } from "@/lib/validation/schemas/contact"
+import { consultationSchema, type ConsultationValues } from "@/lib/validation/schemas/contact"
 import { FieldError } from "@/components/ui/field-error"
-import { successAlert } from "@/app/utils/alert"
+import { successAlert, errorAlert } from "@/app/utils/alert"
 
 const MapWithNoSSR = dynamic(
   () => import("@/app/components/landing/ArtistMap"),
@@ -51,9 +51,32 @@ export default function Page() {
   const consultationForm = useZodForm(consultationSchema, {
     defaultValues: { firstName: "", email: "", idea: "", details: "" },
   })
-  const onConsultationSubmit = () => {
-    successAlert("Thanks — we'll be in touch within 48 hours.")
-    consultationForm.reset()
+
+  const contactMutation = useMutation({
+    mutationFn: (values: ConsultationValues) =>
+      axiosInstance.post("/contact", {
+        name: values.firstName,
+        email: values.email,
+        subject: values.idea,
+        message: values.details,
+      }),
+    onSuccess: () => {
+      successAlert("Thanks — your inquiry has been sent. We'll be in touch within 48 hours.")
+      consultationForm.reset()
+    },
+    onError: (err: unknown) => {
+      const res = (err as { response?: { data?: unknown } })?.response?.data
+      const msg =
+        typeof res === "string"
+          ? res
+          : "We couldn't send your message. Please try again in a moment."
+      errorAlert(msg)
+    },
+  })
+
+  const onConsultationSubmit = (values: ConsultationValues) => {
+    if (contactMutation.isPending) return
+    contactMutation.mutate(values)
   }
 
   const { data: postsData } = useQuery({
@@ -726,7 +749,9 @@ export default function Page() {
                     />
                     <FieldError>{consultationForm.formState.errors.details?.message}</FieldError>
                   </div>
-                  <Button type="submit" size="lg" disabled={consultationForm.formState.isSubmitting} className="w-full text-base mt-2">Send Inquiry</Button>
+                  <Button type="submit" size="lg" disabled={contactMutation.isPending} className="w-full text-base mt-2">
+                    {contactMutation.isPending ? "Sending…" : "Send Inquiry"}
+                  </Button>
                   <p className="text-xs text-text-dim text-center tracking-wide">We respond within 48 hours. No spam, ever.</p>
                   </form>
                 </div>
