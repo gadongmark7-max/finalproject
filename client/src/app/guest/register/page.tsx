@@ -7,24 +7,38 @@ import { LoaderCircle, ArrowRight, Eye, EyeOff, CheckCircle2 } from "lucide-reac
 import { accountInterfaceInput } from "@/app/types/accounts.type";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field-error";
+import { useZodForm } from "@/lib/validation/useZodForm";
+import { registerSchema, type RegisterValues } from "@/lib/validation/schemas/auth";
+import { Controller } from "react-hook-form";
 import { gsap } from "gsap";
-import { SubmitId } from "./components/submitId";
-import axios from "axios";
-import { idVerificationFormat } from "@/app/utils/idverification";
 import { useRouter } from "next/navigation";
 import useUserStore from "@/app/store/useUserStore";
 
 export default function RegisterPage() {
-  const [email, setEmail]                             = useState("");
-  const [password, setPassword]                       = useState("");
-  const [contact, setContact]                         = useState("");
-  const [name, setName]                               = useState("");
-  const [confirmPassword, setConfirmPassword]         = useState("");
   const [showPassword, setShowPassword]               = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading]                     = useState(false);
-  const [img, setImg]                                 = useState<File | null>(null);
-  const [preview, setPreview]                         = useState<string | null>(null);
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useZodForm(registerSchema, {
+    defaultValues: {
+      name: "",
+      email: "",
+      contact: "",
+      password: "",
+      confirmPassword: "",
+      terms: false as unknown as true,
+    },
+  });
+
+  const password        = watch("password");
+  const confirmPassword = watch("confirmPassword");
 
   const rootRef      = useRef<HTMLDivElement>(null);
   const leftRef      = useRef<HTMLDivElement>(null);
@@ -146,14 +160,20 @@ export default function RegisterPage() {
 
 
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email || !password || !contact) return errorAlert("Please fill all fields");
-    if(password.length < 8) return errorAlert("password too weak");
-    if (contact.length != 11) return errorAlert("invalid contact number");
-    if (password !== confirmPassword) return errorAlert("Passwords do not match");
+  const handleRegister = (values: RegisterValues) => {
     setIsLoading(true);
-    mutation.mutate({ name, type: "client", email, password, contact, profile: "/default_profile.jpg", location: null, subscriptionExpiration: null, isBan : false , pin : Math.floor(100000 + Math.random() * 900000).toString()});
+    mutation.mutate({
+      name: values.name,
+      type: "client",
+      email: values.email,
+      password: values.password,
+      contact: values.contact,
+      profile: "/default_profile.jpg",
+      location: null,
+      subscriptionExpiration: null,
+      isBan: false,
+      pin: Math.floor(100000 + Math.random() * 900000).toString(),
+    });
   };
 
   // Shared input classes
@@ -252,7 +272,7 @@ export default function RegisterPage() {
 
           <div ref={dividerRef} className="w-full h-px bg-border my-5" />
 
-          <form onSubmit={handleRegister}>
+          <form onSubmit={handleSubmit(handleRegister)} noValidate>
 
             {/* Row 1 — Name + Contact */}
             <div ref={row1Ref} className="grid grid-cols-2 gap-3 mb-3">
@@ -263,8 +283,9 @@ export default function RegisterPage() {
                     <circle cx="8" cy="5.5" r="2.5" />
                     <path d="M2 14c0-3 2.686-5 6-5s6 2 6 5" strokeLinecap="round" />
                   </svg>
-                  <input className={inputBase} type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }} />
+                  <input className={`${inputBase} ${errors.name ? "!border-danger" : ""}`} type="text" {...register("name")} aria-invalid={!!errors.name} placeholder="Your name" style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }} />
                 </div>
+                <FieldError>{errors.name?.message}</FieldError>
               </div>
 
               <div className="flex flex-col gap-1">
@@ -284,28 +305,31 @@ export default function RegisterPage() {
                     />
                   </svg>
 
-                  <input
-                    className={`${inputBase} ${
-                      contact
-                        ? contact.length === 11
-                          ? "!border-[#4E7C59]"
-                          : "border-border"
-                        : ""
-                    }`}
-                    type="text"
-                    value={contact}
-                    onChange={(e) =>
-                      setContact(e.target.value.replace(/\D/g, ""))
-                    }
-                    placeholder="+63 9XX..."
-                    required
-                    style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
+                  <Controller
+                    control={control}
+                    name="contact"
+                    render={({ field }) => (
+                      <input
+                        className={`${inputBase} ${
+                          errors.contact
+                            ? "!border-danger"
+                            : field.value.length === 11
+                              ? "!border-[#4E7C59]"
+                              : "border-border"
+                        }`}
+                        type="text"
+                        inputMode="numeric"
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={(e) => field.onChange(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                        aria-invalid={!!errors.contact}
+                        placeholder="09XXXXXXXXX"
+                        style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
+                      />
+                    )}
                   />
                 </div>
-
-            
-
-            
+                <FieldError>{errors.contact?.message}</FieldError>
               </div>
 
             </div>
@@ -319,11 +343,12 @@ export default function RegisterPage() {
                     <rect x="1" y="3" width="14" height="10" rx="2" />
                     <path d="M1 5l7 5 7-5" strokeLinecap="round" />
                   </svg>
-                  <input className={inputBase} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }} />
+                  <input className={`${inputBase} ${errors.email ? "!border-danger" : ""}`} type="email" {...register("email")} aria-invalid={!!errors.email} placeholder="you@example.com" style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }} />
                 </div>
+                <FieldError>{errors.email?.message}</FieldError>
               </div>
 
-             
+
             </div>
 
             {/* Row 3 + 4 — Passwords */}
@@ -338,18 +363,18 @@ export default function RegisterPage() {
                     <path d="M5.5 7.5V5a2.5 2.5 0 015 0v2.5" strokeLinecap="round" />
                   </svg>
                   <input
-                    className={`${inputBase} pr-9`}
+                    className={`${inputBase} pr-9 ${errors.password ? "!border-danger" : ""}`}
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    {...register("password")}
+                    aria-invalid={!!errors.password}
                     placeholder="Min. 8 characters"
-                    required
                     style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1} className="absolute right-3 text-text-dim hover:text-gold transition-colors duration-200 p-1">
                     {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 </div>
+                <FieldError>{errors.password?.message}</FieldError>
                 {password && (
                   <>
                     <div className="flex gap-[3px] mt-1">
@@ -373,45 +398,44 @@ export default function RegisterPage() {
                     <path d="M5.5 7.5V5a2.5 2.5 0 015 0v2.5" strokeLinecap="round" />
                   </svg>
                   <input
-                    className={`${inputBase} pr-9 ${confirmPassword ? (confirmPassword === password ? "!border-[#4E7C59]" : "border-border") : ""}`}
+                    className={`${inputBase} pr-9 ${errors.confirmPassword ? "!border-danger" : confirmPassword ? (confirmPassword === password ? "!border-[#4E7C59]" : "border-border") : ""}`}
                     type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    {...register("confirmPassword")}
+                    aria-invalid={!!errors.confirmPassword}
                     placeholder="Repeat password"
-                    required
                     style={{ borderRadius: 0, fontFamily: "'Raleway', sans-serif" }}
                   />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1} className="absolute right-3 text-text-dim hover:text-gold transition-colors duration-200 p-1">
                     {showConfirmPassword ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 </div>
-                {confirmPassword && confirmPassword === password && (
+                {confirmPassword && confirmPassword === password && !errors.confirmPassword && (
                   <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-[#7AAE87] mt-0.5">
                     <CheckCircle2 size={11} /> Passwords match
                   </p>
                 )}
-                {confirmPassword && confirmPassword !== password && (
-                  <p className="text-[0.65rem] tracking-[0.1em] uppercase font-light text-text-muted mt-0.5">
-                    Passwords don&apos;t match
-                  </p>
-                )}
+                <FieldError>{errors.confirmPassword?.message}</FieldError>
               </div>
             </div>
 
             {/* Terms */}
-            <div ref={termsRef} className="flex items-start gap-2.5 mb-3">
-              <input
-                type="checkbox"
-                id="rp-terms"
-                required
-                className="mt-[2px] w-[13px] h-[13px] flex-shrink-0 cursor-pointer accent-gold"
-              />
-              <label htmlFor="rp-terms" className="text-[0.72rem] text-text-muted font-light leading-relaxed tracking-[0.03em] cursor-pointer">
-                I agree to the{" "}
-                <a href="#" className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200">Terms of Service</a>
-                {" "}and{" "}
-                <a href="#" className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200">Privacy Policy</a>
-              </label>
+            <div ref={termsRef} className="mb-3">
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="rp-terms"
+                  {...register("terms")}
+                  aria-invalid={!!errors.terms}
+                  className="mt-[2px] w-[13px] h-[13px] flex-shrink-0 cursor-pointer accent-gold"
+                />
+                <label htmlFor="rp-terms" className="text-[0.72rem] text-text-muted font-light leading-relaxed tracking-[0.03em] cursor-pointer">
+                  I agree to the{" "}
+                  <a href="#" className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200">Terms of Service</a>
+                  {" "}and{" "}
+                  <a href="#" className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200">Privacy Policy</a>
+                </label>
+              </div>
+              <FieldError>{errors.terms?.message}</FieldError>
             </div>
 
             {/* Submit */}

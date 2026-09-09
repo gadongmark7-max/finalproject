@@ -167,6 +167,7 @@ export default function Page() {
 
         <input
           placeholder="Type a message..."
+            maxLength={2000}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleMessageSend()}

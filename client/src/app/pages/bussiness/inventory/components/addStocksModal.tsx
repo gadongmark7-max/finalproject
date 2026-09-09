@@ -10,47 +10,55 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useState } from "react"
-import { inventoryInterfaceInput, inventoryInterface } from "@/app/types/inventory.type"
+import { inventoryInterface } from "@/app/types/inventory.type"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
-import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
+import { successAlert, errorAlert } from "@/app/utils/alert"
 import useUserStore from "@/app/store/useUserStore"
-import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
- import { Plus } from "lucide-react"
+import { Plus } from "lucide-react"
+import { Controller } from "react-hook-form"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { addStocksWithExpenseSchema } from "@/lib/validation/schemas/inventory"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
 
 export function AddStocksModal({ setInventory , inventory} : { inventory : inventoryInterface , setInventory : (data : inventoryInterface[]) => void }) {
 
   const [open, setOpen] = useState(false);
 
-  const [stocks, setStocks] = useState(0)
-  const [expences, setExpences] = useState(0)
-
   const {user} = useUserStore()
 
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useZodForm(addStocksWithExpenseSchema, { defaultValues: { stocks: "", expences: "" } })
 
   const mutation = useMutation({
     mutationFn : (data : { inventoryId : string, stocks : number ,expences : number, recordedBy : string} ) => axiosInstance.post("/inventory/addStocks", data),
     onSuccess : (response) => {
         setInventory(response.data)
         successAlert("Stocks Added")
-        setStocks(0)
+        reset()
         setOpen(false)
     }, onError : () => errorAlert("error accour")
   })
 
-  const addStocksHandler = () => {
-    if(!stocks || !expences || !user) return errorAlert("empty field")
+  const addStocksHandler = handleSubmit((values) => {
+    if(!user) return errorAlert("empty field")
     const recordedBy = user.name
     mutation.mutate({
-        inventoryId : inventory._id, 
-        stocks,
-        expences, 
+        inventoryId : inventory._id,
+        stocks : values.stocks,
+        expences : values.expences,
         recordedBy
     })
-}
+  })
 
-    
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -61,42 +69,47 @@ export function AddStocksModal({ setInventory , inventory} : { inventory : inven
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Title</DialogTitle>
-          <DialogDescription>   
+          <DialogDescription>
            Description
           </DialogDescription>
         </DialogHeader>
 
-    
+
         <div className=" gap-6 mb-6">
             <div className="mt-3 w-full">
                       <h1 className="font-bold text-stone-600">  Stocks </h1>
-                      <Input 
-                          value={stocks}
-                          type="number"
-                          onChange={(e) => setStocks(Number(e.target.value))}
-                          placeholder="initial stocks"
+                      <Input
+                          {...register("stocks")}
+                          inputMode="numeric"
+                          aria-invalid={!!errors.stocks}
+                          placeholder="stocks to add"
                           className="w-full"
                       />
+                      <FieldError>{errors.stocks?.message}</FieldError>
                 </div>
 
-                
+
                 <div className="mt-3 w-full">
                         <h1 className="font-bold text-stone-600"> Expences </h1>
-                        <Input 
-                            value={expences}
-                            type="number"
-                            onChange={(e) => setExpences(Number(e.target.value))}
-                            placeholder="initial stocks"
-                            className="w-full"
+                        <Controller
+                          control={control}
+                          name="expences"
+                          render={({ field }) => (
+                            <MoneyInput
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              aria-invalid={!!errors.expences}
+                              placeholder="0.00"
+                            />
+                          )}
                         />
+                        <FieldError>{errors.expences?.message}</FieldError>
                 </div>
-            
-                
-               
         </div>
 
         <DialogFooter>
-          <Button type="submit" className="w-full" onClick={addStocksHandler}>  Add Stock  </Button>
+          <Button type="submit" className="w-full" onClick={addStocksHandler} disabled={!isValid || mutation.isPending}>  Add Stock  </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

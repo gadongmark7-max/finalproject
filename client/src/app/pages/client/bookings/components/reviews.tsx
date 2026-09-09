@@ -17,6 +17,11 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { bookingInterface } from "@/app/types/booking.type"
 import { LoaderCircle , Star} from "lucide-react"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, longText } from "@/lib/validation/fields"
+
+const commentSchema = longText("Comment", { min: 3, max: 500 })
 
 
 const reviewSuggestions: Record<number, string[]> = {
@@ -48,9 +53,11 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
 
   const [text, setText] = useState<string>("")
   const [rating, setRating] = useState(0)
-  
-  const [img, setImg] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+
+  const { file: img, preview, error: imgError, onSelect, reset } = useImageField()
+
+  const commentError = firstError(commentSchema, text)
+  const ratingError = rating < 1 ? "Please pick a star rating" : undefined
 
   const submitMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.post("/account/review", data),
@@ -58,21 +65,18 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
         successAlert("Review Submited")
         setBookings(response.data.reverse())
         setOpen(false)
-        setImg(null)
+        reset()
+        setText("")
+        setRating(0)
     },
     onError : () => errorAlert("error accour")
   })
 
- 
-  const handleImageChange = (file: File | null) => {
-    setImg(file)
-    if (file) {
-      setPreview(URL.createObjectURL(file))
-    }
-  }
-
   const handleSubmit = () => {
-    if(!img) return errorAlert("no selected file")
+    if(!img) return errorAlert(imgError ?? "Please choose an image")
+    if(ratingError) return errorAlert(ratingError)
+    const parsedComment = commentSchema.safeParse(text)
+    if(!parsedComment.success) return errorAlert(parsedComment.error.issues[0]?.message ?? "Please write a comment")
     const formData = new FormData()
     formData.append("file", img)
     formData.append("rating", rating.toString())
@@ -119,10 +123,12 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
 
             <Input
               type="file"
-              accept="image/*"
-              onChange={(e) => handleImageChange(e.target.files?.[0] || null)}
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              aria-invalid={!!imgError}
               className="max-w-[280px]"
             />
+            <FieldError>{imgError}</FieldError>
           </div>
 
           {/* RIGHT: RATING + COMMENT */}
@@ -147,6 +153,7 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
                   </button>
                 ))}
               </div>
+              <FieldError>{ratingError}</FieldError>
             </div>
 
 
@@ -180,9 +187,11 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                aria-invalid={!!commentError}
                 className="h-32 resize-none"
                 placeholder="Write your review..."
               />
+              <FieldError>{commentError}</FieldError>
             </div>
 
             
@@ -192,7 +201,7 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
         </div>
 
         <DialogFooter className="mt-6">
-          <Button onClick={handleSubmit} disabled={submitMutation.isPending} className="w-full">
+          <Button onClick={handleSubmit} disabled={submitMutation.isPending || !img || !!ratingError || !!commentError} className="w-full">
             {submitMutation.isPending && (
               <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
             )}

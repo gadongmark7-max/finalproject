@@ -11,6 +11,7 @@ import { InventoryService } from "../services/inventory.service";
 import { InventoryLogService } from "../services/inventoryLog.service";
 import { sendEmail } from "../utils/customFunction";
 import { Console } from "console";
+import { ClientDirectoryService } from "../services/clientDirectory.service";
 
 export class BookingController {
 
@@ -388,8 +389,59 @@ export class BookingController {
                 response.status(500).json({ error: 'Upload failed' });
             }
         }
-    
-    
+
+
+    /**
+     * Search + paginate the clients available to the artist appointment page.
+     * Dedicated endpoint — does not touch the existing /convo or /account APIs.
+     * Query: ?page=1&limit=10&search=John
+     */
+    static getAppointmentClients = async (request : AuthRequest , response : Response) => {
+        try {
+            const artistId = request.account?._id
+            if (!artistId) {
+                response.status(401).send("unauthorized")
+                return
+            }
+
+            const result = await ClientDirectoryService.getArtistClients(artistId, {
+                page : Number(request.query.page),
+                limit : Number(request.query.limit),
+                search : (request.query.search as string) || "",
+            })
+
+            response.send(result)
+        } catch (e) {
+            console.log(e)
+            response.status(500).send("error accour")
+        }
+    }
+
+    /**
+     * Search + paginate the clients available to the artist add-booking page.
+     * Separate dedicated endpoint to keep the two flows isolated.
+     * Query: ?page=1&limit=10&search=John
+     */
+    static getAddBookingClients = async (request : AuthRequest , response : Response) => {
+        try {
+            const artistId = request.account?._id
+            if (!artistId) {
+                response.status(401).send("unauthorized")
+                return
+            }
+
+            const result = await ClientDirectoryService.getArtistClients(artistId, {
+                page : Number(request.query.page),
+                limit : Number(request.query.limit),
+                search : (request.query.search as string) || "",
+            })
+
+            response.send(result)
+        } catch (e) {
+            console.log(e)
+            response.status(500).send("error accour")
+        }
+    }
 
 
 }

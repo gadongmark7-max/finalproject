@@ -10,14 +10,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useState } from "react"
- import { Plus, ImageIcon, LoaderCircle } from "lucide-react"
- import { Input } from "@/components/ui/input"
- import { Label } from "@/components/ui/label"
+ import { LoaderCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
  import { useMutation } from "@tanstack/react-query"
  import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import { useQueryClient } from "@tanstack/react-query"
 import useUserStore from "@/app/store/useUserStore"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
 
 
 export function ArtistVerifiactionModal() {
@@ -25,29 +26,20 @@ export function ArtistVerifiactionModal() {
   const [open, setOpen] = useState(false);
 
 
-  const [img, setImg] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
+  const { file: img, preview, error: imgError, onSelect, reset } = useImageField()
 
   const submitMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.post("/account/artistVerification/submit", data),
     onSuccess : (response) => {
         successAlert("Request Submited")
         setOpen(false)
-        setImg(null)
+        reset()
     },
     onError : () => errorAlert("error accour")
   })
 
- 
-  const handleImageChange = (file: File | null) => {
-    setImg(file)
-    if (file) {
-      setPreview(URL.createObjectURL(file))
-    }
-  }
-
   const handleSubmit = () => {
-    if(!img) return errorAlert("no selected file")
+    if(!img) return errorAlert(imgError ?? "Please choose an image")
     const formData = new FormData()
     formData.append("file", img)
     formData.append("type", "artist")
@@ -90,17 +82,17 @@ export function ArtistVerifiactionModal() {
             {/* FILE INPUT */}
             <Input
               type="file"
-              accept="image/*"
-              onChange={(e) =>
-                handleImageChange(e.target.files?.[0] || null)
-              }
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              aria-invalid={!!imgError}
               className="mt-4"
             />
+            <FieldError>{imgError}</FieldError>
           </div>
         </div>
   
         <DialogFooter className="flex justify-center">
-          <Button disabled={submitMutation.isPending} className="w-full " onClick={handleSubmit}> {submitMutation.isPending &&   <LoaderCircle className="h-4 w-4 animate-spin" />} Submit Valid ID </Button>
+          <Button disabled={submitMutation.isPending || !img} className="w-full " onClick={handleSubmit}> {submitMutation.isPending &&   <LoaderCircle className="h-4 w-4 animate-spin" />} Submit Valid ID </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

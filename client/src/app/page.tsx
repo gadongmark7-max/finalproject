@@ -3,15 +3,19 @@
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { MapPin, Phone, Mail, Clock, Instagram, Sun, Moon, ChevronDown, Navigation } from "lucide-react"
+import { MapPin, Phone, Mail, Clock, Instagram, Sun, Moon, ChevronDown, Navigation, Menu, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { postInterface } from "@/app/types/post.type"
 import { artistInfoInterface } from "@/app/types/accounts.type"
 import useLightModeStore from "./store/displayModeStore"
 import dynamic from "next/dynamic"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { consultationSchema, type ConsultationValues } from "@/lib/validation/schemas/contact"
+import { FieldError } from "@/components/ui/field-error"
+import { successAlert, errorAlert } from "@/app/utils/alert"
 
 const MapWithNoSSR = dynamic(
   () => import("@/app/components/landing/ArtistMap"),
@@ -28,6 +32,52 @@ const MapWithNoSSR = dynamic(
 export default function Page() {
   const { lightMode, setLightMode } = useLightModeStore()
   const router = useRouter()
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = () => setMenuOpen(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false) }
+    const onResize = () => { if (window.innerWidth >= 768) setMenuOpen(false) }
+    window.addEventListener("keydown", onKey)
+    window.addEventListener("resize", onResize)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener("resize", onResize)
+    }
+  }, [menuOpen])
+
+  const consultationForm = useZodForm(consultationSchema, {
+    defaultValues: { firstName: "", email: "", idea: "", details: "" },
+  })
+
+  const contactMutation = useMutation({
+    mutationFn: (values: ConsultationValues) =>
+      axiosInstance.post("/contact", {
+        name: values.firstName,
+        email: values.email,
+        subject: values.idea,
+        message: values.details,
+      }),
+    onSuccess: () => {
+      successAlert("Thanks — your inquiry has been sent. We'll be in touch within 48 hours.")
+      consultationForm.reset()
+    },
+    onError: (err: unknown) => {
+      const res = (err as { response?: { data?: unknown } })?.response?.data
+      const msg =
+        typeof res === "string"
+          ? res
+          : "We couldn't send your message. Please try again in a moment."
+      errorAlert(msg)
+    },
+  })
+
+  const onConsultationSubmit = (values: ConsultationValues) => {
+    if (contactMutation.isPending) return
+    contactMutation.mutate(values)
+  }
 
   const { data: postsData } = useQuery({
     queryKey: ["artist_post"],
@@ -168,33 +218,37 @@ export default function Page() {
 
       {/* ─── Header ─── */}
       <header className="border-b border-border fixed w-full bg-primary/85 backdrop-blur-md z-40">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-8">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 lg:px-8">
 
-          <div className="flex items-center gap-3">
-            <Link href={"/"} className="flex h-9 w-9 items-center justify-center overflow-hidden">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link href={"/"} className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden">
               <img src="/web/logo.jpg" alt="Ink Of Baphomet logo" className="h-full w-full object-cover" />
             </Link>
             <span
-              className="text-text font-light tracking-[0.14em] uppercase"
-              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: "1.15rem" }}
+              className="text-text font-light tracking-[0.14em] uppercase truncate text-base sm:text-[1.15rem]"
+              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
             >
               Ink Of Baphomet
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <a href="#styles" className="hidden md:inline-flex">
+          {/* Desktop navigation */}
+          <div className="hidden md:flex items-center gap-2">
+            <a href="#styles" className="inline-flex">
               <Button variant="ghost" className="text-sm">Styles</Button>
             </a>
-            <a href="#artists" className="hidden md:inline-flex">
+            <a href="#artists" className="inline-flex">
               <Button variant="ghost" className="text-sm">Artists</Button>
             </a>
-            <a href="#faq" className="hidden md:inline-flex">
+            <a href="#faq" className="inline-flex">
               <Button variant="ghost" className="text-sm">FAQ</Button>
             </a>
-            <div className="w-px h-5 bg-border mx-1 hidden md:block" />
-            <a href="/guest/login" className="hidden md:inline-flex">
-              <Button className="text-sm">Book a Session</Button>
+            <div className="w-px h-5 bg-border mx-1" />
+            <a href="/guest/login" className="inline-flex">
+              <Button variant="outline" className="text-sm">Sign In</Button>
+            </a>
+            <a href="/guest/register" className="inline-flex">
+              <Button className="text-sm">Get Started</Button>
             </a>
 
             <button
@@ -208,7 +262,59 @@ export default function Page() {
               }
             </button>
           </div>
+
+          {/* Mobile controls */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={() => setLightMode(!lightMode)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
+              aria-label="Toggle light/dark mode"
+            >
+              {lightMode
+                ? <Moon className="h-4 w-4 text-text-muted" />
+                : <Sun className="h-4 w-4 text-gold" />
+              }
+            </button>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+            >
+              {menuOpen
+                ? <X className="h-4 w-4 text-gold" />
+                : <Menu className="h-4 w-4 text-text-muted" />
+              }
+            </button>
+          </div>
         </nav>
+
+        {/* Mobile navigation menu */}
+        <div
+          id="mobile-nav"
+          hidden={!menuOpen}
+          className="md:hidden w-full border-t border-border bg-primary/95 backdrop-blur-md"
+        >
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4">
+            <a href="#styles" onClick={closeMenu}>
+              <Button variant="ghost" className="w-full justify-start text-sm">Styles</Button>
+            </a>
+            <a href="#artists" onClick={closeMenu}>
+              <Button variant="ghost" className="w-full justify-start text-sm">Artists</Button>
+            </a>
+            <a href="#faq" onClick={closeMenu}>
+              <Button variant="ghost" className="w-full justify-start text-sm">FAQ</Button>
+            </a>
+            <div className="my-2 h-px w-full bg-border" />
+            <a href="/guest/login" onClick={closeMenu}>
+              <Button variant="outline" className="w-full text-sm">Sign In</Button>
+            </a>
+            <a href="/guest/register" onClick={closeMenu}>
+              <Button className="w-full text-sm">Get Started</Button>
+            </a>
+          </div>
+        </div>
       </header>
 
       <main>
@@ -245,10 +351,7 @@ export default function Page() {
 
               <div ref={ctaRef} className="mt-8 flex flex-wrap gap-3 items-center">
                 <a href="/guest/login">
-                  <Button size="lg" className="text-base px-8">Sign in</Button>
-                </a>
-                <a href="/guest/register">
-                  <Button size="lg" variant="outline" className="text-base px-8">Sign up</Button>
+                  <Button size="lg" className="text-base px-8">Book a Session</Button>
                 </a>
               </div>
 
@@ -413,17 +516,6 @@ export default function Page() {
               </div>
             )}
 
-            {/* Sign-in prompt */}
-            <div className="mt-12 text-center">
-              <p className="text-sm text-text-muted mb-4">
-                Sign in to book any design or request a custom piece
-              </p>
-              <Link href="/guest/login">
-                <Button size="lg" className="text-base px-10">
-                  Sign in to Book
-                </Button>
-              </Link>
-            </div>
           </div>
         </section>
 
@@ -530,16 +622,16 @@ export default function Page() {
 
         {/* ─── FAQ ─── */}
         <section id="faq" className="mx-auto max-w-7xl px-4 py-20 lg:px-8 lg:py-36">
-          <div className="mb-12 max-w-xl">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold">Before You Book</span>
+          <div className="mb-12 max-w-xl mx-auto text-center">
+            <span className="text-[10px] font-semibold text-center uppercase tracking-[0.28em] text-gold">Before You Book</span>
             <h2
-              className="mt-4 text-3xl font-light tracking-tight lg:text-5xl text-text"
+              className="mt-4 text-3xl font-light text-center tracking-tight lg:text-5xl text-text"
               style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", letterSpacing: "-0.02em" }}
             >
               Common questions
             </h2>
           </div>
-          <div className="max-w-2xl space-y-0 divide-y divide-border border-t border-b border-border">
+          <div className="max-w-2xl mx-auto space-y-0 divide-y divide-border border-t border-b border-border">
             {[
               { q: "How do I book a session?", a: "Fill out the consultation form below or DM us on Instagram. We'll get back to you within 48 hours to discuss your idea, sizing, placement, and pricing." },
               { q: "Do you take walk-ins?", a: "We are primarily appointment-based, but walk-ins are welcome when an artist has availability. Call ahead to check." },
@@ -610,22 +702,29 @@ export default function Page() {
                 {/* Right — booking form */}
                 <div className="space-y-4">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold">Book a Consultation</span>
+                  <form onSubmit={consultationForm.handleSubmit(onConsultationSubmit)} noValidate className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-text-muted uppercase tracking-widest">First Name</label>
                       <input
                         type="text"
                         placeholder="Your name"
-                        className="w-full bg-surface-alt border border-border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200"
+                        aria-invalid={!!consultationForm.formState.errors.firstName}
+                        {...consultationForm.register("firstName")}
+                        className={`w-full bg-surface-alt border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200 ${consultationForm.formState.errors.firstName ? "border-danger" : "border-border"}`}
                       />
+                      <FieldError>{consultationForm.formState.errors.firstName?.message}</FieldError>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs text-text-muted uppercase tracking-widest">Email</label>
                       <input
                         type="email"
                         placeholder="your@email.com"
-                        className="w-full bg-surface-alt border border-border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200"
+                        aria-invalid={!!consultationForm.formState.errors.email}
+                        {...consultationForm.register("email")}
+                        className={`w-full bg-surface-alt border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200 ${consultationForm.formState.errors.email ? "border-danger" : "border-border"}`}
                       />
+                      <FieldError>{consultationForm.formState.errors.email?.message}</FieldError>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -633,19 +732,28 @@ export default function Page() {
                     <input
                       type="text"
                       placeholder="e.g. Blackwork sleeve, occult symbols..."
-                      className="w-full bg-surface-alt border border-border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200"
+                      aria-invalid={!!consultationForm.formState.errors.idea}
+                      {...consultationForm.register("idea")}
+                      className={`w-full bg-surface-alt border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200 ${consultationForm.formState.errors.idea ? "border-danger" : "border-border"}`}
                     />
+                    <FieldError>{consultationForm.formState.errors.idea?.message}</FieldError>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs text-text-muted uppercase tracking-widest">Tell us more</label>
                     <textarea
                       rows={4}
                       placeholder="Describe your vision, placement, size, references — anything helps."
-                      className="w-full bg-surface-alt border border-border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200 resize-none"
+                      aria-invalid={!!consultationForm.formState.errors.details}
+                      {...consultationForm.register("details")}
+                      className={`w-full bg-surface-alt border text-text text-sm px-4 py-3 placeholder:text-text-dim focus:outline-none focus:border-gold transition-colors duration-200 resize-none ${consultationForm.formState.errors.details ? "border-danger" : "border-border"}`}
                     />
+                    <FieldError>{consultationForm.formState.errors.details?.message}</FieldError>
                   </div>
-                  <Button size="lg" className="w-full text-base mt-2">Send Inquiry</Button>
+                  <Button type="submit" size="lg" disabled={contactMutation.isPending} className="w-full text-base mt-2">
+                    {contactMutation.isPending ? "Sending…" : "Send Inquiry"}
+                  </Button>
                   <p className="text-xs text-text-dim text-center tracking-wide">We respond within 48 hours. No spam, ever.</p>
+                  </form>
                 </div>
 
               </div>

@@ -10,48 +10,53 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useState } from "react"
-import { inventoryInterfaceInput, inventoryInterface } from "@/app/types/inventory.type"
+import { inventoryInterface } from "@/app/types/inventory.type"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
-import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
+import { successAlert, errorAlert } from "@/app/utils/alert"
 import useUserStore from "@/app/store/useUserStore"
-import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
- import { Plus } from "lucide-react"
+import { Plus } from "lucide-react"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { addStocksSchema } from "@/lib/validation/schemas/inventory"
+import { FieldError } from "@/components/ui/field-error"
 
 
 export function AddStocksModal({ setInventory , inventory} : { inventory : inventoryInterface , setInventory : (data : inventoryInterface[]) => void }) {
 
   const [open, setOpen] = useState(false);
 
-  const [stocks, setStocks] = useState(0)
-  
-
   const {user} = useUserStore()
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useZodForm(addStocksSchema, { defaultValues: { stocks: "" } })
 
   const mutation = useMutation({
     mutationFn : (data : { inventoryId : string, stocks : number ,expences : number, recordedBy : string} ) => axiosInstance.post("/inventory/addStocks", data),
     onSuccess : (response) => {
         setInventory(response.data)
         successAlert("Stocks Added")
-        setStocks(0)
+        reset()
         setOpen(false)
     }, onError : () => errorAlert("error accour")
   })
 
-  const addStocksHandler = () => {
-    if(!stocks  || !user) return errorAlert("empty field")
+  const addStocksHandler = handleSubmit((values) => {
+    if(!user) return errorAlert("empty field")
     const recordedBy = "none"
     mutation.mutate({
-        inventoryId : inventory._id, 
-        stocks,
-        expences : 0, 
-        recordedBy 
+        inventoryId : inventory._id,
+        stocks : values.stocks,
+        expences : 0,
+        recordedBy
     })
-}
+  })
 
-    
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -62,32 +67,28 @@ export function AddStocksModal({ setInventory , inventory} : { inventory : inven
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Title</DialogTitle>
-          <DialogDescription>   
+          <DialogDescription>
            Description
           </DialogDescription>
         </DialogHeader>
 
-    
+
         <div className=" gap-6 mb-6">
             <div className="mt-3 w-full">
                       <h1 className="font-bold text-stone-600">  Stocks </h1>
-                      <Input 
-                          value={stocks}
-                          type="number"
-                          onChange={(e) => setStocks(Number(e.target.value))}
-                          placeholder="initial stocks"
+                      <Input
+                          {...register("stocks")}
+                          inputMode="numeric"
+                          aria-invalid={!!errors.stocks}
+                          placeholder="stocks to add"
                           className="w-full"
                       />
+                      <FieldError>{errors.stocks?.message}</FieldError>
                 </div>
-
-                
-        
-                
-               
         </div>
 
         <DialogFooter>
-          <Button type="submit" className="w-full" onClick={addStocksHandler}>  Add Stock  </Button>
+          <Button type="submit" className="w-full" onClick={addStocksHandler} disabled={!isValid || mutation.isPending}>  Add Stock  </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

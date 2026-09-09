@@ -14,6 +14,9 @@ import axiosInstance from "@/app/utils/axios";
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import { Users } from "lucide-react"
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
+import { FieldError } from "@/components/ui/field-error";
+import { firstError } from "@/lib/validation/fields";
+import { jobDescriptionSchema } from "@/lib/validation/schemas/staff";
 
 export function LookingForArtist({
   businessInfo,
@@ -28,6 +31,8 @@ export function LookingForArtist({
   const [isLookingArtist, setIsLookingArtist] = useState(businessInfo.isLookingArtist);
   const [jobDescription, setJobDescription] = useState(businessInfo.jobDescription || "");
 
+  const jobDescriptionError = firstError(jobDescriptionSchema, jobDescription);
+
   const mutation = useMutation({
     mutationFn: (data: { id: string, isLookingArtist: boolean, jobDescription: string }) =>
       axiosInstance.put("/account/jobpost", data),
@@ -41,6 +46,10 @@ export function LookingForArtist({
   });
 
   const handleToggle = (value: boolean) => {
+    // Turning the listing ON requires a valid job description.
+    if (value && !jobDescriptionSchema.safeParse(jobDescription).success) {
+      return errorAlert(jobDescriptionError ?? "Add a job description first");
+    }
     setIsLookingArtist(value);
 
     mutation.mutate({
@@ -51,6 +60,9 @@ export function LookingForArtist({
   };
 
   const handleSaveDescription = () => {
+    if (!jobDescriptionSchema.safeParse(jobDescription).success) {
+      return errorAlert(jobDescriptionError ?? "Add a valid job description");
+    }
     mutation.mutate({
       id: businessInfo._id,
       isLookingArtist,
@@ -125,10 +137,10 @@ export function LookingForArtist({
               className="border border-stone-500  text-white rounded-lg p-2 min-h-[120px]"
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Enter job description..."
+              aria-invalid={!!jobDescriptionError}
+              placeholder="Enter job description (at least 20 characters)..."
             />
-
-          
+            <FieldError>{jobDescriptionError}</FieldError>
           </div>
 
         </div>

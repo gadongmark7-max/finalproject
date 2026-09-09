@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
+import { bookingClientSchema, firstError } from "@/lib/validation/schemas/booking"
 import {
   Select,
   SelectContent,
@@ -11,18 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { errorAlert , successAlert} from "@/app/utils/alert"
+import { errorAlert } from "@/app/utils/alert"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { useRouter } from "next/navigation"
 import Swal from "sweetalert2"
 import { BookModal } from "./components/bookModal"
-import { convoInterface } from "@/app/types/convo.type"
 import useUserStore from "@/app/store/useUserStore"
-import { getChatIndex } from "@/app/utils/customFunction"
 import { bussinessInfoInterface, artistInfoInterface } from "@/app/types/accounts.type"
 import LoadingScreen from "@/components/ui/loadingScreen"
 import { UserCheck, UserX } from "lucide-react"
+import { ClientPicker } from "@/components/ui/client-picker"
 
 interface appointmentType {
   sessions : number[], 
@@ -44,18 +45,6 @@ export default function Page() {
   const {user} = useUserStore()
 
 
-  const [convos, setConvos] = useState<convoInterface[]>([])
-
-  const { data : convoData } = useQuery({
-    queryKey : ['convos'],
-    queryFn : () => axiosInstance.get(`/convo`)
-  })
-
-  useEffect(() => {
-    if(convoData?.data) setConvos(convoData?.data)
-  }, [convoData])
-
-
   const { data: bussinessInfoData } = useQuery({
     queryKey: ['artist_bussiness'],
     queryFn: async (): Promise<bussinessInfoInterface[]> => {
@@ -70,7 +59,7 @@ export default function Page() {
   const [bussiness, setBussiness] = useState("none")
 
   const { data: artistInfoData } = useQuery({
-    queryKey: ['artist_profile'],
+    queryKey: ['artist_info_data'],
     queryFn: async (): Promise<artistInfoInterface> => {
       const response = await axiosInstance.get(`/account/artistInfo/${user?._id}`);
       return response.data;
@@ -117,6 +106,10 @@ export default function Page() {
 
   const [duration, setDuration] = useState(1)
 
+  const clientNameError = firstError(bookingClientSchema.shape.clientName, clientName)
+  const clientEmailError = firstError(bookingClientSchema.shape.clientEmail, clientEmail)
+  const clientContactError = firstError(bookingClientSchema.shape.clientContact, clientContact)
+
   const postMutation = useMutation({
     mutationFn : (data : appointmentType) => axiosInstance.post("/booking/appointment", data),
     onSuccess : () => {
@@ -139,7 +132,7 @@ export default function Page() {
   const bookHandler = (data : {date : string, time : string[]}) => {
 
     if(!duration || !user) return errorAlert("empty field")
-    if(isNoClientAccount && (!clientName || !clientEmail || !clientContact)) return errorAlert("client empty field")
+    if(isNoClientAccount && !bookingClientSchema.safeParse({ clientName, clientEmail, clientContact }).success) return errorAlert("Please complete the client details")
     if(!isNoClientAccount && !client) return  errorAlert("no selected client ")
       
     postMutation.mutate({
@@ -156,7 +149,7 @@ export default function Page() {
     }) 
   }
 
-  if(!convoData || !bussinessInfoData || !artistInfoData) return <LoadingScreen />
+  if(!bussinessInfoData || !artistInfoData) return <LoadingScreen />
  
   
   return (
@@ -218,48 +211,8 @@ export default function Page() {
 
             {/* Client */}
             <div className="space-y-2 flex-1 min-w-0">
-              <Label>Client</Label>
-              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                {isNoClientAccount ? (
-                  <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
-                    <Input
-                      placeholder="Name"
-                      value={clientName}
-                      type="text"
-                      onChange={(e) => setClientName(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Email"
-                      value={clientEmail}
-                      type="text"
-                      onChange={(e) => setClientEmail(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Contact"
-                      value={clientContact}
-                      type="text"
-                      onChange={(e) => setClientContact(e.target.value)}
-                    />
-                  </div>
-                ) : (
-                  <Select onValueChange={setClient}>
-                    <SelectTrigger className="w-full flex-1">
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {convos.map((convo) => {
-                        if (convo.accounts[getChatIndex(user?._id!, convo)].type !== "client") return;
-                        return (
-                          <SelectItem key={convo._id} value={convo.accounts[getChatIndex(user?._id!, convo)]._id}>
-                            <img src={convo.accounts[getChatIndex(user?._id!, convo)].profile} className="w-5 h-5 object-cover rounded-full" />
-                            {convo.accounts[getChatIndex(user?._id!, convo)].name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
-
+              <div className="flex items-center justify-between gap-2">
+                <Label>Client</Label>
                 <Button onClick={() => setIsNoClientAccount((prev) => !prev)} className="flex-shrink-0">
                   {isNoClientAccount ? (
                     <><UserCheck className="w-4 h-4" /> Has Account</>
@@ -268,6 +221,49 @@ export default function Page() {
                   )}
                 </Button>
               </div>
+
+              {isNoClientAccount ? (
+                <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
+                  <div className="w-full">
+                    <Input
+                      placeholder="Name"
+                      value={clientName}
+                      type="text"
+                      aria-invalid={!!clientNameError}
+                      onChange={(e) => setClientName(e.target.value)}
+                    />
+                    <FieldError>{clientNameError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input
+                      placeholder="Email"
+                      value={clientEmail}
+                      type="email"
+                      aria-invalid={!!clientEmailError}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                    />
+                    <FieldError>{clientEmailError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input
+                      placeholder="Contact"
+                      value={clientContact}
+                      type="text"
+                      inputMode="numeric"
+                      aria-invalid={!!clientContactError}
+                      onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    />
+                    <FieldError>{clientContactError}</FieldError>
+                  </div>
+                </div>
+              ) : (
+                <ClientPicker
+                  endpoint="/booking/appointment/clients"
+                  value={client}
+                  onSelect={(id) => setClient(id)}
+                  noRecordsLabel="No appointments found."
+                />
+              )}
             </div>
 
           </div>

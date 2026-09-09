@@ -1130,7 +1130,7 @@ export class AccountController {
             return;
         }
 
-        const genAI = new GoogleGenerativeAI("AIzaSyDFT-V5HfM3oye1Y_jXroTN3wYm3IVXoqU");
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
             
         // Use the exact model name from the list
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });

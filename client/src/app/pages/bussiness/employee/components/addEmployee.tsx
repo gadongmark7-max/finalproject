@@ -28,6 +28,10 @@ import {
  } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useZodForm } from "@/lib/validation/useZodForm";
+import { addEmployeeSchema, type AddEmployeeValues } from "@/lib/validation/schemas/staff";
+import { FieldError } from "@/components/ui/field-error";
+import { Controller } from "react-hook-form";
 
 
 
@@ -35,20 +39,20 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
 
   const [open, setOpen] = useState(false);
 
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [contact, setContact] = useState("");
-  const [name, setName] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [role, setRole] = useState("");
-  const [permissions, setPermissions] = useState<string[]>([]);
-
   const [isLoading, setIsLoading] = useState(false)
 
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useZodForm(addEmployeeSchema, {
+    defaultValues: { name: "", email: "", contact: "", role: "", password: "", confirmPassword: "" },
+  })
 
   const AddMutation = useMutation({
     mutationFn : (data : { accountData : accountInterfaceInput, role : string, permissions : string[] }) => axiosInstance.post("/account/add/employee", data),
@@ -57,50 +61,36 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
         setOpen(false)
         refetch()
         setIsLoading(false)
-        setName("")
-        setEmail("")
-        setPassword("")
-        setConfirmPassword("")
-        setContact("")
+        reset()
     },
-    onError : () => errorAlert("error accour")
+    onError : () => { errorAlert("error accour"); setIsLoading(false) }
   })
 
-  const selectRole = (value : string) => {
-    const index = Number(value)
-    setRole(bussinessInfo.roles[index].role)
-    setPermissions(bussinessInfo.roles[index].permissions)
-  }
-
-
-  const addHandler = () => {
-    if(!name ||  !email || !password || !contact || !role || permissions.length == 0) return errorAlert("empty field")
-
-      if(password != confirmPassword) return errorAlert("confirm password not match")
-  
-      const profile = "/default_profile.jpg"
+  const addHandler = handleSubmit((values : AddEmployeeValues) => {
+      const selectedRole = bussinessInfo.roles[Number(values.role)]
+      if (!selectedRole) return errorAlert("Please select a role")
 
       const account : accountInterfaceInput = {
-        name,
+        name : values.name,
         type : "employee",
-        email,
-        password,
-        contact,
-        profile,
+        email : values.email,
+        password : values.password,
+        contact : values.contact,
+        profile : "/default_profile.jpg",
         location : null,
         subscriptionExpiration : null,
         isBan : false,
         pin : null
       }
-  
+
       setIsLoading(true)
 
       AddMutation.mutate({
         accountData : account,
-        role : role,
-        permissions : permissions
+        role : selectedRole.role,
+        permissions : selectedRole.permissions
       });
-  }
+  })
 
 
     
@@ -142,12 +132,13 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                   </div>
                   <Input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    {...register("name")}
+                    aria-invalid={!!errors.name}
                     placeholder="Enter name"
                     className="block w-full pl-10 py-3 border-0 border-b-2  bg-transparent focus:border-stone-600 text-sm"
                   />
                 </div>
+                <FieldError>{errors.name?.message}</FieldError>
               </div>
 
               {/* Contact */}
@@ -161,12 +152,14 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                   </div>
                   <Input
                     type="text"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    placeholder="Enter contact"
+                    inputMode="numeric"
+                    {...register("contact", { onChange: (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11) } })}
+                    aria-invalid={!!errors.contact}
+                    placeholder="09XXXXXXXXX"
                     className="block w-full pl-10 py-3 border-0 border-b-2  bg-transparent focus:border-stone-600 text-sm"
                   />
                 </div>
+                <FieldError>{errors.contact?.message}</FieldError>
               </div>
             </div>
 
@@ -182,29 +175,36 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                     <User className="h-4 w-4 text-gray-400" />
                   </div>
                   <Input
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    type="email"
+                    {...register("email")}
+                    aria-invalid={!!errors.email}
                     placeholder="Enter Email"
-                    required
                     className="block w-full pl-10 pr-3 py-3 border-0 border-b-2  bg-transparent focus:outline-none focus:border-stone-600 focus:ring-0 transition-colors duration-200 text-sm"
                   />
                 </div>
+                <FieldError>{errors.email?.message}</FieldError>
               </div>
 
 
               <div className="space-y-2">
                 <Label>Role</Label>
-                <Select onValueChange={selectRole}>
-                  <SelectTrigger className=" w-full mt-5">
-                    <SelectValue placeholder="Select Role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bussinessInfo.roles.map((item, index) => (
-                       <SelectItem key={index} value={index.toString()}> {item.role} </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="role"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className=" w-full mt-5">
+                        <SelectValue placeholder="Select Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bussinessInfo.roles.map((item, index) => (
+                           <SelectItem key={index} value={index.toString()}> {item.role} </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError>{errors.role?.message}</FieldError>
               </div>
 
 
@@ -225,11 +225,9 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                   </div>
                   <Input
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    {...register("password")}
+                    aria-invalid={!!errors.password}
                     placeholder="Enter password"
-                    required
-                   
                   />
                   <button
                     type="button"
@@ -243,6 +241,7 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                     )}
                   </button>
                 </div>
+                <FieldError>{errors.password?.message}</FieldError>
               </div>
 
 
@@ -256,11 +255,9 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                   </div>
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    {...register("confirmPassword")}
+                    aria-invalid={!!errors.confirmPassword}
                     placeholder="Confirm password"
-                    required
-                   
                   />
                   <button
                     type="button"
@@ -274,6 +271,7 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                     )}
                   </button>
                 </div>
+                <FieldError>{errors.confirmPassword?.message}</FieldError>
               </div>
 
             </div>
@@ -283,7 +281,7 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
             <div className="pt-4">
               <Button
                 onClick={addHandler}
-                disabled={isLoading}
+                disabled={isLoading || !isValid}
                     className="w-full"
               >
                 {isLoading ? (

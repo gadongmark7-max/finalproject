@@ -15,41 +15,50 @@ import axiosInstance from "@/app/utils/axios"
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
 import useUserStore from "@/app/store/useUserStore"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Plus, ReceiptText, Banknote, CalendarDays, User } from "lucide-react"
+import { Controller } from "react-hook-form"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { expenseSchema, type ExpenseValues } from "@/lib/validation/schemas/payment"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
 
 export function AddExpencess({ refetch }: { refetch: () => void }) {
   const [open, setOpen] = useState(false)
   const { user } = useUserStore()
-  const [description, setDescription] = useState("")
-  const [cost, setCost] = useState(0)
-  const [date, setDate] = useState<Date>()
+
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useZodForm(expenseSchema, {
+    defaultValues: { cost: "", description: "", date: undefined },
+  })
 
   const addMutation = useMutation({
     mutationFn: (data: { cost: number; description: string; recordedBy: string; date: string }) =>
       axiosInstance.post("/account/expencess", data),
     onSuccess: () => {
       successAlert(`expencess recorded`)
-      setDescription("")
-      setCost(0)
+      reset()
       refetch()
     },
     onError: () => errorAlert("error accour"),
   })
 
-  const addExpencesssHanlder = () => {
-    if (!cost || !description || !user || !date) return errorAlert("empty field")
+  const addExpencesssHanlder = handleSubmit((values: ExpenseValues) => {
+    if (!user) return errorAlert("empty field")
     setOpen(false)
     confirmAlert("you want to record this as expencess", "Record", () => {
       addMutation.mutate({
         recordedBy: user.name,
-        date: date.toLocaleDateString("en-US").toString(),
-        description,
-        cost,
+        date: values.date.toLocaleDateString("en-US").toString(),
+        description: values.description,
+        cost: values.cost,
       })
     })
-  }
+  })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -108,11 +117,18 @@ export function AddExpencess({ refetch }: { refetch: () => void }) {
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Description</span>
               </div>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Ink supplies, equipment maintenance…"
+              <Controller
+                control={control}
+                name="description"
+                render={({ field }) => (
+                  <Textarea
+                    {...field}
+                    aria-invalid={!!errors.description}
+                    placeholder="e.g. Ink supplies, equipment maintenance…"
+                  />
+                )}
               />
+              <FieldError>{errors.description?.message}</FieldError>
               <p className="text-[11px] text-text-dim tracking-wider uppercase">
                 Brief note on what this expense covers
               </p>
@@ -126,12 +142,20 @@ export function AddExpencess({ refetch }: { refetch: () => void }) {
                 </div>
                 <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Amount</span>
               </div>
-              <Input
-                type="number"
-                value={cost}
-                onChange={(e) => setCost(Number(e.target.value))}
-                placeholder="₱0.00"
+              <Controller
+                control={control}
+                name="cost"
+                render={({ field }) => (
+                  <MoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!errors.cost}
+                    placeholder="0.00"
+                  />
+                )}
               />
+              <FieldError>{errors.cost?.message}</FieldError>
               <p className="text-[11px] text-text-dim tracking-wider uppercase">
                 Enter total cost in Philippine Peso
               </p>
@@ -163,19 +187,28 @@ export function AddExpencess({ refetch }: { refetch: () => void }) {
                 </div>
                 <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Date of Expense</span>
               </div>
-              <div className=" rounded-none p-3">
-                <Calendar
-                  mode="single"
-                  selected={date}
-                  onSelect={setDate}
-                  captionLayout="dropdown"
-                />
-              </div>
-              {date && (
-                <p className="text-[11px] text-text-muted tracking-wider uppercase">
-                  Selected — {date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-                </p>
-              )}
+              <Controller
+                control={control}
+                name="date"
+                render={({ field }) => (
+                  <>
+                    <div className=" rounded-none p-3">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        captionLayout="dropdown"
+                      />
+                    </div>
+                    {field.value && (
+                      <p className="text-[11px] text-text-muted tracking-wider uppercase">
+                        Selected — {field.value.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                      </p>
+                    )}
+                  </>
+                )}
+              />
+              <FieldError>{errors.date?.message}</FieldError>
             </div>
           </div>
 
@@ -183,7 +216,7 @@ export function AddExpencess({ refetch }: { refetch: () => void }) {
           <DialogFooter className="pt-2 border-t border-border">
             <Button
               onClick={addExpencesssHanlder}
-              disabled={addMutation.isPending}
+              disabled={addMutation.isPending || !isValid}
               className="w-full"
             >
               {addMutation.isPending ? (

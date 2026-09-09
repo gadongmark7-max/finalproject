@@ -4,6 +4,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
+import { priceField } from "@/lib/validation/schemas/booking"
+import { firstError, moneyField, percentField, countField } from "@/lib/validation/fields"
+
+const rateSchema = moneyField({ label: "Rate" })
+const downPaymentSchema = percentField("Down payment")
+const qtySchema = countField("Quantity", { min: 1 })
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -92,8 +100,9 @@ export default function Page() {
   const [itemId, setItemId] = useState("")
   const [itemName, setItemName] = useState("")
   const [itemType, setItemType] = useState("Quantity")
-  const [itemQty, setItemQty] = useState(1)
+  const [itemQty, setItemQty] = useState("1")
   const [itemPrice, setItemPrice] = useState(0)
+  const itemQtyNum = Number(itemQty) || 0
 
   const selectItemHanlder = (value : string) => {
     setItemId(value)
@@ -106,19 +115,20 @@ export default function Page() {
   
   const addInventoryItem = () => {
     if (!itemId) return errorAlert("no selected item")
+    if (!qtySchema.safeParse(itemQty).success) return errorAlert("Enter a valid quantity")
     setItemUsed(prev => {
       const existingItem = prev.find(item => item.itemId === itemId)
       if (existingItem) {
         return prev.map(item =>
           item.itemId === itemId
-            ? { ...item, qty: item.qty + itemQty, item : itemName, price : itemPrice}
+            ? { ...item, qty: item.qty + itemQtyNum, item : itemName, price : itemPrice}
             : item
         )
       }
   
-      return [...prev, { itemId: itemId, qty: itemQty, item : itemName, price : itemPrice }]
+      return [...prev, { itemId: itemId, qty: itemQtyNum, item : itemName, price : itemPrice }]
     })
-    setItemQty(1)
+    setItemQty("1")
     setItemPrice(0)
   }
 
@@ -136,8 +146,8 @@ export default function Page() {
   const [tagInput, setTagInput] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [artStyle, setArtStyle] = useState("")
-  const [price, setPrice] = useState(0)
-  const [downPercentage, setDownPercentage] = useState(0)
+  const [price, setPrice] = useState("")
+  const [downPercentage, setDownPercentage] = useState("")
 
 
 
@@ -148,7 +158,8 @@ export default function Page() {
 
   const [category, setCategory] = useState("")
   const [complexity, setComplexity] = useState(0)
-  const [perHour, setPerHour] = useState(500)
+  const [perHour, setPerHour] = useState("")
+  const perHourNum = Number(perHour) || 0
   const [isColored, setIsColored] = useState(false)
   const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "")
 
@@ -159,9 +170,9 @@ export default function Page() {
   }, [tattooData])
 
   const EstimatedPrice = () => {
-    if(!tattooData || !category || !perHour || !complexity) return false
+    if(!tattooData || !category || !perHourNum || !complexity) return false
     const totalSessionHrs =  sessions.reduce((total, item) => (total + item), 0);
-    const artistRate = (totalSessionHrs * perHour) - perHour
+    const artistRate = (totalSessionHrs * perHourNum) - perHourNum
     const itemUsedPrice = itemUsed.reduce((total, item) => (total + (item.price * item.qty) ), 0);
     const sizeCm2 = tattooAreaCm2(tattooData.size)
 
@@ -264,9 +275,17 @@ export default function Page() {
   }
 
 
+  const priceError = firstError(priceField, price)
+  const rateError = firstError(rateSchema, perHour)
+  const downPaymentError = firstError(downPaymentSchema, downPercentage)
+
   const handleSubmit = (e: React.FormEvent) => {
 
-    if(!tags || !category || !sessions || !price || !downPercentage) return errorAlert("empty field")
+    const parsedPrice = priceField.safeParse(price)
+    const parsedDown = downPaymentSchema.safeParse(downPercentage)
+    if(!tags || !category || !sessions) return errorAlert("empty field")
+    if(!parsedPrice.success) return errorAlert(parsedPrice.error.issues[0]?.message ?? "Please enter a valid price")
+    if(!parsedDown.success) return errorAlert(parsedDown.error.issues[0]?.message ?? "Please enter a valid down payment")
     if(!postImg && type == "newPost" ) return errorAlert("empty field")
 
     const formData = new FormData()
@@ -274,10 +293,10 @@ export default function Page() {
     formData.append("file", postImg || "none")
     formData.append("tags", JSON.stringify(tags))
     formData.append("category", category)
-    formData.append("price", price.toString())
+    formData.append("price", String(parsedPrice.data))
     formData.append("sessions", JSON.stringify(sessions))
     formData.append("itemUsed", JSON.stringify(itemUsed))
-    formData.append("downPercentage", downPercentage.toString())
+    formData.append("downPercentage", String(parsedDown.data))
 
     formData.append("size", tattooData?.size.toString() || 0.3.toString())
 
@@ -394,7 +413,8 @@ export default function Page() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Hour Rate</Label>
-                    <Input placeholder="hr rate" value={perHour} type="number" onChange={(e) => setPerHour(Number(e.target.value))} />
+                    <MoneyInput placeholder="hr rate" value={perHour} onChange={setPerHour} aria-invalid={!!rateError} />
+                    <FieldError>{rateError}</FieldError>
                   </div>
                   <div className="space-y-2">
                     <Label>Is Colored</Label>
@@ -465,7 +485,8 @@ export default function Page() {
                   <Label>Price</Label>
                   <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">Required</span>
                 </div>
-                <Input placeholder="Price" value={price} min={0} type="number" onChange={(e) => setPrice(Number(e.target.value))} />
+                <MoneyInput placeholder="Price" value={price} onChange={setPrice} aria-invalid={!!priceError} />
+                <FieldError>{priceError}</FieldError>
               </div>
 
               <div className="space-y-2">
@@ -473,7 +494,8 @@ export default function Page() {
                   <Label>Down Payment %</Label>
                   <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">Required</span>
                 </div>
-                <Input placeholder="Down payment %" value={downPercentage} type="number" min={0} onChange={(e) => setDownPercentage(Number(e.target.value))} />
+                <Input placeholder="0 - 100" value={downPercentage} inputMode="decimal" aria-invalid={!!downPaymentError} onChange={(e) => setDownPercentage(e.target.value)} />
+                <FieldError>{downPaymentError}</FieldError>
               </div>
             </div>
 
@@ -535,9 +557,9 @@ export default function Page() {
             </div>
             <div className="space-y-2">
               <Label>{itemType}</Label>
-              <Input type="number" min={1} value={itemQty} onChange={(e) => setItemQty(Number(e.target.value))} />
+              <Input inputMode="numeric" value={itemQty} onChange={(e) => setItemQty(e.target.value.replace(/\D/g, ""))} />
             </div>
-            <Button onClick={addInventoryItem} disabled={!itemId || itemQty <= 0} className="w-full">
+            <Button onClick={addInventoryItem} disabled={!itemId || !qtySchema.safeParse(itemQty).success} className="w-full">
               <Plus className="mr-1 h-4 w-4" /> Add
             </Button>
           </div>

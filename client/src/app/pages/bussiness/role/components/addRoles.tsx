@@ -22,6 +22,10 @@ import {
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, requiredText } from "@/lib/validation/fields"
+
+const roleNameSchema = requiredText("Role name", { min: 2, max: 60 })
 
 
 const bussinessFeature = [
@@ -98,9 +102,13 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
     }
   }
 
+  const roleError = firstError(roleNameSchema, role)
+  const permissionsError = permissions.length === 0 ? "Select at least one permission" : undefined
+
   const addRoleHanlder = () => {
-    if (!role || permissions.length == 0) return errorAlert("empty field")
-    AddMutation.mutate({ role, permissions })
+    if (roleError) return errorAlert(roleError)
+    if (permissionsError) return errorAlert(permissionsError)
+    AddMutation.mutate({ role: role.trim(), permissions })
   }
 
   return (
@@ -192,8 +200,10 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
             <Input
               placeholder="e.g. Supervisor"
               value={role}
+              aria-invalid={!!roleError}
               onChange={(e) => setRole(e.target.value)}
             />
+            <FieldError>{roleError}</FieldError>
             <p className="text-[11px] text-text-dim tracking-wider uppercase">
               Displayed when assigning roles to employees
             </p>
@@ -211,6 +221,7 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
                 {permissions.length} / {bussinessFeature.length} selected
               </span>
             </div>
+            <FieldError>{permissionsError}</FieldError>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
               {bussinessFeature.map((feature) => (
@@ -247,7 +258,7 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
           <DialogFooter className="pt-2 border-t border-border">
             <Button
               className="w-full"
-              disabled={AddMutation.isPending}
+              disabled={AddMutation.isPending || !!roleError || !!permissionsError}
               onClick={addRoleHanlder}
             >
               {AddMutation.isPending ? (

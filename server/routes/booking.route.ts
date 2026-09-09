@@ -7,6 +7,11 @@ import { upload } from "../utils/upload";
 const route = Router()
 
 route.post("/", authenticateJWT,  BookingController.createBooking)
+
+
+route.get("/appointment/clients", authenticateJWT, BookingController.getAppointmentClients)
+route.get("/custom/clients", authenticateJWT, BookingController.getAddBookingClients)
+
 route.get("/:id", authenticateJWT, BookingController.getBooking)
 route.post("/appointment", authenticateJWT,  BookingController.createAppointment)
 route.post("/custom", authenticateJWT, upload.single("file"), BookingController.customBooking)

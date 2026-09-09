@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { FieldError } from "@/components/ui/field-error"
+import { bookingClientSchema, firstError } from "@/lib/validation/schemas/booking"
 import {
   Select,
   SelectContent,
@@ -12,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-import { errorAlert , successAlert} from "@/app/utils/alert"
+import { errorAlert } from "@/app/utils/alert"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { useRouter } from "next/navigation"
@@ -96,6 +98,10 @@ export default function Page() {
 
   const [duration, setDuration] = useState(1)
 
+  const clientNameError = firstError(bookingClientSchema.shape.clientName, clientName)
+  const clientEmailError = firstError(bookingClientSchema.shape.clientEmail, clientEmail)
+  const clientContactError = firstError(bookingClientSchema.shape.clientContact, clientContact)
+
   const postMutation = useMutation({
     mutationFn : (data : appointmentType) => axiosInstance.post("/booking/appointment", data),
     onSuccess : () => {
@@ -119,7 +125,7 @@ export default function Page() {
 
     if(!duration || !user) return errorAlert("empty field")
         
-    if(isNoClientAccount && (!clientName || !clientEmail || !clientContact)) return errorAlert("client empty field")
+    if(isNoClientAccount && !bookingClientSchema.safeParse({ clientName, clientEmail, clientContact }).success) return errorAlert("Please complete the client details")
     if(!isNoClientAccount && !client) return  errorAlert("no selected client ")
    
     postMutation.mutate({
@@ -197,24 +203,37 @@ export default function Page() {
               <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 {isNoClientAccount ? (
                   <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
-                    <Input
-                      placeholder="Name"
-                      value={clientName}
-                      type="text"
-                      onChange={(e) => setClientName(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Email"
-                      value={clientEmail}
-                      type="text"
-                      onChange={(e) => setClientEmail(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Contact"
-                      value={clientContact}
-                      type="text"
-                      onChange={(e) => setClientContact(e.target.value)}
-                    />
+                    <div className="w-full">
+                      <Input
+                        placeholder="Name"
+                        value={clientName}
+                        type="text"
+                        aria-invalid={!!clientNameError}
+                        onChange={(e) => setClientName(e.target.value)}
+                      />
+                      <FieldError>{clientNameError}</FieldError>
+                    </div>
+                    <div className="w-full">
+                      <Input
+                        placeholder="Email"
+                        value={clientEmail}
+                        type="email"
+                        aria-invalid={!!clientEmailError}
+                        onChange={(e) => setClientEmail(e.target.value)}
+                      />
+                      <FieldError>{clientEmailError}</FieldError>
+                    </div>
+                    <div className="w-full">
+                      <Input
+                        placeholder="Contact"
+                        value={clientContact}
+                        type="text"
+                        inputMode="numeric"
+                        aria-invalid={!!clientContactError}
+                        onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                      />
+                      <FieldError>{clientContactError}</FieldError>
+                    </div>
                   </div>
                 ) : (
                   <Select onValueChange={setClient}>

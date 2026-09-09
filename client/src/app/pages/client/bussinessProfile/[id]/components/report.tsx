@@ -23,13 +23,19 @@ import { Skull } from "lucide-react"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { successAlert, errorAlert } from "@/app/utils/alert"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
+import { firstError, longText } from "@/lib/validation/fields"
+
+const messageSchema = longText("Message", { min: 10, max: 1000 })
 
 export function ReportButton({ reportedAccount } : { reportedAccount : string }) {
 
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const { file, preview, error: fileError, onSelect, reset } = useImageField();
+
+  const messageError = firstError(messageSchema, message);
 
   const submitMutation = useMutation({
     mutationFn: (data: FormData) =>
@@ -38,26 +44,19 @@ export function ReportButton({ reportedAccount } : { reportedAccount : string })
       successAlert("Report Submitted");
       setOpen(false);
       setMessage("");
-      setFile(null);
-      setPreview(null);
+      reset();
     },
     onError: () => errorAlert("Error occurred"),
   });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (!selected) return;
-
-    setFile(selected);
-    setPreview(URL.createObjectURL(selected)); // preview
-  };
 
   const handleSelect = (value: string) => {
     setMessage(value); // auto fill textarea
   };
 
   const handleSubmit = () => {
-    if (!file)  return errorAlert("NO SELECTED PROOF")
+    if (!file)  return errorAlert(fileError ?? "Please attach a proof image")
+    const parsedMessage = messageSchema.safeParse(message);
+    if (!parsedMessage.success) return errorAlert(parsedMessage.error.issues[0]?.message ?? "Please describe the issue");
     const formData = new FormData();
     formData.append("reportedAccount", reportedAccount);
     formData.append("message", message);
@@ -106,21 +105,27 @@ export function ReportButton({ reportedAccount } : { reportedAccount : string })
           </Select>
 
           {/* TEXTAREA */}
-          <Textarea
-            placeholder="Enter message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-          />
+          <div>
+            <Textarea
+              placeholder="Enter message..."
+              value={message}
+              aria-invalid={!!messageError}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+            <FieldError>{messageError}</FieldError>
+          </div>
 
           {/* FILE INPUT */}
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium text-gold">Proof (Image)</label>
             <input
               type="file"
-              accept="image/*"
-              onChange={handleFileChange}
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              aria-invalid={!!fileError}
               className="text-sm text-gold"
             />
+            <FieldError>{fileError}</FieldError>
           </div>
 
           {/* IMAGE PREVIEW */}
@@ -135,7 +140,7 @@ export function ReportButton({ reportedAccount } : { reportedAccount : string })
         </div>
 
         <DialogFooter>
-          <Button className="w-full" onClick={handleSubmit} disabled={submitMutation.isPending}>
+          <Button className="w-full" onClick={handleSubmit} disabled={submitMutation.isPending || !file || !!messageError}>
             Submit
           </Button>
         </DialogFooter>

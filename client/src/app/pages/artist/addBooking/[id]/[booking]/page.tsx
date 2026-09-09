@@ -37,9 +37,8 @@ import { useParams } from "next/navigation"
 import { useRouter } from "next/navigation"
 import Swal from "sweetalert2"
 import { BookModal } from "./components/bookModal"
-import { convoInterface } from "@/app/types/convo.type"
 import useUserStore from "@/app/store/useUserStore"
-import { getChatIndex } from "@/app/utils/customFunction"
+import { ClientPicker } from "@/components/ui/client-picker"
 import { artistInfoInterface, bussinessInfoInterface } from "@/app/types/accounts.type"
 import { inventoryInterface } from "@/app/types/inventory.type"
 import { getInventoryName , getInventoryPrice, getInventoryType} from "@/app/utils/customFunction"
@@ -50,6 +49,13 @@ import { ArtStyleSelect } from "@/components/ui/artStyleSelect"
 import { tattooAreaCm2 } from "@/app/utils/customFunction"
 import { BodyPartSelect } from "@/components/ui/bodyPartSelect"
 import { bookingInterface } from "@/app/types/booking.type"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
+import { priceField, bookingClientSchema, firstError } from "@/lib/validation/schemas/booking"
+import { moneyField, countField } from "@/lib/validation/fields"
+
+const rateSchema = moneyField({ label: "Rate" })
+const qtySchema = countField("Quantity", { min: 1 })
 
 
 const wizardInfo = [ "Session Info", "Tattoo Info", "Booking Schedule"];
@@ -136,7 +142,8 @@ export default function Page() {
   const [itemId, setItemId] = useState("")
   const [itemName, setItemName] = useState("")
   const [itemType, setItemType] = useState("Quantity")
-  const [itemQty, setItemQty] = useState(1)
+  const [itemQty, setItemQty] = useState("1")
+  const itemQtyNum = Number(itemQty) || 0
   const [itemPrice, setItemPrice] = useState(0)
 
   const selectItemHanlder = (value : string) => {
@@ -150,19 +157,20 @@ export default function Page() {
   
   const addInventoryItem = () => {
     if (!itemId) return errorAlert("no selected item")
+    if (!qtySchema.safeParse(itemQty).success) return errorAlert("Enter a valid quantity")
     setItemUsed(prev => {
       const existingItem = prev.find(item => item.itemId === itemId)
       if (existingItem) {
         return prev.map(item =>
           item.itemId === itemId
-            ? { ...item, qty: item.qty + itemQty, item : itemName, price : itemPrice}
+            ? { ...item, qty: item.qty + itemQtyNum, item : itemName, price : itemPrice}
             : item
         )
       }
   
-      return [...prev, { itemId: itemId, qty: itemQty, item : itemName, price : itemPrice }]
+      return [...prev, { itemId: itemId, qty: itemQtyNum, item : itemName, price : itemPrice }]
     })
-    setItemQty(1)
+    setItemQty("1")
     setItemPrice(0)
   }
 
@@ -194,17 +202,6 @@ export default function Page() {
   }, [bussiness, artistInfoData, bussinessInfoData])
 
 
-  const [convos, setConvos] = useState<convoInterface[]>([])
-
-  const { data : convoData } = useQuery({
-    queryKey : ['convos'],
-    queryFn : () => axiosInstance.get(`/convo`)
-  })
-
-  useEffect(() => {
-    if(convoData?.data) setConvos(convoData?.data)
-  }, [convoData])
-
 
   
   const router = useRouter()
@@ -213,7 +210,7 @@ export default function Page() {
   const [preview, setPreview] = useState<string | null>(null)
 
 
-  const [price, setPrice] = useState(0)
+  const [price, setPrice] = useState("")
 
 
   const [client, setClient] = useState("")
@@ -228,7 +225,8 @@ export default function Page() {
 
   const [category, setCategory] = useState("")
   const [complexity, setComplexity] = useState(0)
-  const [perHour, setPerHour] = useState(50)
+  const [perHour, setPerHour] = useState("50")
+  const perHourNum = Number(perHour) || 0
   const [isColored, setIsColored] = useState(false)
   const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "")
 
@@ -239,9 +237,9 @@ export default function Page() {
   }, [tattooData])
 
   const EstimatedPrice = () => {
-    if(!tattooData || !category || !perHour || !complexity) return false
+    if(!tattooData || !category || !perHourNum || !complexity) return false
     const totalSessionHrs =  sessions.reduce((total, item) => (total + item), 0);
-    const artistRate = (totalSessionHrs * perHour) - perHour
+    const artistRate = (totalSessionHrs * perHourNum) - perHourNum
     const itemUsedPrice = itemUsed.reduce((total, item) => (total + (item.price * item.qty) ), 0);
     const sizeCm2 = tattooAreaCm2(tattooData.size)
 
@@ -321,15 +319,20 @@ export default function Page() {
     }
   }
 
+  const priceError = firstError(priceField, price)
+  const clientNameError = firstError(bookingClientSchema.shape.clientName, clientName)
+  const clientEmailError = firstError(bookingClientSchema.shape.clientEmail, clientEmail)
+  const clientContactError = firstError(bookingClientSchema.shape.clientContact, clientContact)
+
   const NextButttonValidation = () => {
     if(step == 1){
       if(isNoClientAccount){
-        return !clientName || !clientEmail || !clientContact
+        return !bookingClientSchema.safeParse({ clientName, clientEmail, clientContact }).success
       }else{
         return !client
       }
     }else if(step == 2){
-      return !preview || price == 0
+      return !preview || !priceField.safeParse(price).success
     } else {
       return true
     }
@@ -339,13 +342,14 @@ export default function Page() {
 
     if( !sessions || !user) return errorAlert("empty field")
     if(!postImg && type == "newPost" ) return errorAlert("empty field")
-    if(price < 100) return errorAlert("minimum price is 100")
-    
+    const parsedPrice = priceField.safeParse(price)
+    if(!parsedPrice.success) return errorAlert(parsedPrice.error.issues[0]?.message ?? "Please enter a valid price")
+
 
     const formData = new FormData()
 
     formData.append("file", postImg || "none")
-    formData.append("price", price.toString())
+    formData.append("price", String(parsedPrice.data))
     formData.append("sessions", JSON.stringify(sessions))
 
     formData.append("selectedTime", JSON.stringify(data.time))
@@ -486,31 +490,7 @@ export default function Page() {
                 <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">Required</span>
               </div>
 
-              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
-                {isNoClientAccount ? (
-                  <div className="flex flex-col sm:flex-row gap-2 w-full">
-                    <Input placeholder="Client name" value={clientName} type="text" onChange={(e) => setClientName(e.target.value)} />
-                    <Input placeholder="Client email" value={clientEmail} type="text" onChange={(e) => setClientEmail(e.target.value)} />
-                    <Input placeholder="Client contact" value={clientContact} type="text" onChange={(e) => setClientContact(e.target.value)} />
-                  </div>
-                ) : (
-                  <Select onValueChange={setClient} value={client}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {convos.map((convo) => {
-                        if (convo.accounts[getChatIndex(user?._id!, convo)].type !== "client") return;
-                        return (
-                          <SelectItem key={convo._id} value={convo.accounts[getChatIndex(user?._id!, convo)]._id}>
-                            <img src={convo.accounts[getChatIndex(user?._id!, convo)].profile} className="w-5 h-5 object-cover rounded-full" />
-                            {convo.accounts[getChatIndex(user?._id!, convo)].name}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                )}
+              <div className="flex justify-end">
                 <Button onClick={() => setIsNoClientAccount((prev) => !prev)}>
                   {isNoClientAccount ? (
                     <><UserCheck className="w-4 h-4" /> Has account</>
@@ -519,6 +499,30 @@ export default function Page() {
                   )}
                 </Button>
               </div>
+
+              {isNoClientAccount ? (
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  <div className="w-full">
+                    <Input placeholder="Client name" value={clientName} type="text" aria-invalid={!!clientNameError} onChange={(e) => setClientName(e.target.value)} />
+                    <FieldError>{clientNameError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input placeholder="Client email" value={clientEmail} type="email" aria-invalid={!!clientEmailError} onChange={(e) => setClientEmail(e.target.value)} />
+                    <FieldError>{clientEmailError}</FieldError>
+                  </div>
+                  <div className="w-full">
+                    <Input placeholder="Client contact" value={clientContact} type="text" inputMode="numeric" aria-invalid={!!clientContactError} onChange={(e) => setClientContact(e.target.value.replace(/\D/g, "").slice(0, 11))} />
+                    <FieldError>{clientContactError}</FieldError>
+                  </div>
+                </div>
+              ) : (
+                <ClientPicker
+                  endpoint="/booking/custom/clients"
+                  value={client}
+                  onSelect={(id) => setClient(id)}
+                  noRecordsLabel="No clients found."
+                />
+              )}
             </div>
           )}
 
@@ -575,9 +579,9 @@ export default function Page() {
               </div>
               <div className="space-y-2">
                 <Label>{itemType}</Label>
-                <Input type="number" min={1} value={itemQty} onChange={(e) => setItemQty(Number(e.target.value))} />
+                <Input inputMode="numeric" value={itemQty} onChange={(e) => setItemQty(e.target.value.replace(/\D/g, ""))} />
               </div>
-              <Button onClick={addInventoryItem} disabled={!itemId || itemQty <= 0} className="w-full">
+              <Button onClick={addInventoryItem} disabled={!itemId || !qtySchema.safeParse(itemQty).success} className="w-full">
                 <Plus className="mr-1 h-4 w-4" /> Add
               </Button>
             </div>
@@ -729,7 +733,8 @@ export default function Page() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Hour Rate</Label>
-                    <Input placeholder="Rate" value={perHour} type="number" onChange={(e) => setPerHour(Number(e.target.value))} />
+                    <Input placeholder="Rate" inputMode="decimal" value={perHour} onChange={(e) => setPerHour(e.target.value)} aria-invalid={!!firstError(rateSchema, perHour)} />
+                    <FieldError>{firstError(rateSchema, perHour)}</FieldError>
                   </div>
                   <div className="space-y-2">
                     <Label>Body Part</Label>
@@ -801,13 +806,13 @@ export default function Page() {
                 <Label>Price</Label>
                 <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">Required</span>
               </div>
-              <Input
+              <MoneyInput
                 placeholder="Final price"
                 value={price}
-                min={0}
-                type="number"
-                onChange={(e) => setPrice(Number(e.target.value))}
+                onChange={setPrice}
+                aria-invalid={!!priceError}
               />
+              <FieldError>{priceError}</FieldError>
             </div>
           </div>
         </div>

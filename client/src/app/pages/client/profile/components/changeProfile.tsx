@@ -1,23 +1,16 @@
 "use client"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useState } from "react"
- import { Plus, ImageIcon, LoaderCircle } from "lucide-react"
- import { Input } from "@/components/ui/input"
- import { Label } from "@/components/ui/label"
+ import { LoaderCircle } from "lucide-react"
+import { Input } from "@/components/ui/input"
  import { useMutation } from "@tanstack/react-query"
  import axiosInstance from "@/app/utils/axios"
 import { errorAlert, successAlert } from "@/app/utils/alert"
 import { useQueryClient } from "@tanstack/react-query"
 import useUserStore from "@/app/store/useUserStore"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
 
 
 export function ChangeProfile({ profile } : { profile : string}) {
@@ -26,30 +19,21 @@ export function ChangeProfile({ profile } : { profile : string}) {
 
   const {setUser} = useUserStore()
 
-  const [img, setImg] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string>(profile)
+  const { file: img, preview, error: imgError, onSelect, reset } = useImageField({ initialPreview: profile })
 
   const uploadMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.post("/account/changeProfilePic", data),
     onSuccess : (response) => {
         successAlert("profile changed")
         setOpen(false)
-        setImg(null)
+        reset()
         setUser(response.data)
     },
     onError : () => errorAlert("error accour")
   })
 
- 
-  const handleImageChange = (file: File | null) => {
-    setImg(file)
-    if (file) {
-      setPreview(URL.createObjectURL(file))
-    }
-  }
-
   const handleUploadImg = () => {
-    if(!img) return errorAlert("no selected file")
+    if(!img) return errorAlert(imgError ?? "Please choose an image")
     const formData = new FormData()
     formData.append("file", img)
     uploadMutation.mutate(formData)
@@ -93,17 +77,17 @@ export function ChangeProfile({ profile } : { profile : string}) {
             {/* FILE INPUT */}
             <Input
               type="file"
-              accept="image/*"
-              onChange={(e) =>
-                handleImageChange(e.target.files?.[0] || null)
-              }
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => onSelect(e.target.files?.[0] || null)}
+              aria-invalid={!!imgError}
               className="mt-4"
             />
+            <FieldError>{imgError}</FieldError>
           </div>
         </div>
-  
+
         <DialogFooter className="flex justify-center">
-          <Button disabled={uploadMutation.isPending} className="w-full " onClick={handleUploadImg}> {uploadMutation.isPending &&   <LoaderCircle className="h-4 w-4 animate-spin" />} Change Profile </Button>
+          <Button disabled={uploadMutation.isPending || !img} className="w-full " onClick={handleUploadImg}> {uploadMutation.isPending &&   <LoaderCircle className="h-4 w-4 animate-spin" />} Change Profile </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

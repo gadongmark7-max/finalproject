@@ -95,8 +95,11 @@ export default function Page() {
     onError: () => errorAlert("error accour"),
   });
 
+  const isValidTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(selectedTime);
+
   const handleTimeIn = async () => {
     if (!user || !bussinessInfo) return errorAlert("user not found");
+    if (!isValidTime) return errorAlert("Please enter a valid time");
     confirmAlert("you want to tim in?", "time in", () => {
       mutationTimeIn.mutate({
         bussiness: bussinessInfo?.bussiness._id,
@@ -109,6 +112,7 @@ export default function Page() {
 
   const handleTimeOut = async () => {
     if (!todayAttendance) return errorAlert("user not found");
+    if (!isValidTime) return errorAlert("Please enter a valid time");
     confirmAlert("you want to tim out?", "time out", () => {
       mutationTimeOut.mutate({
         timeOut: selectedTime,
@@ -225,7 +229,8 @@ export default function Page() {
                       type="time"
                       value={selectedTime}
                       onChange={(e) => setSelectedTime(e.target.value)}
-                      className="bg-surface border border-border text-text text-sm px-3 py-1.5 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 placeholder:text-text-dim"
+                      aria-invalid={!isValidTime}
+                      className="bg-surface border border-border text-text text-sm px-3 py-1.5 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 placeholder:text-text-dim aria-invalid:border-danger"
                     />
                   </div>
                 </div>

@@ -1,5 +1,12 @@
 "use client"
 import { Button } from "@/components/ui/button"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
+import { priceField } from "@/lib/validation/schemas/booking"
+import { firstError, percentField, countField } from "@/lib/validation/fields"
+
+const downPaymentSchema = percentField("Down payment")
+const sessionHrsSchema = countField("Session hours", { min: 1, max: 24 })
 import {
   Dialog,
   DialogContent,
@@ -49,9 +56,9 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
   const [tagInput, setTagInput] = useState("")
   const [tags, setTags] = useState<string[]>(post.tags)
   const [category, setCategory] = useState(post.category)
-  const [price, setPrice] = useState(post.price)
-  const [downpayment, setDownpayment] = useState(post.downPercentage)
-  const [sessionInput, setSessionInput] = useState(0)
+  const [price, setPrice] = useState(String(post.price ?? ""))
+  const [downpayment, setDownpayment] = useState(String(post.downPercentage ?? ""))
+  const [sessionInput, setSessionInput] = useState("")
   const [sessions, setSessions] = useState<number[]>(post.sessions)
 
 
@@ -67,9 +74,10 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
   }
 
   const addSession = () => {
-    if (!sessionInput) return errorAlert("Session cannot be empty")
-    setSessions([...sessions, sessionInput])
-    setSessionInput(0)
+    const parsed = sessionHrsSchema.safeParse(sessionInput)
+    if (!parsed.success) return errorAlert(parsed.error.issues[0]?.message ?? "Enter valid session hours")
+    setSessions([...sessions, parsed.data])
+    setSessionInput("")
   }
 
   // Remove a session
@@ -88,15 +96,22 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
     onError : () => errorAlert("ERROR ACCOUR")
   })
 
+  const priceError = firstError(priceField, price)
+  const downPaymentError = firstError(downPaymentSchema, downpayment)
+
   const handleSave = () => {
-    if(!category || !sessions || !price ) return errorAlert("empty field")
+    const parsedPrice = priceField.safeParse(price)
+    const parsedDown = downPaymentSchema.safeParse(downpayment)
+    if(!category || !sessions ) return errorAlert("empty field")
+    if(!parsedPrice.success) return errorAlert(parsedPrice.error.issues[0]?.message ?? "Please enter a valid price")
+    if(!parsedDown.success) return errorAlert(parsedDown.error.issues[0]?.message ?? "Please enter a valid down payment")
     updateMutation.mutate({
         tags,
         sessions,
         category,
-        price,
-        downPercentage : downpayment
-        
+        price : parsedPrice.data,
+        downPercentage : parsedDown.data
+
     })
   }
 
@@ -140,13 +155,14 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
                   Price 
                 </Label>
 
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Estimated time per Session (e.g., 2hrs)"
+                <div className="flex flex-col gap-1">
+                  <MoneyInput
+                    placeholder="Final price"
                     value={price}
-                    type="number"
-                    onChange={(e) => setPrice(Number(e.target.value))}
+                    onChange={setPrice}
+                    aria-invalid={!!priceError}
                   />
+                  <FieldError>{priceError}</FieldError>
                 </div>
 
                 
@@ -157,16 +173,18 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
                   <Layers className="w-4 h-4" />
                   Down payment Percentage 
                 </Label>
-  <div className="flex gap-2">
+  <div className="flex flex-col gap-1">
                   <Input
-                    placeholder="Estimated time per Session (e.g., 2hrs)"
+                    placeholder="0 - 100"
                     value={downpayment}
-                    type="number"
-                    onChange={(e) => setDownpayment(Number(e.target.value))}
+                    inputMode="decimal"
+                    aria-invalid={!!downPaymentError}
+                    onChange={(e) => setDownpayment(e.target.value)}
                   />
+                  <FieldError>{downPaymentError}</FieldError>
                 </div>
 
-                
+
               </div>
 
 
@@ -184,10 +202,10 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
 
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Estimated time per Session (e.g., 2hrs)"
+                    placeholder="Hours per session (e.g. 2)"
                     value={sessionInput}
-                    type="number"
-                    onChange={(e) => setSessionInput(Number(e.target.value))}
+                    inputMode="numeric"
+                    onChange={(e) => setSessionInput(e.target.value.replace(/\D/g, ""))}
                   />
                   <Button type="button" onClick={addSession}>
                     <Plus />

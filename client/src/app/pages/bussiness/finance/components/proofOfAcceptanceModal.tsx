@@ -13,7 +13,9 @@ import { useState } from "react"
 import { payRollInterface } from "@/app/types/payroll.type"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
-import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert"
+import { successAlert, errorAlert } from "@/app/utils/alert"
+import { useImageField } from "@/lib/validation/useFileField"
+import { FieldError } from "@/components/ui/field-error"
 import useUserStore from "@/app/store/useUserStore"
 import { Input } from "@/components/ui/input"
 import { Loader2Icon } from "lucide-react"
@@ -36,34 +38,24 @@ export function ProofModal({ payroll, refetch } :  {payroll : payRollInterface, 
 
   const noProofPayslip = payroll.payroll.filter((item) => !item.proofOfAcceptance)
 
-  const [img, setImg] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string>("")
+  const { file: img, preview, error: imgError, onSelect, reset } = useImageField()
 
   const uploadMutation = useMutation({
     mutationFn : (data : FormData) => axiosInstance.put("/account/payroll/proof", data),
     onSuccess : () => {
         successAlert("proof recorded")
         setOpen(false)
-        setImg(null)
+        reset()
         refetch()
         setType("Cash")
         setEmployee("")
-        setPreview("")
     },
     onError : () => errorAlert("error accour")
   })
 
- 
-  const handleImageChange = (file: File | null) => {
-    setImg(file)
-    if (file) {
-      setPreview(URL.createObjectURL(file))
-    }
-  }
-
   const handleUploadImg = () => {
-    if(!img) return errorAlert("no selected file")
-    if(!employee) return errorAlert("no selected employee")
+    if(!img) return errorAlert(imgError ?? "Please choose an image")
+    if(!employee) return errorAlert("Please select an employee")
     const formData = new FormData()
     formData.append("file", img)
     formData.append("id", payroll._id)
@@ -109,10 +101,9 @@ export function ProofModal({ payroll, refetch } :  {payroll : payRollInterface, 
 
                 <Input
                 type="file"
-                accept="image/*"
-                onChange={(e) =>
-                    handleImageChange(e.target.files?.[0] || null)
-                }
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => onSelect(e.target.files?.[0] || null)}
+                aria-invalid={!!imgError}
                 className=""
                 />
 
@@ -144,13 +135,14 @@ export function ProofModal({ payroll, refetch } :  {payroll : payRollInterface, 
                         ))}
                     </SelectContent>
            </Select>
-          
-            
+
+            <FieldError>{imgError}</FieldError>
+
           </div>
         </div>
   
         <DialogFooter className="flex justify-center">
-          <Button disabled={uploadMutation.isPending} className="w-full " onClick={handleUploadImg}> {uploadMutation.isPending &&   <Loader2Icon className="h-4 w-4 animate-spin" />} Submit  </Button>
+          <Button disabled={uploadMutation.isPending || !img || !employee} className="w-full " onClick={handleUploadImg}> {uploadMutation.isPending &&   <Loader2Icon className="h-4 w-4 animate-spin" />} Submit  </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -9,12 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useState, useContext, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { successAlert, errorAlert } from "@/app/utils/alert"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Controller } from "react-hook-form"
+import { useZodForm } from "@/lib/validation/useZodForm"
+import { makeCashPaymentSchema } from "@/lib/validation/schemas/payment"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
 import { bookingInterface } from "@/app/types/booking.type"
 import { payMongoBooking } from "@/app/utils/payMongo"
 import { LoaderCircle, ArrowDown, Wallet, DollarSign, ArrowBigRight , DollarSignIcon, Download} from "lucide-react"
@@ -41,13 +44,27 @@ export function CashPayment({ booking , refetch} : { booking : bookingInterface,
 
   const[showReceipt, setShowReceipt] = useState(false);
 
-  const [amount, setAmount] = useState(booking.balance)
+  const bookingBalance = Number(booking.balance)
+  const schema = useMemo(() => makeCashPaymentSchema(bookingBalance), [bookingBalance])
 
-  const [payment, setPayment] = useState(0)
+  const {
+    control,
+    handleSubmit: rhfSubmit,
+    watch,
+    getValues,
+    setValue,
+    formState: { errors, isValid },
+  } = useZodForm(schema, {
+    defaultValues: {
+      amount: booking.balance?.toString() ?? "",
+      customerPayment: "0",
+      paymentMethod: "Cash",
+    },
+  })
 
-  const [paymentMethod, setPayemntMethod] = useState("Cash")
-
-  const isInvalidAmount = () => !amount || Number(amount) > Number(booking.balance)
+  const amount = Number(watch("amount")) || 0
+  const payment = Number(watch("customerPayment")) || 0
+  const paymentMethod = watch("paymentMethod")
 
   const paymentMutation = useMutation({
     mutationFn : (data : { amount : number ,sender : string, receiver : string, bookingId : string } ) => axiosInstance.post(`/booking/cashPayment`, data),
@@ -64,18 +81,18 @@ export function CashPayment({ booking , refetch} : { booking : bookingInterface,
     if(showReceipt) refetch()
   }, [open])
 
-  const handleSubmit = () => {
-    if(isInvalidAmount()) return errorAlert("invalid amount")
+  const handleSubmit = rhfSubmit((values) => {
     setIsLoading(true)
     const sender = booking.client._id
     const receiver = booking.bussiness?._id ?? booking.artist._id
     const bookingId = booking._id
-    paymentMutation.mutate({amount : Number(amount) ,sender, receiver, bookingId})
-  }
+    paymentMutation.mutate({ amount: values.amount, sender, receiver, bookingId })
+  })
 
-  
-  const addMoney = (amount : number) => {
-    setPayment((prev) => prev += amount)
+
+  const addMoney = (value : number) => {
+    const current = Number(getValues("customerPayment")) || 0
+    setValue("customerPayment", String(current + value), { shouldValidate: true, shouldTouch: true })
   }
 
   const now = new Date();
@@ -249,51 +266,62 @@ export function CashPayment({ booking , refetch} : { booking : bookingInterface,
 
             <div className="space-y-2 w-full">
               <label className="text-sm font-medium text-stone-500">Amount</label>
-              <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
-                  ₱
-                  </span>
-                  <Input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className={`pl-8 ${isInvalidAmount() && "border-red-500 focus-visible:ring-red-500"}`}
-                  placeholder="Enter amount"
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <MoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!errors.amount}
+                    placeholder="Enter amount"
                   />
-              </div>
+                )}
+              />
+              <FieldError>{errors.amount?.message}</FieldError>
             </div>
 
 
             <div className="space-y-2 w-full">
               <label className="text-sm font-medium text-stone-500">Customer Payment</label>
-              <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">
-                  ₱
-                  </span>
-                  <Input
-                  type="number"
-                  value={payment}
-                  onChange={(e) => setPayment(Number(e.target.value))}
-                  className={`pl-8 ${ payment < amount && "border-red-500 focus-visible:ring-red-500"}`}
-                  placeholder="Enter amount"
+              <Controller
+                control={control}
+                name="customerPayment"
+                render={({ field }) => (
+                  <MoneyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!errors.customerPayment}
+                    placeholder="Enter amount"
                   />
-              </div>
+                )}
+              />
+              <FieldError>{errors.customerPayment?.message}</FieldError>
             </div>
 
 
             <div className="space-y-2 w-full  ">
                 <label className="text-stone-500">Payment Method</label>
-                <Select onValueChange={setPayemntMethod} value={paymentMethod}>
-                  <SelectTrigger className=" w-full">
-                    <SelectValue placeholder="Select payment methopd" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={"Cash"}>   Cash </SelectItem>
-                    <SelectItem value={"Gcash"}>   Gcash </SelectItem>
-                    <SelectItem value={"Pay maya"}>   Pay maya </SelectItem>
-                    <SelectItem value={"Bank Transfer"}>   Bank Transfer </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger className=" w-full">
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={"Cash"}>   Cash </SelectItem>
+                        <SelectItem value={"Gcash"}>   Gcash </SelectItem>
+                        <SelectItem value={"Pay maya"}>   Pay maya </SelectItem>
+                        <SelectItem value={"Bank Transfer"}>   Bank Transfer </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError>{errors.paymentMethod?.message}</FieldError>
             </div>
 
 
@@ -318,7 +346,7 @@ export function CashPayment({ booking , refetch} : { booking : bookingInterface,
             ))}
             </div>
 
-            <Button onClick={handleSubmit} disabled={isLoading || (payment < amount) || (amount <= 0)}  className="w-full mt-3">
+            <Button onClick={handleSubmit} disabled={isLoading || !isValid}  className="w-full mt-3">
               {isLoading && (
                 <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
               )}

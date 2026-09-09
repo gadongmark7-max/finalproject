@@ -4,8 +4,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+
+const MAIL_SENDER_EMAIL = process.env.MAIL_SENDER_EMAIL || "inkofbaphomet@gmail.com";
+const MAIL_SENDER_NAME = process.env.MAIL_SENDER_NAME || "Ink Of Baphomet";
+
 export const sendPin = async (email: string, pin: string) => {
-  const apiKey = process.env.brevoKey || "";
+  const apiKey = process.env.BREVO_API_KEY || "";
 
   try {
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -16,8 +20,8 @@ export const sendPin = async (email: string, pin: string) => {
       },
       body: JSON.stringify({
         sender: {
-          name: "Ink Of Baphomet",
-          email: "krelianquimson@gmail.com",
+          name: MAIL_SENDER_NAME,
+          email: MAIL_SENDER_EMAIL,
         },
         to: [
           {
@@ -66,12 +70,13 @@ export const sendPin = async (email: string, pin: string) => {
 
 
 export const sendEmail = async (
-  email : string, title : string,  message : string
-) => {
+  email : string, title : string,  message : string,
+  replyTo? : { email : string, name? : string }
+) : Promise<boolean> => {
 
-  const apiKey =  process.env.brevoKey || ""
-  const senderEmail = "krelianquimson@gmail.com"
-  const senderName = "from Ink Of Baphomet"
+  const apiKey =  process.env.BREVO_API_KEY || ""
+  const senderEmail = MAIL_SENDER_EMAIL
+  const senderName = MAIL_SENDER_NAME
 
 
   try {
@@ -86,6 +91,11 @@ export const sendEmail = async (
           name: senderName,
           email: senderEmail
         },
+        // When set, a "Reply" in the recipient's inbox goes here instead of the
+        // shared sender address. Existing callers omit this — behaviour unchanged.
+        ...(replyTo?.email
+          ? { replyTo: { email: replyTo.email, name: replyTo.name || replyTo.email } }
+          : {}),
         to: [
           {
             email: email
@@ -197,8 +207,11 @@ htmlContent: `
     const data = await res.json();
     console.log("Email sent:", data);
 
+    return res.ok;
+
   } catch (error) {
     console.log("Error:", error);
+    return false;
   }
 };
 
@@ -206,7 +219,7 @@ export const sendEmail_old = (email : string, title : string,  message : string)
         const transporter = nodemailer.createTransport({
                 service: 'gmail', 
                 auth: {
-                user: 'krelianquimson@gmail.com',
+                user: 'inkofbaphomet@gmail.com',
                 pass: 'sxib fmmt uxfz itkj',
                 },
         });
@@ -214,7 +227,7 @@ export const sendEmail_old = (email : string, title : string,  message : string)
     
 
       const mailOptions = {
-        from: '"Tattoo App" <krelianquimson@gmail.com>',
+        from: '"Tattoo App" <inkofbaphomet@gmail.com>',
         to: email,
         subject: title,
         text: message,

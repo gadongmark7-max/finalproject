@@ -32,11 +32,12 @@ export default function ArtistMap({ mapArtistInfo }: ArtistMapProps) {
     () =>
       mapArtistInfo.filter(
         (a) =>
-          a.artist.location?.lat != null &&
-          a.artist.location?.long != null
+          a?.artist?.location?.lat != null &&
+          a?.artist?.location?.long != null
       ),
     [mapArtistInfo]
   )
+
 
   const center: [number, number] = useMemo(() => {
     if (artistsWithLocation.length > 0) {

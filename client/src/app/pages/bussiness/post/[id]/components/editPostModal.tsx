@@ -1,5 +1,11 @@
 "use client"
 import { Button } from "@/components/ui/button"
+import { MoneyInput } from "@/components/ui/money-input"
+import { FieldError } from "@/components/ui/field-error"
+import { priceField, firstError } from "@/lib/validation/schemas/booking"
+import { countField } from "@/lib/validation/fields"
+
+const sessionHrsSchema = countField("Session hours", { min: 1, max: 24 })
 import {
   Dialog,
   DialogContent,
@@ -48,8 +54,8 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
   const [tagInput, setTagInput] = useState("")
   const [tags, setTags] = useState<string[]>(post.tags)
   const [category, setCategory] = useState(post.category)
-  const [price, setPrice] = useState(post.price)
-  const [sessionInput, setSessionInput] = useState(0)
+  const [price, setPrice] = useState(String(post.price ?? ""))
+  const [sessionInput, setSessionInput] = useState("")
   const [sessions, setSessions] = useState<number[]>(post.sessions)
 
 
@@ -65,9 +71,10 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
   }
 
   const addSession = () => {
-    if (!sessionInput) return errorAlert("Session cannot be empty")
-    setSessions([...sessions, sessionInput])
-    setSessionInput(0)
+    const parsed = sessionHrsSchema.safeParse(sessionInput)
+    if (!parsed.success) return errorAlert(parsed.error.issues[0]?.message ?? "Enter valid session hours")
+    setSessions([...sessions, parsed.data])
+    setSessionInput("")
   }
 
   // Remove a session
@@ -86,13 +93,17 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
     onError : () => errorAlert("ERROR ACCOUR")
   })
 
+  const priceError = firstError(priceField, price)
+
   const handleSave = () => {
-    if(!category || !sessions || !price ) return errorAlert("empty field")
+    const parsedPrice = priceField.safeParse(price)
+    if(!category || !sessions ) return errorAlert("empty field")
+    if(!parsedPrice.success) return errorAlert(parsedPrice.error.issues[0]?.message ?? "Please enter a valid price")
     updateMutation.mutate({
         tags,
         sessions,
         category,
-        price
+        price : parsedPrice.data
     })
   }
 
@@ -137,12 +148,13 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
                 </Label>
 
                 <div className="flex gap-2">
-                  <Input
-                    placeholder="Estimated time per Session (e.g., 2hrs)"
+                  <MoneyInput
+                    placeholder="Final price"
                     value={price}
-                    type="number"
-                    onChange={(e) => setPrice(Number(e.target.value))}
+                    onChange={setPrice}
+                    aria-invalid={!!priceError}
                   />
+                  <FieldError>{priceError}</FieldError>
                 </div>
               </div>
               
@@ -156,8 +168,8 @@ export function EditPostmodal({ post , setPost} : { post : postInterface, setPos
                   <Input
                     placeholder="Estimated time per Session (e.g., 2hrs)"
                     value={sessionInput}
-                    type="number"
-                    onChange={(e) => setSessionInput(Number(e.target.value))}
+                    inputMode="numeric"
+                    onChange={(e) => setSessionInput(e.target.value.replace(/\D/g, ""))}
                   />
                   <Button type="button" onClick={addSession}>
                     <Plus />
