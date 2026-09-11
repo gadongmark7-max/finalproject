@@ -12,11 +12,13 @@ import {
   moneyField,
   percentField,
   countField,
+  selectField,
 } from "@/lib/validation/fields";
 
 const rateSchema = moneyField({ label: "Rate" });
 const downPaymentSchema = percentField("Down payment");
 const qtySchema = countField("Quantity", { min: 1 });
+const categorySchema = selectField("an art style", [""]);
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -279,24 +281,41 @@ export default function Page() {
     aiMutation.mutate(formData);
   };
 
-  const priceError = firstError(priceField, price);
-  const rateError = firstError(rateSchema, perHour);
-  const downPaymentError = firstError(downPaymentSchema, downPercentage);
+  // Field errors are hidden on a pristine, never-submitted form; once the
+  // artist tries to upload, every invalid/empty required field lights up at
+  // once and clears itself the moment it's fixed — no toast needed for these.
+  const [triedSubmit, setTriedSubmit] = useState(false);
+
+  const priceError = firstError(priceField, price, { showWhenEmpty: triedSubmit });
+  const rateError = firstError(rateSchema, perHour, { showWhenEmpty: triedSubmit });
+  const downPaymentError = firstError(downPaymentSchema, downPercentage, {
+    showWhenEmpty: triedSubmit,
+  });
+  const categoryError = firstError(categorySchema, category, { showWhenEmpty: triedSubmit });
+  const tagsError =
+    triedSubmit && tags.length === 0 ? "Please enter at least one tag." : undefined;
+  const imageError =
+    triedSubmit && !postImg && type === "newPost"
+      ? "Please select an image."
+      : undefined;
 
   const handleSubmit = (e: React.FormEvent) => {
     const parsedPrice = priceField.safeParse(price);
     const parsedDown = downPaymentSchema.safeParse(downPercentage);
-    if (!tags || !category || !sessions) return errorAlert("empty field");
-    if (!parsedPrice.success)
-      return errorAlert(
-        parsedPrice.error.issues[0]?.message ?? "Please enter a valid price",
-      );
-    if (!parsedDown.success)
-      return errorAlert(
-        parsedDown.error.issues[0]?.message ??
-          "Please enter a valid down payment",
-      );
-    if (!postImg && type == "newPost") return errorAlert("empty field");
+    const parsedCategory = categorySchema.safeParse(category);
+    const hasTags = tags.length > 0;
+    const hasImage = !!postImg || type !== "newPost";
+
+    if (
+      !parsedPrice.success ||
+      !parsedDown.success ||
+      !parsedCategory.success ||
+      !hasTags ||
+      !hasImage
+    ) {
+      setTriedSubmit(true);
+      return;
+    }
 
     const formData = new FormData();
 
@@ -381,14 +400,18 @@ export default function Page() {
               </div>
 
               {type === "newPost" && (
-                <Input
-                  type="file"
-                  className="w-full"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleImageChange(e.target.files?.[0] || null)
-                  }
-                />
+                <div className="space-y-1">
+                  <Input
+                    type="file"
+                    className="w-full"
+                    accept="image/*"
+                    aria-invalid={!!imageError}
+                    onChange={(e) =>
+                      handleImageChange(e.target.files?.[0] || null)
+                    }
+                  />
+                  <FieldError>{imageError}</FieldError>
+                </div>
               )}
 
               {preview && (
@@ -410,6 +433,7 @@ export default function Page() {
                   </span>
                 </div>
                 <ArtStyleSelect onChange={setCategory} value={category} />
+                <FieldError>{categoryError}</FieldError>
               </div>
             </div>
 
@@ -596,12 +620,14 @@ export default function Page() {
                   <Input
                     placeholder="Add tag"
                     value={tagInput}
+                    aria-invalid={!!tagsError}
                     onChange={(e) => setTagInput(e.target.value)}
                   />
                   <Button type="button" onClick={addTag}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                <FieldError>{tagsError}</FieldError>
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-1">
                     {tags.map((tag, index) => (

@@ -128,8 +128,11 @@ export function ArtistSelectionModal({
                   Select an artist before booking
                 </p>
               </div>
-              <button className="cursor-pointer" onClick={() => setOpen(false)}>
-                <X className="text-white" />
+              <button
+                onClick={() => setOpen(false)}
+                className="text-[10px] uppercase tracking-[0.2em] px-5 py-3 border border-gold text-gold hover:bg-gold hover:text-primary transition-all duration-200"
+              >
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 

@@ -9,6 +9,13 @@ import {
 import { useState } from "react"
 import { X } from "lucide-react"
 import { errorAlert } from "@/app/utils/alert"
+import { FieldError } from "@/components/ui/field-error"
+import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  paymentMethodSchema,
+  type PaymentMethod,
+} from "@/lib/validation/schemas/booking"
 
 const HEALTH_ITEMS = [
   { key: "pregnant",         label: "I am NOT pregnant or breastfeeding" },
@@ -31,7 +38,7 @@ export function ClientAgreementModal({
   isDisabled,
   down
 }: {
-  callBack: () => void
+  callBack: (paymentMethod: PaymentMethod) => void
   isDisabled: boolean
   down : number
 }) {
@@ -40,10 +47,17 @@ export function ClientAgreementModal({
 
   const [health, setHealth] = useState({ ...EMPTY_HEALTH })
   const [consent, setConsent] = useState({ ...EMPTY_CONSENT })
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("")
 
   const allChecked =
     HEALTH_ITEMS.every(({ key }) => health[key]) &&
     CONSENT_ITEMS.every(({ key }) => consent[key])
+
+  const paymentMethodError = triedSubmit
+    ? paymentMethodSchema.safeParse(paymentMethod).success
+      ? undefined
+      : "Please select a payment method."
+    : undefined
 
   const showError = triedSubmit && !allChecked
 
@@ -58,14 +72,19 @@ export function ClientAgreementModal({
   }
 
   const submitForm = () => {
-    if (!allChecked) {
+    const parsedMethod = paymentMethodSchema.safeParse(paymentMethod)
+    if (!allChecked || !parsedMethod.success) {
       setTriedSubmit(true)
-      errorAlert("Please review and check all required health and consent items before continuing.")
+      errorAlert(
+        !parsedMethod.success
+          ? "Please select a payment method."
+          : "Please review and check all required health and consent items before continuing."
+      )
       return
     }
     setOpen(false)
     setTriedSubmit(false)
-    callBack()
+    callBack(parsedMethod.data)
   }
 
   return (
@@ -153,6 +172,42 @@ export function ClientAgreementModal({
               </span>{" "}
               down payment is required to confirm this booking.
             </p>
+          </div>
+
+          {/* Payment Method */}
+          <div className="space-y-3">
+            <p className="text-[9px] uppercase tracking-[0.28em] text-gold">
+              Payment Method
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {PAYMENT_METHODS.map((method) => (
+                <label
+                  key={method}
+                  className={`flex items-center gap-3 px-4 py-3 border bg-surface hover:border-border-gold transition-all duration-200 cursor-pointer group ${
+                    paymentMethodError ? "border-danger" : "border-border"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
+                    paymentMethod === method ? "border-gold" : "border-border group-hover:border-gold"
+                  }`}>
+                    {paymentMethod === method && (
+                      <div className="w-2 h-2 rounded-full bg-gold" />
+                    )}
+                  </div>
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    className="hidden"
+                    checked={paymentMethod === method}
+                    onChange={() => setPaymentMethod(method)}
+                  />
+                  <span className="text-[11px] text-text-muted tracking-wide leading-relaxed">
+                    {PAYMENT_METHOD_LABELS[method]}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <FieldError>{paymentMethodError}</FieldError>
           </div>
 
           {/* Check all */}

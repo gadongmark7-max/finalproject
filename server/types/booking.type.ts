@@ -19,9 +19,10 @@ export interface bookingInterfaceInput {
         item : string,
         qty : number,
     }[],
-    tattooData : TattooDataInterface | null
+    tattooData : TattooDataInterface | null,
+    paymentMethod? : "online" | "counter"
 }
- 
+
 export interface bookingInterface{
     _id : string,
     bussiness : accountInterface | null,
@@ -41,6 +42,7 @@ export interface bookingInterface{
         item : string,
         qty : number,
     }[],
-    tattooData : TattooDataInterface | null
+    tattooData : TattooDataInterface | null,
+    paymentMethod? : "online" | "counter"
 }
- 
+

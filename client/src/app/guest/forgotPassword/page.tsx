@@ -389,7 +389,7 @@ export default function ForgotPasswordPage() {
                   {resetForm.watch("confirmPassword") &&
                     resetForm.watch("confirmPassword") === resetForm.watch("password") &&
                     !resetForm.formState.errors.confirmPassword && (
-                      <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-[#7AAE87] mt-1.5">
+                      <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-success-light mt-1.5">
                         <CheckCircle2 size={11} /> Passwords match
                       </p>
                     )}

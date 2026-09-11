@@ -539,7 +539,7 @@ export default function LoginPage() {
                           cy="30"
                           r="26"
                           fill="none"
-                          stroke="var(--border, #33302a)"
+                          stroke="var(--color-border)"
                           strokeWidth="2"
                           opacity="0.5"
                         />

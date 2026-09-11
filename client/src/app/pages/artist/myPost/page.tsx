@@ -1,10 +1,11 @@
 "use client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { Plus, ImageOff, Feather } from "lucide-react";
+import { Plus, ImageOff, Feather, Search, SearchX } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { postInterface } from "@/app/types/post.type";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
@@ -35,6 +36,20 @@ export default function Page() {
   useEffect(() => {
     if (data?.data) setPosts(data.data);
   }, [data]);
+
+  const [search, setSearch] = useState("");
+
+  const filteredPosts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return posts;
+    return posts.filter((post) => {
+      const inCategory = post.category?.toLowerCase().includes(query);
+      const inTags = post.tags?.some((tag) =>
+        tag.trim().toLowerCase().includes(query),
+      );
+      return inCategory || inTags;
+    });
+  }, [posts, search]);
 
   if (!artistBussinesses) return <LoadingScreen />;
 
@@ -81,6 +96,18 @@ export default function Page() {
             </Link>
           )}
         </div>
+
+        {posts.length > 0 && (
+          <div className="max-w-7xl mx-auto mt-6 relative">
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search posts by tag or style…"
+              className="pl-9 max-w-md"
+            />
+          </div>
+        )}
       </div>
 
       {/* Posts Grid */}
@@ -97,11 +124,32 @@ export default function Page() {
               </p>
             </div>
           </div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="border border-dashed border-border flex flex-col items-center justify-center py-28 gap-4 bg-surface">
+            <div className="bg-surface-alt border border-border p-4">
+              <SearchX className="w-8 h-8 text-text-dim" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm text-text-muted">
+                No posts match &quot;{search}&quot;
+              </p>
+              <p className="text-xs text-text-dim tracking-wide">
+                Try a different tag or style name
+              </p>
+            </div>
+          </div>
         ) : (
           <>
+            {search.trim() && (
+              <p className="text-xs text-text-dim tracking-wide uppercase mb-4">
+                {filteredPosts.length} result
+                {filteredPosts.length === 1 ? "" : "s"} for &quot;
+                {search.trim()}&quot;
+              </p>
+            )}
             {/* Posts Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {posts.map((post) => (
+              {filteredPosts.map((post) => (
                 <Link
                   key={post._id}
                   href={`/pages/artist/post/${post._id}`}

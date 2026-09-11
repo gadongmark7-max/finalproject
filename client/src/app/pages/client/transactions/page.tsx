@@ -12,14 +12,15 @@ export default function Page() {
   const { data: transactionsData } = useQuery({
     queryKey: ["transactions_sender"],
     queryFn: async (): Promise<transactionInterface[]> => {
-      const response = await axiosInstance.get(`/account/transaction/sender/${user?._id}`);
+      const response = await axiosInstance.get(
+        `/account/transaction/sender/${user?._id}`,
+      );
       return response.data;
     },
   });
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -32,7 +33,6 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -119,10 +119,11 @@ export default function Page() {
             >
               No transactions yet
             </p>
-            <p className="text-text-muted text-sm">Your payment history will appear here</p>
+            <p className="text-text-muted text-sm">
+              Your payment history will appear here
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );

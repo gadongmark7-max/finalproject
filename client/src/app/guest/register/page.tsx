@@ -440,7 +440,7 @@ export default function RegisterPage() {
                           errors.contact
                             ? "!border-danger"
                             : field.value.length === 11
-                              ? "!border-[#4E7C59]"
+                              ? "!border-success"
                               : "border-border"
                         }`}
                         type="text"
@@ -589,7 +589,7 @@ export default function RegisterPage() {
                     />
                   </svg>
                   <input
-                    className={`${inputBase} pr-9 ${errors.confirmPassword ? "!border-danger" : confirmPassword ? (confirmPassword === password ? "!border-[#4E7C59]" : "border-border") : ""}`}
+                    className={`${inputBase} pr-9 ${errors.confirmPassword ? "!border-danger" : confirmPassword ? (confirmPassword === password ? "!border-success" : "border-border") : ""}`}
                     type={showConfirmPassword ? "text" : "password"}
                     {...register("confirmPassword")}
                     aria-invalid={!!errors.confirmPassword}
@@ -615,7 +615,7 @@ export default function RegisterPage() {
                 {confirmPassword &&
                   confirmPassword === password &&
                   !errors.confirmPassword && (
-                    <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-[#7AAE87] mt-0.5">
+                    <p className="flex items-center gap-1 text-[0.65rem] tracking-[0.1em] uppercase font-light text-success-light mt-0.5">
                       <CheckCircle2 size={11} /> Passwords match
                     </p>
                   )}
