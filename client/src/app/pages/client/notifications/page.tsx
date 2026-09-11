@@ -8,33 +8,30 @@ import { CheckCircle, AlertTriangle, Bell } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-
 export default function Page() {
   const { user } = useUserStore();
 
   const queryClient = useQueryClient();
 
-    useEffect(() => {
-    if(queryClient){
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["unseen-notif"] });  
-      }, 1000)
-    }
-  }, [queryClient]);
-
-
   const { data: notificationData } = useQuery({
     queryKey: ["notifications", user?._id],
     enabled: !!user?._id,
     queryFn: async (): Promise<notificationInterface[]> => {
-      const response = await axiosInstance.get(`/account/notifications/${user?._id}`);
+      const response = await axiosInstance.get(
+        `/account/notifications/${user?._id}`,
+      );
       return response.data;
     },
   });
 
+  useEffect(() => {
+    if (notificationData) {
+      queryClient.invalidateQueries({ queryKey: ["unseen-notif"] });
+    }
+  }, [notificationData, queryClient]);
+
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -47,7 +44,6 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -79,14 +75,19 @@ export default function Page() {
                   <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
 
                   {/* Left accent bar */}
-                  <div className={`absolute left-0 top-0 w-[2px] h-full ${isSuccess ? "bg-success-light" : "bg-red-500"} opacity-60`} />
+                  <div
+                    className={`absolute left-0 top-0 w-[2px] h-full ${isSuccess ? "bg-success-light" : "bg-red-500"} opacity-60`}
+                  />
 
                   {/* Icon */}
-                  <div className={`flex-shrink-0 mt-0.5 ${isSuccess ? "text-success-light" : "text-red-400"}`}>
-                    {isSuccess
-                      ? <CheckCircle className="w-4 h-4" />
-                      : <AlertTriangle className="w-4 h-4" />
-                    }
+                  <div
+                    className={`flex-shrink-0 mt-0.5 ${isSuccess ? "text-success-light" : "text-red-400"}`}
+                  >
+                    {isSuccess ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4" />
+                    )}
                   </div>
 
                   {/* Content */}
@@ -103,11 +104,13 @@ export default function Page() {
                   </div>
 
                   {/* Type badge */}
-                  <span className={`flex-shrink-0 text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 border ${
-                    isSuccess
-                      ? "border-success-border text-success-light bg-success-muted"
-                      : "border-red-500/30 text-red-400 bg-red-500/5"
-                  }`}>
+                  <span
+                    className={`flex-shrink-0 text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 border ${
+                      isSuccess
+                        ? "border-success-border text-success-light bg-success-muted"
+                        : "border-red-500/30 text-red-400 bg-red-500/5"
+                    }`}
+                  >
                     {notif.type}
                   </span>
                 </div>
@@ -133,7 +136,6 @@ export default function Page() {
             <p className="text-text-muted text-sm">You're all caught up</p>
           </div>
         )}
-
       </div>
     </div>
   );

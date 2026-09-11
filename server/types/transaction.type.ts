@@ -7,6 +7,7 @@ export interface transactionInterfaceInput {
     time :string,
     refId :string,
     amount : number,
+    bookingId? : string,
 }
 
 
@@ -18,4 +19,5 @@ export interface transactionInterface {
     time :string,
     refId :string,
     amount : number,
+    bookingId? : string,
 }

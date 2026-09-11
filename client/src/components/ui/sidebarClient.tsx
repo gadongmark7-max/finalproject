@@ -58,6 +58,7 @@ interface AppSidebarProps {
 
 function MobileBottomNav() {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-secondary border-t border-border">
@@ -71,6 +72,11 @@ function MobileBottomNav() {
             <Link
               key={item.title}
               href={item.url}
+              onClick={() => {
+                if (item.url.includes("/notifications")) {
+                  queryClient.setQueryData(["unseen-notif"], []);
+                }
+              }}
               className="group flex flex-col items-center gap-1 px-3 py-1 min-w-[52px]"
             >
               <div
@@ -125,6 +131,14 @@ export function SidebarClient({ className }: AppSidebarProps) {
 
   const queryClient = useQueryClient();
   const router = useRouter();
+
+  // Clear the sidebar's unread badge the instant Notifications is clicked —
+  // the notifications page itself marks them seen server-side on load, this
+  // just makes the badge reflect that immediately instead of waiting on a
+  // refetch. invalidateQueries on the notifications page reconciles it.
+  const handleNotificationsClick = () => {
+    queryClient.setQueryData(["unseen-notif"], []);
+  };
 
   const logoutHandler = async () => {
     queryClient.clear();
@@ -221,7 +235,10 @@ export function SidebarClient({ className }: AppSidebarProps) {
                   <Link
                     key={item.title}
                     href={item.url}
-                    onClick={closeMobileMenu}
+                    onClick={() => {
+                      closeMobileMenu();
+                      if (item.url.includes("/notifications")) handleNotificationsClick();
+                    }}
                     className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                   >
                     <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">
@@ -320,6 +337,9 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     <SidebarMenuButton asChild>
                       <Link
                         href={item.url}
+                        onClick={() => {
+                          if (item.url.includes("/notifications")) handleNotificationsClick();
+                        }}
                         className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                       >
                         <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">

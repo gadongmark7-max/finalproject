@@ -137,6 +137,7 @@ interface CategoryGroupProps {
 
 function CategoryGroup({ label, items, defaultOpen = true, onLinkClick }: CategoryGroupProps) {
   const [open, setOpen] = useState(defaultOpen)
+  const queryClient = useQueryClient()
 
   if (items.length === 0) return null
 
@@ -170,7 +171,13 @@ function CategoryGroup({ label, items, defaultOpen = true, onLinkClick }: Catego
             <Link
               key={item.title}
               href={item.url}
-              onClick={onLinkClick}
+              onClick={() => {
+                onLinkClick?.()
+                // Clear the sidebar's unread badge the instant Notifications is
+                // clicked — the notifications page marks them seen server-side
+                // on load; this makes the badge reflect that immediately.
+                if (item.url.includes("/notifications")) queryClient.setQueryData(["unseen-notif"], [])
+              }}
               className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300 rounded-sm"
             >
               <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300 shrink-0">

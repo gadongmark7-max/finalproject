@@ -2,9 +2,10 @@
 
 import axiosInstance from "@/app/utils/axios";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Receipt } from "lucide-react";
+import { ArrowUpRight, Receipt, Download } from "lucide-react";
 import { transactionInterface } from "@/app/types/transaction.type";
 import useUserStore from "@/app/store/useUserStore";
+import Link from "next/link";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -90,15 +91,26 @@ export default function Page() {
                   </div>
                 </div>
 
-                {/* Right — Amount */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
-                  <p
-                    className="text-gold text-lg font-light"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                {/* Right — Amount + Download */}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
+                    <p
+                      className="text-gold text-lg font-light"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      ₱{tx.amount.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/receipts/transaction/${tx._id}`}
+                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-text-muted hover:text-gold border border-border hover:border-border-gold px-2.5 py-1.5 transition-all duration-300"
+                    title="Download Receipt"
                   >
-                    ₱{tx.amount.toLocaleString()}
-                  </p>
+                    <Download className="w-3 h-3" />
+                    Receipt
+                  </Link>
                 </div>
               </div>
             ))}

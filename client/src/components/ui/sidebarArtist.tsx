@@ -75,6 +75,10 @@ export function SidebarArtist({ className }: AppSidebarProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
+  const handleNotificationsClick = () => {
+    queryClient.setQueryData(["unseen-notif"], []);
+  };
+
   const logoutHandler = async () => {
     queryClient.clear();
     localStorage.clear();
@@ -157,7 +161,11 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                   <Link
                     key={item.title}
                     href={item.url}
-                    onClick={closeMobileMenu}
+                    onClick={() => {
+                      closeMobileMenu();
+                      if (item.url.includes("/notifications"))
+                        handleNotificationsClick();
+                    }}
                     className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                   >
                     <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">
@@ -256,6 +264,10 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                     <SidebarMenuButton asChild>
                       <Link
                         href={item.url}
+                        onClick={() => {
+                          if (item.url.includes("/notifications"))
+                            handleNotificationsClick();
+                        }}
                         className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                       >
                         <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">
