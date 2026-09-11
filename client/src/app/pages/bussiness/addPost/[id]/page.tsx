@@ -158,7 +158,7 @@ export default function Page() {
 
   const [category, setCategory] = useState("")
   const [complexity, setComplexity] = useState(0)
-  const [perHour, setPerHour] = useState("")
+  const [perHour, setPerHour] = useState("50")
   const perHourNum = Number(perHour) || 0
   const [isColored, setIsColored] = useState(false)
   const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "")

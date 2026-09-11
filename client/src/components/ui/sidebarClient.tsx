@@ -1,6 +1,6 @@
-"use client"
-import Link from "next/link"
-import { useState, useEffect } from "react"
+"use client";
+import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,9 +13,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { useRouter, usePathname } from "next/navigation"
-import { useQueryClient } from "@tanstack/react-query"
+} from "@/components/ui/sidebar";
+import { useRouter, usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   User,
   Image,
@@ -26,13 +26,15 @@ import {
   Menu,
   X,
   History,
-  Bell, Sun, Moon, House
-} from "lucide-react"
-import useLightModeStore from "@/app/store/displayModeStore"
-import NotificationsCount from "./notifCount"
+  Bell,
+  Sun,
+  Moon,
+  House,
+} from "lucide-react";
+import useLightModeStore from "@/app/store/displayModeStore";
+import NotificationsCount from "./notifCount";
 
 const navigationItems = [
-  
   { title: "Profile", url: "/pages/client/profile", icon: User },
   { title: "Posts", url: "/pages/client/posts", icon: Image },
   { title: "Map", url: "/pages/client/map", icon: MapPin },
@@ -40,7 +42,7 @@ const navigationItems = [
   { title: "Chat", url: "/pages/client/convos", icon: MessageCircle },
   { title: "Transactions", url: "/pages/client/transactions", icon: History },
   { title: "Notifications", url: "/pages/client/notifications", icon: Bell },
-]
+];
 
 const bottomNavItems = [
   { title: "Home", url: "/pages/client/profile", icon: House },
@@ -48,15 +50,14 @@ const bottomNavItems = [
   { title: "Notif", url: "/pages/client/notifications", icon: Bell },
   { title: "Booking", url: "/pages/client/bookings", icon: CalendarCheck },
   { title: "Chat", url: "/pages/client/convos", icon: MessageCircle },
-]
+];
 
 interface AppSidebarProps {
-  className?: string
+  className?: string;
 }
 
 function MobileBottomNav() {
-  const pathname = usePathname()
-
+  const pathname = usePathname();
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-secondary border-t border-border">
@@ -65,7 +66,7 @@ function MobileBottomNav() {
 
       <div className="flex items-center justify-around px-2 py-2 relative">
         {bottomNavItems.map((item) => {
-          const isActive = pathname === item.url
+          const isActive = pathname === item.url;
           return (
             <Link
               key={item.title}
@@ -82,7 +83,9 @@ function MobileBottomNav() {
                 <item.icon
                   size={15}
                   className={`transition-colors duration-300 ${
-                    isActive ? "text-gold" : "text-text-dim group-hover:text-gold"
+                    isActive
+                      ? "text-gold"
+                      : "text-text-dim group-hover:text-gold"
                   }`}
                 />
               </div>
@@ -94,49 +97,50 @@ function MobileBottomNav() {
                 {item.title}
               </span>
             </Link>
-          )
+          );
         })}
       </div>
     </nav>
-  )
+  );
 }
 
 export function SidebarClient({ className }: AppSidebarProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-      const {lightMode, setLightMode} = useLightModeStore()
+  const { lightMode, setLightMode } = useLightModeStore();
 
   // Apply class to <html>
   useEffect(() => {
-    const root = document.documentElement
+    const root = document.documentElement;
     if (lightMode) {
-      root.classList.add("light")
-      root.classList.remove("dark")
+      root.classList.add("light");
+      root.classList.remove("dark");
     } else {
-      root.classList.remove("light")
+      root.classList.remove("light");
     }
-  }, [lightMode])
+  }, [lightMode]);
 
+  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen)
-  const closeMobileMenu = () => setIsMobileMenuOpen(false)
-
-  const queryClient = useQueryClient()
-  const router = useRouter()
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
   const logoutHandler = async () => {
-    queryClient.clear()
-    localStorage.clear()
-    sessionStorage.clear()
-    router.push("/")
-  }
+    queryClient.clear();
+    localStorage.clear();
+    sessionStorage.clear();
+    router.push("/guest/login");
+  };
 
   return (
     <>
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient Gold Glow */}
@@ -146,7 +150,11 @@ export function SidebarClient({ className }: AppSidebarProps) {
       <div className="lg:hidden bg-primary text-text p-4 flex items-center justify-between fixed top-0 left-0 right-0 z-50 border-b border-border">
         <div className="flex items-center gap-4">
           <div className="aspect-square size-8 overflow-hidden border border-border">
-            <img src="/web/logo.jpg" alt="Logo" className="object-cover w-full h-full" />
+            <img
+              src="/web/logo.jpg"
+              alt="Logo"
+              className="object-cover w-full h-full"
+            />
           </div>
           <div className="flex flex-col">
             <span
@@ -155,9 +163,10 @@ export function SidebarClient({ className }: AppSidebarProps) {
             >
               Ink Of Baphomet
             </span>
-            <span className="text-[10px] uppercase tracking-[0.28em] text-text-muted">Client</span>
+            <span className="text-[10px] uppercase tracking-[0.28em] text-text-muted">
+              Client
+            </span>
           </div>
-
         </div>
         <button
           onClick={toggleMobileMenu}
@@ -169,7 +178,10 @@ export function SidebarClient({ className }: AppSidebarProps) {
 
       {/* Mobile Sidebar Drawer */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-primary/80 backdrop-blur-sm" onClick={closeMobileMenu}>
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-primary/80 backdrop-blur-sm"
+          onClick={closeMobileMenu}
+        >
           <div
             className="fixed top-0 left-0 w-64 h-full bg-secondary border-r border-border shadow-2xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
@@ -179,34 +191,30 @@ export function SidebarClient({ className }: AppSidebarProps) {
               <div className="flex items-center gap-2">
                 <div className="h-px w-8 bg-gold opacity-60" />
 
-              
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                  
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
                   Navigation
-
-                  
-               
-
                 </span>
 
                 <button
-                      onClick={() => setLightMode(!lightMode)}
-                      className="ml-1    flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
-                      aria-label="Toggle light/dark mode"
-                    >
-                      {lightMode
-                        ? <Moon className="h-4 w-4 text-text-muted" />
-                        : <Sun className="h-4 w-4 text-gold" />
-                      }
-                 </button>
-
+                  onClick={() => setLightMode(!lightMode)}
+                  className="ml-1    flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
+                  aria-label="Toggle light/dark mode"
+                >
+                  {lightMode ? (
+                    <Moon className="h-4 w-4 text-text-muted" />
+                  ) : (
+                    <Sun className="h-4 w-4 text-gold" />
+                  )}
+                </button>
               </div>
             </div>
 
             {/* Mobile Nav Items */}
             <div className="flex-1 overflow-y-auto px-4 pt-5 pb-4">
               <div className="mb-3 px-3">
-                <span className="text-[10px] uppercase tracking-[0.28em] text-text-dim">Section</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-text-dim">
+                  Section
+                </span>
               </div>
               <nav className="space-y-1">
                 {navigationItems.map((item) => (
@@ -219,7 +227,8 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">
                       <item.icon size={13} className="text-gold" />
                     </div>
-                    <span className="text-sm tracking-wide">{item.title}</span>   {item.title == "Notifications" && <NotificationsCount />} 
+                    <span className="text-sm tracking-wide">{item.title}</span>{" "}
+                    {item.title == "Notifications" && <NotificationsCount />}
                   </Link>
                 ))}
               </nav>
@@ -228,11 +237,17 @@ export function SidebarClient({ className }: AppSidebarProps) {
             {/* Mobile Drawer Footer */}
             <div className="px-4 py-4 border-t border-border">
               <div
-                onClick={() => { closeMobileMenu(); logoutHandler() }}
+                onClick={() => {
+                  closeMobileMenu();
+                  logoutHandler();
+                }}
                 className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-danger-light hover:bg-danger-muted border border-transparent hover:border-danger-border cursor-pointer transition-all duration-300"
               >
                 <div className="bg-surface border border-border group-hover:border-danger-border p-1.5 transition-all duration-300">
-                  <LogOut size={13} className="text-text-dim group-hover:text-danger-light" />
+                  <LogOut
+                    size={13}
+                    className="text-text-dim group-hover:text-danger-light"
+                  />
                 </div>
                 <span className="text-sm tracking-wide">Logout</span>
               </div>
@@ -242,8 +257,9 @@ export function SidebarClient({ className }: AppSidebarProps) {
       )}
 
       {/* Desktop Sidebar */}
-      <Sidebar className={`hidden lg:flex bg-secondary border-r border-border ${className}`}>
-
+      <Sidebar
+        className={`hidden lg:flex bg-secondary border-r border-border ${className}`}
+      >
         {/* Header */}
         <SidebarHeader className="bg-secondary border-b border-border px-6 py-5">
           <SidebarMenu>
@@ -251,7 +267,11 @@ export function SidebarClient({ className }: AppSidebarProps) {
               <SidebarMenuButton size="lg" asChild>
                 <div className="group flex items-center gap-4">
                   <div className="aspect-square size-8 overflow-hidden border border-border group-hover:border-border-gold transition-all duration-300">
-                    <img src="/web/logo.jpg" alt="Logo" className="object-cover w-full h-full" />
+                    <img
+                      src="/web/logo.jpg"
+                      alt="Logo"
+                      className="object-cover w-full h-full"
+                    />
                   </div>
                   <div className="grid flex-1 text-left leading-tight gap-0.5">
                     <span
@@ -260,20 +280,22 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     >
                       Ink Of Baphomet
                     </span>
-                    <span className="truncate text-[10px] uppercase tracking-[0.28em] text-text-muted">Client</span>
+                    <span className="truncate text-[10px] uppercase tracking-[0.28em] text-text-muted">
+                      Client
+                    </span>
                   </div>
 
-                    <button
-                      onClick={() => setLightMode(!lightMode)}
-                      className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
-                      aria-label="Toggle light/dark mode"
-                    >
-                      {lightMode
-                        ? <Moon className="h-4 w-4 text-text-muted" />
-                        : <Sun className="h-4 w-4 text-gold" />
-                      }
-                    </button>
-
+                  <button
+                    onClick={() => setLightMode(!lightMode)}
+                    className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-alt hover:border-gold transition-colors duration-300"
+                    aria-label="Toggle light/dark mode"
+                  >
+                    {lightMode ? (
+                      <Moon className="h-4 w-4 text-text-muted" />
+                    ) : (
+                      <Sun className="h-4 w-4 text-gold" />
+                    )}
+                  </button>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -286,7 +308,9 @@ export function SidebarClient({ className }: AppSidebarProps) {
             <SidebarGroupLabel className="px-3 mb-3">
               <div className="flex items-center gap-2">
                 <div className="h-px w-4 bg-gold opacity-50" />
-                <span className="text-[10px] uppercase tracking-[0.28em] text-text-dim">Section</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-text-dim">
+                  Section
+                </span>
               </div>
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -301,8 +325,13 @@ export function SidebarClient({ className }: AppSidebarProps) {
                         <div className="bg-surface border border-border group-hover:border-border-gold p-1.5 transition-all duration-300">
                           <item.icon size={13} className="text-gold" />
                         </div>
-                        <span className="text-sm tracking-wide">{item.title}</span>  {item.title == "Notifications" && <NotificationsCount />} 
-                      </Link> 
+                        <span className="text-sm tracking-wide">
+                          {item.title}
+                        </span>{" "}
+                        {item.title == "Notifications" && (
+                          <NotificationsCount />
+                        )}
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -321,7 +350,10 @@ export function SidebarClient({ className }: AppSidebarProps) {
                   className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-danger-light hover:bg-danger-muted border border-transparent hover:border-danger-border cursor-pointer transition-all duration-300"
                 >
                   <div className="bg-surface border border-border group-hover:border-danger-border p-1.5 transition-all duration-300">
-                    <LogOut size={13} className="text-text-dim group-hover:text-danger-light" />
+                    <LogOut
+                      size={13}
+                      className="text-text-dim group-hover:text-danger-light"
+                    />
                   </div>
                   <span className="text-sm tracking-wide">Logout</span>
                 </div>
@@ -336,5 +368,5 @@ export function SidebarClient({ className }: AppSidebarProps) {
       {/* Mobile Bottom Navigation */}
       <MobileBottomNav />
     </>
-  )
+  );
 }
