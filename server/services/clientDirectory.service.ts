@@ -1,5 +1,4 @@
 import AccountModel from "../model/account.model"
-import ConvoModel from "../model/convo.model"
 
 export interface PaginatedClients {
   data: {
@@ -32,17 +31,7 @@ export class ClientDirectoryService {
 
     const search = (options.search ?? "").trim()
 
-    const convos = await ConvoModel.find({ accounts: artistId }).select("accounts").lean()
-    const clientIds = new Set<string>()
-    for (const convo of convos) {
-      for (const account of (convo.accounts as unknown[])) {
-        const id = String(account)
-        if (id !== String(artistId)) clientIds.add(id)
-      }
-    }
-
     const filter: Record<string, unknown> = {
-      _id: { $in: Array.from(clientIds) },
       type: "client",
     }
 

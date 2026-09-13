@@ -30,5 +30,6 @@ export interface postInterface  {
         itemId : string,
         item : string,
         qty : number,
-    }[]
+    }[],
+    deletedAt? : string | null
 }

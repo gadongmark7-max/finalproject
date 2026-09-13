@@ -254,7 +254,6 @@ export default function TransactionReceiptPage() {
 
           <div className="text-center text-xs text-gray-500 space-y-1">
             <p>This serves as an official receipt</p>
-            <p>No refunds after confirmation</p>
             <p className="tracking-widest mt-2">*** THANK YOU ***</p>
           </div>
         </div>

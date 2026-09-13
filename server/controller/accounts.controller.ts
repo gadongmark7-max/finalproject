@@ -46,6 +46,16 @@ export class AccountController {
     response.send("sucdess");
   };
 
+  static checkEmailExists = async (request: AuthRequest, response: Response) => {
+    const email = ((request.query.email as string) || "").trim().toLowerCase();
+    if (!email) {
+      response.status(400).send("email required");
+      return;
+    }
+    const account = await AccountService.checkEmailIfExist(email);
+    response.send({ exists: !!account });
+  };
+
   static getArtistInfo = async (request: AuthRequest, response: Response) => {
     const { id } = request.params;
     const artistInfo = await ArtistInfoService.getByArtist(id);

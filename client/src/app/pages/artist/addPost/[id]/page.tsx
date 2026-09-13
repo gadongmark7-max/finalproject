@@ -204,6 +204,10 @@ export default function Page() {
     return estimatedPrice;
   };
 
+  const [duplicateImageError, setDuplicateImageError] = useState<
+    string | undefined
+  >(undefined);
+
   const postMutation = useMutation({
     mutationFn: (data: FormData) => axiosInstance.post("/post", data),
     onSuccess: () => {
@@ -215,7 +219,15 @@ export default function Page() {
         router.push("/pages/artist/myPost");
       });
     },
-    onError: () => errorAlert("error accour"),
+    onError: (error: any) => {
+      if (error?.response?.data?.code === "DUPLICATE_IMAGE") {
+        setDuplicateImageError(
+          "This tattoo image already exists. Please choose a different image.",
+        );
+        return;
+      }
+      errorAlert("error accour");
+    },
   });
 
   const aiMutation = useMutation({
@@ -260,6 +272,7 @@ export default function Page() {
 
   const handleImageChange = (file: File | null) => {
     setPostImg(file);
+    setDuplicateImageError(undefined);
     if (file) {
       setPreview(URL.createObjectURL(file));
       setTatooData(null);
@@ -300,6 +313,7 @@ export default function Page() {
       : undefined;
 
   const handleSubmit = (e: React.FormEvent) => {
+    setDuplicateImageError(undefined);
     const parsedPrice = priceField.safeParse(price);
     const parsedDown = downPaymentSchema.safeParse(downPercentage);
     const parsedCategory = categorySchema.safeParse(category);
@@ -405,7 +419,7 @@ export default function Page() {
                     type="file"
                     className="w-full"
                     accept="image/*"
-                    aria-invalid={!!imageError}
+                    aria-invalid={!!imageError || !!duplicateImageError}
                     onChange={(e) =>
                       handleImageChange(e.target.files?.[0] || null)
                     }
@@ -413,6 +427,7 @@ export default function Page() {
                   <FieldError>{imageError}</FieldError>
                 </div>
               )}
+              <FieldError>{duplicateImageError}</FieldError>
 
               {preview && (
                 <SetTattoo3DModal

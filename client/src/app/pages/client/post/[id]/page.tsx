@@ -71,7 +71,7 @@ export default function Page() {
 
           {/* LEFT — Image + Book */}
           <div className="space-y-4">
-            <div className="relative border border-border overflow-hidden h-[600px] bg-surface">
+            <div className="relative border border-border overflow-hidden h-[320px] sm:h-[420px] lg:h-[600px] bg-surface">
               {/* Corner accents */}
               <div className="pointer-events-none absolute top-0 left-0 w-10 h-10 border-t border-l border-gold opacity-50 z-10" />
               <div className="pointer-events-none absolute top-0 right-0 w-10 h-10 border-t border-r border-gold opacity-50 z-10" />
@@ -154,28 +154,28 @@ export default function Page() {
             {/* Pricing & Category */}
             <div className="bg-surface border border-border">
               <div className="grid grid-cols-3 gap-px bg-border">
-                <div className="bg-surface px-5 py-5">
+                <div className="bg-surface px-3 sm:px-5 py-5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Price</p>
                   <p
-                    className="text-2xl font-light text-text"
+                    className="text-base sm:text-2xl font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
                     ₱{post.price.toLocaleString()}
                   </p>
                 </div>
-                <div className="bg-surface px-5 py-5">
+                <div className="bg-surface px-3 sm:px-5 py-5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Down Payment</p>
                   <p
-                    className="text-2xl font-light text-text"
+                    className="text-base sm:text-2xl font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
                     {post.downPercentage}%
                   </p>
                 </div>
-                <div className="bg-surface px-5 py-5">
+                <div className="bg-surface px-3 sm:px-5 py-5">
                   <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Category</p>
                   <p
-                    className="text-lg font-light text-text"
+                    className="text-sm sm:text-lg font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
                     {post.category}

@@ -31,6 +31,7 @@ import LoadingScreen from "@/components/ui/loadingScreen";
 import { UserCheck, UserX } from "lucide-react";
 import { ClientPicker } from "@/components/ui/client-picker";
 import { BackButton } from "@/components/ui/back-button";
+import { ClientAccountFields } from "@/components/ui/client-account-fields";
 
 interface appointmentType {
   sessions: number[];
@@ -43,6 +44,7 @@ interface appointmentType {
   bussinessId: string;
   clientContact: string;
   clientEmail: string;
+  clientPassword?: string;
 }
 
 export default function Page() {
@@ -100,6 +102,10 @@ export default function Page() {
   const [clientContact, setClientContact] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [isNoClientAccount, setIsNoClientAccount] = useState(false);
+  const [clientPassword, setClientPassword] = useState<string | undefined>(
+    undefined,
+  );
+  const [accountFieldsBlocking, setAccountFieldsBlocking] = useState(false);
 
   const [duration, setDuration] = useState(1);
 
@@ -140,6 +146,8 @@ export default function Page() {
     )
       return errorAlert("Please complete the client details");
     if (!isNoClientAccount && !client) return errorAlert("no selected client ");
+    if (isNoClientAccount && accountFieldsBlocking)
+      return errorAlert("Please finish the client account details");
 
     postMutation.mutate({
       sessions: [duration],
@@ -152,6 +160,7 @@ export default function Page() {
       bussinessId: bussiness,
       clientContact: clientContact,
       clientEmail: clientEmail,
+      clientPassword: isNoClientAccount ? clientPassword : undefined,
     });
   };
 
@@ -248,42 +257,54 @@ export default function Page() {
                 </div>
 
                 {isNoClientAccount ? (
-                  <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
-                    <div className="w-full">
-                      <Input
-                        placeholder="Name"
-                        value={clientName}
-                        type="text"
-                        aria-invalid={!!clientNameError}
-                        onChange={(e) => setClientName(e.target.value)}
-                      />
-                      <FieldError>{clientNameError}</FieldError>
+                  <div className="space-y-3">
+                    <div className="flex gap-2 flex-1 flex-wrap sm:flex-nowrap">
+                      <div className="w-full">
+                        <Input
+                          placeholder="Name"
+                          value={clientName}
+                          type="text"
+                          aria-invalid={!!clientNameError}
+                          onChange={(e) => setClientName(e.target.value)}
+                        />
+                        <FieldError>{clientNameError}</FieldError>
+                      </div>
+                      <div className="w-full">
+                        <Input
+                          placeholder="Email"
+                          value={clientEmail}
+                          type="email"
+                          aria-invalid={!!clientEmailError}
+                          onChange={(e) => setClientEmail(e.target.value)}
+                        />
+                        <FieldError>{clientEmailError}</FieldError>
+                      </div>
+                      <div className="w-full">
+                        <Input
+                          placeholder="Contact"
+                          value={clientContact}
+                          type="text"
+                          inputMode="numeric"
+                          aria-invalid={!!clientContactError}
+                          onChange={(e) =>
+                            setClientContact(
+                              e.target.value.replace(/\D/g, "").slice(0, 11),
+                            )
+                          }
+                        />
+                        <FieldError>{clientContactError}</FieldError>
+                      </div>
                     </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Email"
-                        value={clientEmail}
-                        type="email"
-                        aria-invalid={!!clientEmailError}
-                        onChange={(e) => setClientEmail(e.target.value)}
+
+                    {!clientEmailError && clientEmail && (
+                      <ClientAccountFields
+                        email={clientEmail}
+                        onChange={({ password, blocking }) => {
+                          setClientPassword(password);
+                          setAccountFieldsBlocking(blocking);
+                        }}
                       />
-                      <FieldError>{clientEmailError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Contact"
-                        value={clientContact}
-                        type="text"
-                        inputMode="numeric"
-                        aria-invalid={!!clientContactError}
-                        onChange={(e) =>
-                          setClientContact(
-                            e.target.value.replace(/\D/g, "").slice(0, 11),
-                          )
-                        }
-                      />
-                      <FieldError>{clientContactError}</FieldError>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <ClientPicker

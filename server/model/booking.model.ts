@@ -30,6 +30,13 @@ const TattooDataSchema = new mongoose.Schema(
       u: { type: Number },
       v: { type: Number },
     },
+
+    colorMode: {
+      type: String,
+      enum: ["original", "bw"],
+      default: "original",
+      required: false,
+    },
   },
   { _id: false },
 );

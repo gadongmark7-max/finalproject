@@ -18,10 +18,12 @@ export interface TattooDataInterface {
     }
   
     scale: number
-  
+
     uv?: {
       u: number
       v: number
     }
+
+    colorMode?: "original" | "bw"
   }
   

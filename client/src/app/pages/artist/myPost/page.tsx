@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { Plus, ImageOff, Feather, Search, SearchX } from "lucide-react";
+import { Plus, ImageOff, Feather, Search, SearchX, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect, useMemo } from "react";
 import { postInterface } from "@/app/types/post.type";
@@ -62,54 +62,75 @@ export default function Page() {
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
         }}
       />
-
       {/* Ambient gold glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
-
-      {/* Page Header */}
+      {/* Page Header */}{" "}
       <div className="bg-secondary border-b border-border px-6 lg:px-8 py-10">
-        <div className="max-w-7xl mx-auto flex items-end justify-between">
+        {" "}
+        <div className="max-w-7xl mx-auto flex items-end justify-between gap-4">
+          {" "}
           <div className="space-y-2">
+            {" "}
             <div className="flex items-center gap-3">
-              <div className="h-px w-8 bg-gold" />
+              {" "}
+              <div className="h-px w-8 bg-gold" />{" "}
               <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                Artist Portfolio
-              </span>
-            </div>
+                {" "}
+                Artist Portfolio{" "}
+              </span>{" "}
+            </div>{" "}
             <h1
               className="text-4xl font-light text-text tracking-[-0.02em]"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              My Posts
-            </h1>
+              {" "}
+              My Posts{" "}
+            </h1>{" "}
             <p className="text-sm text-text-muted leading-relaxed">
-              Showcase your tattoo work and manage your portfolio pieces.
-            </p>
-          </div>
-
+              {" "}
+              Showcase your tattoo work and manage your portfolio pieces.{" "}
+            </p>{" "}
+          </div>{" "}
           {isBussinessApproveArtistPost(artistBussinesses) && (
-            <Link href={"/pages/artist/addPost/new"}>
-              <Button size="lg">
-                <Plus className="w-4 h-4" />
-                Add Post
-              </Button>
-            </Link>
-          )}
-        </div>
-
+            <div className="flex items-center gap-2">
+              {" "}
+              {/* Trash Posts */}{" "}
+              <Link href="/pages/artist/trash-posts">
+                {" "}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="gap-2"
+                >
+                  {" "}
+                  <Trash2 className="w-4 h-4" /> Trash Posts{" "}
+                </Button>{" "}
+              </Link>{" "}
+              {/* Add Post */}{" "}
+              <Link href="/pages/artist/addPost/new">
+                {" "}
+                <Button type="button" size="lg" className="gap-2">
+                  {" "}
+                  <Plus className="w-4 h-4" /> Add Post{" "}
+                </Button>{" "}
+              </Link>{" "}
+            </div>
+          )}{" "}
+        </div>{" "}
         {posts.length > 0 && (
           <div className="max-w-7xl mx-auto mt-6 relative">
-            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {" "}
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />{" "}
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search posts by tag or style…"
               className="pl-9 max-w-md"
-            />
+            />{" "}
           </div>
-        )}
+        )}{" "}
       </div>
-
       {/* Posts Grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
         {posts.length === 0 ? (

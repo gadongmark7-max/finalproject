@@ -15,6 +15,7 @@ import {
   Navigation,
   Menu,
   X,
+  Facebook,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -293,9 +294,9 @@ export default function Page() {
   ];
 
   const mainArtist = {
-    name: "Mara V.",
+    name: "Lorenzo Regacho",
     role: "Lead Artist · Blackwork & Occult",
-    since: "Est. 2016",
+    since: "Est. 2019",
     bio: "Over eight years of dedicated practice in dark artistry, sacred geometry, and esoteric symbolism. Every piece is drawn by hand, conceptualized in dialogue, and executed with obsessive attention to detail.",
     specialties: ["Blackwork", "Occult", "Sacred Geometry", "Custom Design"],
   };
@@ -353,12 +354,12 @@ export default function Page() {
               </Button>
             </a>
             <div className="w-px h-5 bg-border mx-1" />
-            <a href="/guest/login" className="inline-flex">
+            <a href="/login" className="inline-flex">
               <Button variant="outline" className="text-sm">
                 Sign In
               </Button>
             </a>
-            <a href="/guest/register" className="inline-flex">
+            <a href="/register" className="inline-flex">
               <Button className="text-sm">Get Started</Button>
             </a>
 
@@ -427,12 +428,12 @@ export default function Page() {
               </Button>
             </a>
             <div className="my-2 h-px w-full bg-border" />
-            <a href="/guest/login" onClick={closeMenu}>
+            <a href="/login" onClick={closeMenu}>
               <Button variant="outline" className="w-full text-sm">
                 Sign In
               </Button>
             </a>
-            <a href="/guest/register" onClick={closeMenu}>
+            <a href="/register" onClick={closeMenu}>
               <Button className="w-full text-sm">Get Started</Button>
             </a>
           </div>
@@ -487,7 +488,7 @@ export default function Page() {
                 ref={ctaRef}
                 className="mt-8 flex flex-wrap gap-3 items-center"
               >
-                <a href="/guest/login">
+                <a href="/login">
                   <Button size="lg" className="text-base px-8">
                     Book a Session
                   </Button>
@@ -509,7 +510,6 @@ export default function Page() {
                 alt="Ink Of Baphomet studio"
                 className="h-full w-full object-cover hover:scale-105 transition-transform duration-700 rounded"
               />
-              <div className="absolute left-10 inset-0 bg-black/30 rounded" />
             </div>
           </div>
         </section>
@@ -644,7 +644,7 @@ export default function Page() {
                 {posts.slice(0, 8).map((post) => (
                   <button
                     key={post._id}
-                    onClick={() => router.push("/guest/login")}
+                    onClick={() => router.push("/login")}
                     className="gallery-item group relative h-[400px] overflow-hidden bg-surface border border-border hover:border-border-gold transition-all duration-500 text-left w-full"
                   >
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -738,7 +738,7 @@ export default function Page() {
                 <div className="absolute -top-3 -left-3 w-full h-full border border-gold/30 pointer-events-none" />
                 <div className="aspect-[3/4] bg-surface-alt overflow-hidden relative">
                   <img
-                    src="/web/img1.png"
+                    src="/artist-image.jpg"
                     alt={mainArtist.name}
                     className="h-full w-full object-cover opacity-90 hover:scale-105 transition-transform duration-700"
                   />
@@ -800,7 +800,7 @@ export default function Page() {
 
                 {/* CTA */}
                 <div className="mt-10 flex flex-wrap gap-3">
-                  <Link href="/guest/login">
+                  <Link href="/login">
                     <Button size="lg" className="text-base px-8">
                       Book a Session
                     </Button>
@@ -937,35 +937,61 @@ export default function Page() {
                     Come visit us or reach out to start your consultation. We'd
                     love to hear your idea.
                   </p>
-
                   <ul className="mt-8 space-y-5 text-sm text-text-muted">
+                    {/* Location */}
                     <li className="flex items-start gap-3">
-                      <MapPin className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
-                      <span>
-                        123 Dark Alley St., Studio 4B
-                        <br />
-                        Your City, State 00000
-                      </span>
+                      <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-gold" />
+
+                      <a
+                        href="https://www.bing.com/maps/default.aspx?v=2&pc=FACEBK&mid=8100&where1=POBLACION%20ARINGAY%20LA%20UNION%2C%20YARANON%20St%2C%20First%20building%2C%202nd%20floor%20of%20REGASCO%20GASOL%2C%20Going%20to%20Aringay%20National%20Highschool.%2C%20Aringay%2C%20Philippines%2C%202503&FORM=FBKPL1&mkt=en-GB"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-colors duration-200 hover:text-gold"
+                      >
+                        Poblacion Aringay, La Union Yaranon St., First Building
+                        2nd Floor of REGASCO GASOL Going to Aringay National
+                        High School Aringay, Philippines 2503
+                      </a>
                     </li>
+
+                    {/* <li className="flex items-center gap-3">
+                      <Phone className="h-4 w-4 flex-shrink-0 text-gold" />
+
+                      <a
+                        href="tel:+639XXXXXXXXX"
+                        className="transition-colors duration-200 hover:text-gold"
+                      >
+                        +63 9XX XXX XXXX
+                      </a>
+                    </li> */}
+
                     <li className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-gold flex-shrink-0" />
-                      <span>(555) 000-1234</span>
+                      <Mail className="h-4 w-4 flex-shrink-0 text-gold" />
+
+                      <a
+                        href="mailto:inkofbaphomet@gmail.com"
+                        className="transition-colors duration-200 hover:text-gold"
+                      >
+                        inkofbaphomet@gmail.com
+                      </a>
                     </li>
+
                     <li className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-gold flex-shrink-0" />
-                      <span>hello@inkofbaphomet.com</span>
-                    </li>
-                    <li className="flex items-center gap-3">
-                      <Clock className="h-4 w-4 text-gold flex-shrink-0" />
+                      <Clock className="h-4 w-4 flex-shrink-0 text-gold" />
+
                       <span>Tue – Sat · 11am – 8pm</span>
                     </li>
+
                     <li className="flex items-center gap-3">
-                      <Instagram className="h-4 w-4 text-gold flex-shrink-0" />
+                      <Facebook className="h-4 w-4 flex-shrink-0 text-gold" />
+
                       <a
-                        href="#"
-                        className="hover:text-gold transition-colors duration-200"
+                        href="https://www.facebook.com/lorenzoidiazar1995"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-colors duration-200 hover:text-gold"
                       >
-                        @inkofbaphomet
+                        The Ink Of Baphomet Tattoo and Body Piercing
                       </a>
                     </li>
                   </ul>
@@ -1101,38 +1127,44 @@ export default function Page() {
             {[
               {
                 heading: "Studio",
-                links: ["Styles", "Artists", "FAQ", "Aftercare"],
-              },
-              {
-                heading: "Visit",
                 links: [
-                  "Book a Session",
-                  "Walk-ins",
-                  "Directions",
-                  "Instagram",
+                  { label: "Styles", href: "#styles" },
+                  { label: "Artists", href: "#artists" },
+                  { label: "FAQ", href: "#faq" },
                 ],
               },
               {
+                heading: "Visit",
+                links: [{ label: "Book a Session", href: "/login" }],
+              },
+              {
                 heading: "Legal",
-                links: ["Privacy Policy", "Terms", "Contact"],
+                links: [
+                  { label: "Contact", href: "#contact" },
+                ],
               },
             ].map((col) => (
               <div key={col.heading}>
+                {" "}
                 <h4 className="mb-4 font-semibold text-[10px] tracking-[0.24em] uppercase text-text">
-                  {col.heading}
-                </h4>
+                  {" "}
+                  {col.heading}{" "}
+                </h4>{" "}
                 <ul className="space-y-3 text-sm text-text-muted">
-                  {col.links.map((l) => (
-                    <li key={l}>
+                  {" "}
+                  {col.links.map((link) => (
+                    <li key={link.label}>
+                      {" "}
                       <a
-                        href="#"
-                        className="hover:text-gold transition-colors duration-200 tracking-wide"
+                        href={link.href}
+                        className="tracking-wide transition-colors duration-200 hover:text-gold"
                       >
-                        {l}
-                      </a>
+                        {" "}
+                        {link.label}{" "}
+                      </a>{" "}
                     </li>
-                  ))}
-                </ul>
+                  ))}{" "}
+                </ul>{" "}
               </div>
             ))}
           </div>

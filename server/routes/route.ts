@@ -7,6 +7,7 @@ import bookingRoute from "./booking.route"
 import convoRoute from "./convo.route"
 import inventoryRoute from "./inventory.route"
 import contactRoute from "./contact.route"
+import backupRoute from "./backup.route"
 
 const routes = Router()
 
@@ -18,5 +19,6 @@ routes.use("/booking", bookingRoute)
 routes.use("/convo", convoRoute)
 routes.use("/inventory", inventoryRoute)
 routes.use("/contact", contactRoute)
+routes.use("/backup", backupRoute)
 
 export default routes

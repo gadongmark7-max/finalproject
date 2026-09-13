@@ -2,6 +2,7 @@ import AccountModel from "../model/account.model"
 import { accountInterface, accountInterfaceInput } from "../types/accounts.type";
 import { getDate } from "../utils/customFunction";
 import bcrypt from "bcrypt";
+import { generateSecurePassword } from "../utils/password";
 
 export class AccountService {
 
@@ -9,10 +10,10 @@ export class AccountService {
     return await AccountModel.create(data)
   }
 
-  static async createDummy(name : string, contact : string, email : string) {
-    const pass = "12345678";
+  static async createDummy(name : string, contact : string, email : string, password? : string) {
+    const pass = password && password.length >= 8 ? password : generateSecurePassword();
      const hashedPassword = await bcrypt.hash(pass, 10);
-        
+
     return await AccountModel.create({
       name : name,
       email : email,

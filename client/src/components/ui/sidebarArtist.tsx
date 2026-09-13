@@ -33,6 +33,7 @@ import {
   Bell,
   Moon,
   Sun,
+  DatabaseBackup,
 } from "lucide-react";
 import NotificationsCount from "./notifCount";
 
@@ -47,6 +48,7 @@ const navigationItems = [
 
   { title: "Transactions", url: "/pages/artist/transactions", icon: History },
   { title: "Notifications", url: "/pages/artist/notifications", icon: Bell },
+  { title: "Backup & Restore", url: "/pages/artist/backup-restore", icon: DatabaseBackup },
 ];
 
 interface AppSidebarProps {
@@ -83,7 +85,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
     queryClient.clear();
     localStorage.clear();
     sessionStorage.clear();
-    router.push("/guest/login");
+    router.push("/login");
   };
 
   return (

@@ -13,7 +13,8 @@ export interface postInterfaceInput {
         itemId : string,
         item : string,
         qty : number,
-    }[]
+    }[],
+    imageHash? : string
 }
 
 export interface postInterface  {
