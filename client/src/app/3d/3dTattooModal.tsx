@@ -68,6 +68,12 @@ export function SetTattoo3DModal({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+  const [isGrayscale, setIsGrayscale] = useState(tattooData?.colorMode === "bw");
+  const isGrayscaleRef = useRef(isGrayscale);
+
+  const [showModelPanel, setShowModelPanel] = useState(false);
+  const [showEditorPanel, setShowEditorPanel] = useState(false);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -248,13 +254,14 @@ export function SetTattoo3DModal({
         const decalMaterial = new THREE.ShaderMaterial({
           uniforms: {
             map: { value: tattooTexture },
+            uGrayscale: { value: isGrayscaleRef.current },
           },
           transparent: true,
           depthWrite: false,
           polygonOffset: true,
           polygonOffsetFactor: -4,
           side: THREE.FrontSide,
-        
+
           vertexShader: `
             varying vec2 vUv;
             void main() {
@@ -262,15 +269,17 @@ export function SetTattoo3DModal({
               gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
           `,
-        
+
           fragmentShader: `
             uniform sampler2D map;
+            uniform bool uGrayscale;
             varying vec2 vUv;
-        
+
             void main() {
               vec4 tattoo = texture2D(map, vUv);
               float alpha = 1.0 - tattoo.r;
-              vec3 ink = vec3(0.0);
+              float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+              vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
               gl_FragColor = vec4(ink, alpha);
             }
           `,
@@ -367,13 +376,14 @@ export function SetTattoo3DModal({
     const decalMaterial = new THREE.ShaderMaterial({
       uniforms: {
         map: { value: tattooTexture },
+        uGrayscale: { value: isGrayscaleRef.current },
       },
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -4,
       side: THREE.FrontSide,
-    
+
       vertexShader: `
         varying vec2 vUv;
         void main() {
@@ -381,15 +391,17 @@ export function SetTattoo3DModal({
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
-    
+
       fragmentShader: `
         uniform sampler2D map;
+        uniform bool uGrayscale;
         varying vec2 vUv;
-    
+
         void main() {
           vec4 tattoo = texture2D(map, vUv);
           float alpha = 1.0 - tattoo.r;
-          vec3 ink = vec3(0.0);
+          float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+          vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
           gl_FragColor = vec4(ink, alpha);
         }
       `,
@@ -404,8 +416,8 @@ export function SetTattoo3DModal({
     );
 
     const size = new THREE.Vector3(
-      tattooSize * localScale, 
-      tattooSize * localScale, 
+      tattooSize * localScale,
+      tattooSize * localScale,
       0.15
     );
 
@@ -422,6 +434,17 @@ export function SetTattoo3DModal({
 
     if (rendererRef.current && cameraRef.current) {
       rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
+  };
+
+  // Switch between original-color and black & white ink rendering.
+  // Non-destructive: the source texture is untouched, only the shader uniform changes.
+  const applyColorMode = (mode: "original" | "bw") => {
+    const grayscale = mode === "bw";
+    isGrayscaleRef.current = grayscale;
+    setIsGrayscale(grayscale);
+    if (tattooDataRef.current) {
+      recreateDecal();
     }
   };
 
@@ -667,8 +690,10 @@ export function SetTattoo3DModal({
         },
         
         scale: tattooDataRef.current.localScale,
-        
-        uv: undefined
+
+        uv: undefined,
+
+        colorMode: isGrayscale ? "bw" : "original"
       })
       setOpen(false)
     }
@@ -695,7 +720,12 @@ export function SetTattoo3DModal({
       tattooDataRef.current.localRotation.x = 0
       tattooDataRef.current.localRotation.y = 0
       tattooDataRef.current.localRotation.z = 0
-  
+
+      // Restore the previously chosen appearance
+      const grayscale = tattooData.colorMode === "bw"
+      isGrayscaleRef.current = grayscale
+      setIsGrayscale(grayscale)
+
       // Recreate the decal with updated data
       recreateDecal();
     }
@@ -752,27 +782,36 @@ export function SetTattoo3DModal({
           {/* 3D Viewport */}
           <div ref={mountRef} className="w-full h-full" />
 
-          {/* Back Button */}
-          <Button
-            className="absolute left-[335px] top-5 z-[100]"
-            size="lg"
-           
-            onClick={() => setOpen(false)}
-          >
-            <ArrowLeft /> Back
-          </Button>
-
-          {/* Save Button */}
-          <Button
-            className="absolute left-[475px] top-5 z-[100]"
-            size="lg"
-            onClick={saveTatoo}
-          >
-            <Save /> Save
-          </Button>
+          {/* Top Bar */}
+          <div className="absolute top-0 left-0 right-0 z-[100] flex items-center justify-between gap-2 px-3 sm:px-5 py-3 bg-primary/95 backdrop-blur border-b border-border">
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setOpen(false)}>
+                <ArrowLeft /> Back
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="lg:hidden"
+                onClick={() => setShowModelPanel((prev) => !prev)}
+              >
+                View
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="lg:hidden"
+                onClick={() => setShowEditorPanel((prev) => !prev)}
+              >
+                Adjust
+              </Button>
+            </div>
+            <Button size="sm" onClick={saveTatoo}>
+              <Save /> Save
+            </Button>
+          </div>
 
           {/* Tattoo Preview */}
-          <div className="absolute right-[335px] top-5 z-[100] bg-surface border border-border w-[150px] h-[150px] overflow-hidden">
+          <div className="hidden sm:block absolute right-5 top-20 z-[100] bg-surface border border-border w-[110px] h-[110px] lg:w-[150px] lg:h-[150px] overflow-hidden">
             <img src={jpgUrl!} alt="Tattoo preview" className="w-full h-full object-cover" />
             <div className="absolute bottom-0 left-0 right-0 py-1 bg-primary/80 flex justify-center">
               <span className="text-[9px] uppercase tracking-[0.2em] text-gold">Preview</span>
@@ -780,7 +819,8 @@ export function SetTattoo3DModal({
           </div>
 
           {/* ─── LEFT PANEL — Model View ─── */}
-          <div className="absolute top-0 left-0 h-full w-80 bg-secondary border-r border-border flex flex-col overflow-auto">
+          <div className={`absolute top-16 lg:top-0 left-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-r border-border flex-col overflow-auto z-30
+            ${showModelPanel ? 'flex' : 'hidden'} lg:flex`}>
 
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">
@@ -891,7 +931,8 @@ export function SetTattoo3DModal({
           </div>
 
           {/* ─── RIGHT PANEL — Edit Tattoo ─── */}
-          <div className="absolute top-0 right-0 h-full w-80 bg-secondary border-l border-border flex flex-col overflow-y-auto">
+          <div className={`absolute top-16 lg:top-0 right-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-l border-border flex-col overflow-y-auto z-30
+            ${showEditorPanel ? 'flex' : 'hidden'} lg:flex`}>
 
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">
@@ -988,6 +1029,36 @@ export function SetTattoo3DModal({
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <FlipVertical className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Appearance */}
+              <div className="bg-secondary p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-px w-3 bg-gold opacity-50" />
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Appearance</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => applyColorMode('original')}
+                    className={`flex-1 py-3 text-[10px] uppercase tracking-[0.15em] border transition-all duration-300
+                      ${!isGrayscale
+                        ? 'bg-surface-alt border-border-gold text-gold'
+                        : 'bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold'
+                      }`}
+                  >
+                    Original
+                  </button>
+                  <button
+                    onClick={() => applyColorMode('bw')}
+                    className={`flex-1 py-3 text-[10px] uppercase tracking-[0.15em] border transition-all duration-300
+                      ${isGrayscale
+                        ? 'bg-surface-alt border-border-gold text-gold'
+                        : 'bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold'
+                      }`}
+                  >
+                    Black &amp; White
                   </button>
                 </div>
               </div>

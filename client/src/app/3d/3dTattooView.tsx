@@ -47,6 +47,8 @@ export function ViewTattoo3DModal({
   const [bodyType, setBodyType] = useState(tattooData?.modelUrl)
   const [modelLoaded, setModelLoaded] = useState(false);
   const [isPositioned, setIsPositioned] = useState(false);
+  const [showLeftPanel, setShowLeftPanel] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(false);
 
   const mountRef = useRef<HTMLDivElement>(null);
   const [tattooSize, setTattooSize] = useState(tattooData?.size || 0.3);
@@ -287,16 +289,19 @@ export function ViewTattoo3DModal({
     const tattooTexture = new THREE.TextureLoader().load(jpgUrl);
     tattooTexture.flipY = false;
 
+    const isGrayscale = tattooData?.colorMode === "bw";
+
     const decalMaterial = new THREE.ShaderMaterial({
       uniforms: {
         map: { value: tattooTexture },
+        uGrayscale: { value: isGrayscale },
       },
       transparent: true,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -4,
       side: THREE.FrontSide,
-    
+
       vertexShader: `
         varying vec2 vUv;
         void main() {
@@ -304,15 +309,17 @@ export function ViewTattoo3DModal({
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
-    
+
       fragmentShader: `
         uniform sampler2D map;
+        uniform bool uGrayscale;
         varying vec2 vUv;
-    
+
         void main() {
           vec4 tattoo = texture2D(map, vUv);
           float alpha = 1.0 - tattoo.r;
-          vec3 ink = vec3(0.0);
+          float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+          vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
           gl_FragColor = vec4(ink, alpha);
         }
       `,
@@ -464,18 +471,34 @@ export function ViewTattoo3DModal({
             </div>
           )}
 
-          {/* Back Button */}
-          <Button
-            className="absolute left-[335px] top-5 z-30"
-            size="lg"
-      
-            onClick={() => setOpen(false)}
-          >
-            <ArrowLeft /> Back
-          </Button>
+          {/* Top Bar */}
+          <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between gap-2 px-3 sm:px-5 py-3 bg-primary/95 backdrop-blur border-b border-border">
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setOpen(false)}>
+                <ArrowLeft /> Back
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="lg:hidden"
+                onClick={() => setShowLeftPanel((prev) => !prev)}
+              >
+                View
+              </Button>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="lg:hidden"
+              onClick={() => setShowRightPanel((prev) => !prev)}
+            >
+              Details
+            </Button>
+          </div>
 
           {/* ── Left Panel — Camera Controls ── */}
-          <div className="absolute top-0 left-0 h-full w-80 bg-secondary border-r border-border flex flex-col overflow-auto z-20">
+          <div className={`absolute top-16 lg:top-0 left-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-r border-border flex-col overflow-auto z-20
+            ${showLeftPanel ? 'flex' : 'hidden'} lg:flex`}>
 
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">
@@ -561,7 +584,8 @@ export function ViewTattoo3DModal({
           </div>
 
           {/* ── Right Panel — Booking Information ── */}
-          <div className="absolute top-0 right-0 h-full w-80 bg-secondary border-l border-border flex flex-col overflow-auto z-20">
+          <div className={`absolute top-16 lg:top-0 right-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-l border-border flex-col overflow-auto z-20
+            ${showRightPanel ? 'flex' : 'hidden'} lg:flex`}>
 
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">

@@ -70,6 +70,8 @@ const TattooEditor: React.FC = () => {
   
   const stageRef = useRef<Konva.Stage>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [displayScale, setDisplayScale] = useState(1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastPos, setLastPos] = useState<{ x: number; y: number } | null>(null);
   const [isDragable, setIsDragable] = useState(false);
@@ -105,7 +107,27 @@ const TattooEditor: React.FC = () => {
       loadDesign(design)
     }
   }, [data])
-  
+
+  // Scale the fixed 800x600 stage down to fit smaller screens (mobile/tablet)
+  // without touching the internal Konva coordinate system (layers, stageScale,
+  // pointer math, or exported image resolution).
+  useEffect(() => {
+    const wrapper = canvasWrapperRef.current;
+    if (!wrapper) return;
+
+    const updateScale = () => {
+      const { width, height } = wrapper.getBoundingClientRect();
+      const scale = Math.min(1, width / 820, height / 620);
+      setDisplayScale(scale > 0 ? scale : 1);
+    };
+
+    updateScale();
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, []);
+
 
   const createMutation = useMutation({
     mutationFn : (data : { design : designInterface, screenShot : string}) => axiosInstance.post("/works", data),
@@ -1008,7 +1030,7 @@ const TattooEditor: React.FC = () => {
 
  
   return (
-    <div className="flex h-screen bg-primary">
+    <div className="flex flex-col h-dvh bg-primary overflow-hidden">
 
       {/* Grain overlay */}
       <div
@@ -1016,24 +1038,24 @@ const TattooEditor: React.FC = () => {
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
       />
 
-      {/* Back Button */}
-      <Button
-        className="absolute left-[335px] top-5 z-[100]"
-        size="lg"
-        variant="outline"
-        onClick={() => router.back()}
-      >
-        <ArrowLeft /> Back
-      </Button>
+      {/* Top Bar */}
+      <div className="sticky top-0 z-[100] flex-shrink-0 flex items-center justify-between gap-3 px-3 sm:px-5 py-3 bg-primary/95 backdrop-blur border-b border-border">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft /> Back
+        </Button>
 
-      {/* Save Button */}
-      <button
-        onClick={saveCanva}
-        className="absolute top-5 right-5 z-[100] bg-success-muted text-success-light border border-success-border hover:bg-success/10 hover:text-success-light hover:border-success px-5 py-2.5 text-[10px] uppercase tracking-[0.22em] transition-all duration-300 flex items-center gap-2"
-      >
-        <Save className="w-4 h-4" />
-        Save
-      </button>
+        <button
+          onClick={saveCanva}
+          className="bg-success-muted text-success-light border border-success-border hover:bg-success/10 hover:text-success-light hover:border-success px-4 sm:px-5 py-2.5 text-[10px] uppercase tracking-[0.22em] transition-all duration-300 flex items-center gap-2"
+        >
+          <Save className="w-4 h-4" />
+          Save
+        </button>
+      </div>
 
       {/* ─── SEARCH MODAL ─── */}
       {showSearchModal && (
@@ -1041,7 +1063,7 @@ const TattooEditor: React.FC = () => {
           <div className="bg-secondary border border-border w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
 
             {/* Modal Header */}
-            <div className="p-5 border-b border-border flex items-center justify-between">
+            <div className="p-5 border-b border-border flex items-center justify-between flex-wrap gap-2">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="h-px w-4 bg-gold opacity-60" />
@@ -1098,7 +1120,7 @@ const TattooEditor: React.FC = () => {
                   <p className="text-sm">{query ? "No images found. Try a different search term." : "Enter a search term to find tattoo images"}</p>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {images.map((img) => (
                   <div
                     key={img.id}
@@ -1126,7 +1148,7 @@ const TattooEditor: React.FC = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-secondary border border-border w-full max-w-2xl">
 
-            <div className="p-5 border-b border-border flex items-center justify-between">
+            <div className="p-5 border-b border-border flex items-center justify-between flex-wrap gap-2">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="h-px w-4 bg-gold opacity-60" />
@@ -1147,7 +1169,7 @@ const TattooEditor: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-5 grid grid-cols-4 gap-2">
+            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
               {['circle', 'square', 'rectangle', 'triangle', 'star', 'heart', 'hexagon', 'diamond'].map((shape) => (
                 <button
                   key={shape}
@@ -1188,11 +1210,14 @@ const TattooEditor: React.FC = () => {
         </div>
       )}
 
+      {/* ─── TOOLBAR + CANVAS ─── */}
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
+
       {/* ─── LEFT TOOLBAR ─── */}
-      <div className="w-64 bg-secondary border-r border-border flex flex-col overflow-y-auto">
+      <div className="w-full lg:w-64 flex-shrink-0 max-h-[45vh] lg:max-h-none bg-secondary border-b lg:border-b-0 lg:border-r border-border flex flex-col overflow-y-auto">
 
         {/* Toolbar Header */}
-        <div className="px-5 pt-8 pb-5 border-b border-border">
+        <div className="px-5 pt-5 lg:pt-8 pb-5 border-b border-border">
           <div className="flex items-center gap-2 mb-1">
             <div className="h-px w-4 bg-gold opacity-60" />
             <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Studio</span>
@@ -1448,12 +1473,12 @@ const TattooEditor: React.FC = () => {
       </div>
 
       {/* ─── CANVAS AREA ─── */}
-      <div className="flex-1 flex items-center justify-center bg-primary relative">
+      <div ref={canvasWrapperRef} className="flex-1 flex items-center justify-center bg-primary relative overflow-auto p-4 min-h-0">
 
         {/* Processing overlays */}
         {(isRemovingBg || isAddingImage || isCanvaSaving) && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-secondary border border-border p-10 w-[400px] relative">
+            <div className="bg-secondary border border-border p-10 w-[90vw] max-w-[400px] relative">
               {/* Corner brackets */}
               <div className="absolute top-0 left-0 w-10 h-10 border-t border-l border-gold opacity-40" />
               <div className="absolute top-0 right-0 w-10 h-10 border-t border-r border-gold opacity-40" />
@@ -1482,39 +1507,43 @@ const TattooEditor: React.FC = () => {
           </div>
         )}
 
-        <Stage
-          width={800}
-          height={600}
-          ref={stageRef}
-          scaleX={stageScale}
-          scaleY={stageScale}
-          x={stagePos.x}
-          y={stagePos.y}
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          draggable={tool === 'select' && !selectedId}
-          className="bg-white"
-        >
-          <Layer>
-            {layers.map((layer) => (
-              <ImageElement
-                allowDrag={isDragable}
-                key={layer.id}
-                layer={layer}
-                isSelected={layer.id === selectedId}
-                onSelect={() => { setSelectedId(layer.id); setIsDragable(true); setTool("select"); }}
-                onChange={(newAttrs) => {
-                  const newLayers = layers.map(l => l.id === layer.id ? { ...l, ...newAttrs } : l);
-                  setLayers(newLayers);
-                }}
-                onTransformEnd={() => { saveLayerHistory(layers); }}
-              />
-            ))}
-          </Layer>
-        </Stage>
+        <div style={{ width: 800 * displayScale, height: 600 * displayScale }}>
+          <Stage
+            width={800}
+            height={600}
+            ref={stageRef}
+            scaleX={stageScale}
+            scaleY={stageScale}
+            x={stagePos.x}
+            y={stagePos.y}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            draggable={tool === 'select' && !selectedId}
+            className="bg-white"
+            style={{ transform: `scale(${displayScale})`, transformOrigin: 'top left' }}
+          >
+            <Layer>
+              {layers.map((layer) => (
+                <ImageElement
+                  allowDrag={isDragable}
+                  key={layer.id}
+                  layer={layer}
+                  isSelected={layer.id === selectedId}
+                  onSelect={() => { setSelectedId(layer.id); setIsDragable(true); setTool("select"); }}
+                  onChange={(newAttrs) => {
+                    const newLayers = layers.map(l => l.id === layer.id ? { ...l, ...newAttrs } : l);
+                    setLayers(newLayers);
+                  }}
+                  onTransformEnd={() => { saveLayerHistory(layers); }}
+                />
+              ))}
+            </Layer>
+          </Stage>
+        </div>
+      </div>
       </div>
     </div>
   );

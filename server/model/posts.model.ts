@@ -14,7 +14,8 @@ const PostSchema = new Schema({
         itemId : { type: String, required: true },
         item : { type: String, required: true },
         qty : { type: Number, required: true },
-    }]
+    }],
+    deletedAt : { type: Date, default: null }
 });
 
 export default mongoose.model('Posts', PostSchema)

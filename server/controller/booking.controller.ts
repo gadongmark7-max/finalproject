@@ -256,22 +256,27 @@ export class BookingController {
     static createAppointment = async (request : AuthRequest , response : Response) => {
         const account = request.account
 
-        const { clientContact, clientEmail ,sessions, clientId, selectedTime, date , artistId, isNoAccount, clientName, bussinessId} = request.body;
+        const { clientContact, clientEmail ,sessions, clientId, selectedTime, date , artistId, isNoAccount, clientName, bussinessId, clientPassword} = request.body;
+
+        if(clientPassword && clientPassword.length < 8){
+            response.status(400).send("password too short")
+            return
+        }
 
         let client
-        
+
         if(isNoAccount == "no account"){
             const checkedAccount = await AccountService.getByEmail(clientEmail)
             if(checkedAccount){
                 client = checkedAccount
             } else {
-                const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail)
+                const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, clientPassword)
                 client = dummyAccount
-            } 
+            }
         } else {
             client = await AccountService.get(clientId)
         }
-    
+
         const booking = await BookingService.create({
             bussiness : (bussinessId != "none") ? bussinessId : null,
             artist : artistId,
@@ -301,6 +306,13 @@ export class BookingController {
             try {
               
                 const {clientContact, clientEmail , sessions, type, link, price, clientId, selectedTime, date, itemUsed , artistId, isNoAccount, clientName, bussinessId, tattooData, appointmentId} = request.body;
+
+                const clientPassword = (request.body.clientPassword && request.body.clientPassword !== "none") ? request.body.clientPassword : undefined
+
+                if(clientPassword && clientPassword.length < 8){
+                    response.status(400).json({ error: "password too short" });
+                    return
+                }
 
                 let url;
     
@@ -335,9 +347,9 @@ export class BookingController {
                     if(checkedAccount){
                         client = checkedAccount
                     } else {
-                        const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail)
+                        const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, clientPassword)
                         client = dummyAccount
-                    } 
+                    }
                 } else {
                     client = await AccountService.get(clientId)
                 }

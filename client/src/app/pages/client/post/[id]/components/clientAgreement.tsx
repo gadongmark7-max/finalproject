@@ -1,98 +1,118 @@
-"use client"
+"use client";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { useState } from "react"
-import { X } from "lucide-react"
-import { errorAlert } from "@/app/utils/alert"
-import { FieldError } from "@/components/ui/field-error"
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { X } from "lucide-react";
+import { errorAlert } from "@/app/utils/alert";
+import { FieldError } from "@/components/ui/field-error";
 import {
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   paymentMethodSchema,
   type PaymentMethod,
-} from "@/lib/validation/schemas/booking"
+} from "@/lib/validation/schemas/booking";
 
 const HEALTH_ITEMS = [
-  { key: "pregnant",         label: "I am NOT pregnant or breastfeeding" },
-  { key: "medicalCondition", label: "I do NOT have serious medical conditions" },
-  { key: "bloodThinner",     label: "I am NOT taking blood-thinning medication" },
-  { key: "skinCondition",    label: "I do NOT have severe skin conditions" },
-] as const
+  { key: "pregnant", label: "I am NOT pregnant or breastfeeding" },
+  {
+    key: "medicalCondition",
+    label: "I do NOT have serious medical conditions",
+  },
+  { key: "bloodThinner", label: "I am NOT taking blood-thinning medication" },
+  { key: "skinCondition", label: "I do NOT have severe skin conditions" },
+] as const;
 
 const CONSENT_ITEMS = [
-  { key: "infoTrue",       label: "I confirm that the information is true and correct" },
+  {
+    key: "infoTrue",
+    label: "I confirm that the information is true and correct",
+  },
   { key: "understandRisk", label: "I understand the risks of tattooing" },
-  { key: "agreeProceed",   label: "I agree to proceed at my own responsibility" },
-] as const
+  { key: "agreeProceed", label: "I agree to proceed at my own responsibility" },
+] as const;
 
-const EMPTY_HEALTH = { pregnant: false, medicalCondition: false, bloodThinner: false, skinCondition: false }
-const EMPTY_CONSENT = { infoTrue: false, understandRisk: false, agreeProceed: false }
+const EMPTY_HEALTH = {
+  pregnant: false,
+  medicalCondition: false,
+  bloodThinner: false,
+  skinCondition: false,
+};
+const EMPTY_CONSENT = {
+  infoTrue: false,
+  understandRisk: false,
+  agreeProceed: false,
+};
 
 export function ClientAgreementModal({
   callBack,
   isDisabled,
-  down
+  down,
 }: {
-  callBack: (paymentMethod: PaymentMethod) => void
-  isDisabled: boolean
-  down : number
+  callBack: (paymentMethod: PaymentMethod) => void;
+  isDisabled: boolean;
+  down: number;
 }) {
-  const [open, setOpen] = useState(false)
-  const [triedSubmit, setTriedSubmit] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [triedSubmit, setTriedSubmit] = useState(false);
 
-  const [health, setHealth] = useState({ ...EMPTY_HEALTH })
-  const [consent, setConsent] = useState({ ...EMPTY_CONSENT })
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("")
+  const [health, setHealth] = useState({ ...EMPTY_HEALTH });
+  const [consent, setConsent] = useState({ ...EMPTY_CONSENT });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
 
   const allChecked =
     HEALTH_ITEMS.every(({ key }) => health[key]) &&
-    CONSENT_ITEMS.every(({ key }) => consent[key])
+    CONSENT_ITEMS.every(({ key }) => consent[key]);
 
   const paymentMethodError = triedSubmit
     ? paymentMethodSchema.safeParse(paymentMethod).success
       ? undefined
       : "Please select a payment method."
-    : undefined
+    : undefined;
 
-  const showError = triedSubmit && !allChecked
+  const showError = triedSubmit && !allChecked;
 
   const setAll = (value: boolean) => {
-    setHealth({ pregnant: value, medicalCondition: value, bloodThinner: value, skinCondition: value })
-    setConsent({ infoTrue: value, understandRisk: value, agreeProceed: value })
-  }
+    setHealth({
+      pregnant: value,
+      medicalCondition: value,
+      bloodThinner: value,
+      skinCondition: value,
+    });
+    setConsent({ infoTrue: value, understandRisk: value, agreeProceed: value });
+  };
 
   const closeDialog = () => {
-    setOpen(false)
-    setTriedSubmit(false)
-  }
+    setOpen(false);
+    setTriedSubmit(false);
+  };
 
   const submitForm = () => {
-    const parsedMethod = paymentMethodSchema.safeParse(paymentMethod)
+    const parsedMethod = paymentMethodSchema.safeParse(paymentMethod);
     if (!allChecked || !parsedMethod.success) {
-      setTriedSubmit(true)
+      setTriedSubmit(true);
       errorAlert(
         !parsedMethod.success
           ? "Please select a payment method."
-          : "Please review and check all required health and consent items before continuing."
-      )
-      return
+          : "Please review and check all required health and consent items before continuing.",
+      );
+      return;
     }
-    setOpen(false)
-    setTriedSubmit(false)
-    callBack(parsedMethod.data)
-  }
+    setOpen(false);
+    setTriedSubmit(false);
+    callBack(parsedMethod.data);
+  };
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next)
-        if (!next) setTriedSubmit(false)
+        setOpen(next);
+        if (!next) setTriedSubmit(false);
       }}
     >
       <DialogTrigger asChild>
@@ -110,7 +130,8 @@ export function ClientAgreementModal({
       >
         <DialogTitle className="sr-only">Health &amp; Consent</DialogTitle>
         <DialogDescription className="sr-only">
-          Review and confirm all health and consent items before proceeding with the booking.
+          Review and confirm all health and consent items before proceeding with
+          the booking.
         </DialogDescription>
 
         {/* Grain overlay */}
@@ -141,7 +162,9 @@ export function ClientAgreementModal({
         <div className="relative z-10 px-6 pt-6 pb-5 border-b border-border">
           <div className="flex items-center gap-3 mb-1">
             <div className="h-px w-6 bg-gold" />
-            <span className="text-[9px] uppercase tracking-[0.28em] text-gold">Review</span>
+            <span className="text-[9px] uppercase tracking-[0.28em] text-gold">
+              Review
+            </span>
           </div>
           <h2
             className="text-2xl font-light text-text"
@@ -156,12 +179,13 @@ export function ClientAgreementModal({
 
         {/* Body */}
         <div className="relative z-10 px-6 py-5 space-y-6 max-h-[60vh] overflow-auto">
-
           {/* Down Payment */}
           <div className="relative border border-border bg-surface px-4 py-4">
             <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-gold opacity-60" />
             <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-gold opacity-60" />
-            <p className="text-[9px] uppercase tracking-[0.28em] text-gold mb-2">Down Payment</p>
+            <p className="text-[9px] uppercase tracking-[0.28em] text-gold mb-2">
+              Down Payment
+            </p>
             <p className="text-sm text-text-muted leading-relaxed">
               A{" "}
               <span
@@ -179,6 +203,11 @@ export function ClientAgreementModal({
             <p className="text-[9px] uppercase tracking-[0.28em] text-gold">
               Payment Method
             </p>
+            <p className="text-[11px] text-text-muted leading-relaxed">
+              Online payments are securely processed by PayMongo. You&apos;ll be
+              redirected to choose from the payment methods currently available
+              on checkout, such as GCash, Credit/Debit Card, or Maya.
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {PAYMENT_METHODS.map((method) => (
                 <label
@@ -187,9 +216,13 @@ export function ClientAgreementModal({
                     paymentMethodError ? "border-danger" : "border-border"
                   }`}
                 >
-                  <div className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
-                    paymentMethod === method ? "border-gold" : "border-border group-hover:border-gold"
-                  }`}>
+                  <div
+                    className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
+                      paymentMethod === method
+                        ? "border-gold"
+                        : "border-border group-hover:border-gold"
+                    }`}
+                  >
                     {paymentMethod === method && (
                       <div className="w-2 h-2 rounded-full bg-gold" />
                     )}
@@ -212,12 +245,21 @@ export function ClientAgreementModal({
 
           {/* Check all */}
           <label className="flex items-center gap-3 px-4 py-3 border border-gold/40 bg-surface-alt cursor-pointer group">
-            <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
-              allChecked ? "border-gold bg-gold" : "border-border group-hover:border-gold"
-            }`}>
+            <div
+              className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
+                allChecked
+                  ? "border-gold bg-gold"
+                  : "border-border group-hover:border-gold"
+              }`}
+            >
               {allChecked && (
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path d="M1 4l2 2 4-4" stroke="#000" strokeWidth="1.5" strokeLinecap="square"/>
+                  <path
+                    d="M1 4l2 2 4-4"
+                    stroke="#000"
+                    strokeWidth="1.5"
+                    strokeLinecap="square"
+                  />
                 </svg>
               )}
             </div>
@@ -242,15 +284,26 @@ export function ClientAgreementModal({
                 <label
                   key={key}
                   className={`flex items-center gap-3 px-4 py-3 border bg-surface hover:border-border-gold transition-all duration-200 cursor-pointer group ${
-                    showError && !health[key] ? "border-danger" : "border-border"
+                    showError && !health[key]
+                      ? "border-danger"
+                      : "border-border"
                   }`}
                 >
-                  <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
-                    health[key] ? "border-gold bg-gold" : "border-border group-hover:border-gold"
-                  }`}>
+                  <div
+                    className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
+                      health[key]
+                        ? "border-gold bg-gold"
+                        : "border-border group-hover:border-gold"
+                    }`}
+                  >
                     {health[key] && (
                       <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                        <path d="M1 4l2 2 4-4" stroke="#000" strokeWidth="1.5" strokeLinecap="square"/>
+                        <path
+                          d="M1 4l2 2 4-4"
+                          stroke="#000"
+                          strokeWidth="1.5"
+                          strokeLinecap="square"
+                        />
                       </svg>
                     )}
                   </div>
@@ -258,7 +311,9 @@ export function ClientAgreementModal({
                     type="checkbox"
                     className="hidden"
                     checked={health[key]}
-                    onChange={(e) => setHealth({ ...health, [key]: e.target.checked })}
+                    onChange={(e) =>
+                      setHealth({ ...health, [key]: e.target.checked })
+                    }
                   />
                   <span className="text-[11px] text-text-muted tracking-wide leading-relaxed">
                     {label}
@@ -278,15 +333,26 @@ export function ClientAgreementModal({
                 <label
                   key={key}
                   className={`flex items-center gap-3 px-4 py-3 border bg-surface hover:border-border-gold transition-all duration-200 cursor-pointer group ${
-                    showError && !consent[key] ? "border-danger" : "border-border"
+                    showError && !consent[key]
+                      ? "border-danger"
+                      : "border-border"
                   }`}
                 >
-                  <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
-                    consent[key] ? "border-gold bg-gold" : "border-border group-hover:border-gold"
-                  }`}>
+                  <div
+                    className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center transition-all duration-200 ${
+                      consent[key]
+                        ? "border-gold bg-gold"
+                        : "border-border group-hover:border-gold"
+                    }`}
+                  >
                     {consent[key] && (
                       <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                        <path d="M1 4l2 2 4-4" stroke="#000" strokeWidth="1.5" strokeLinecap="square"/>
+                        <path
+                          d="M1 4l2 2 4-4"
+                          stroke="#000"
+                          strokeWidth="1.5"
+                          strokeLinecap="square"
+                        />
                       </svg>
                     )}
                   </div>
@@ -294,7 +360,9 @@ export function ClientAgreementModal({
                     type="checkbox"
                     className="hidden"
                     checked={consent[key]}
-                    onChange={(e) => setConsent({ ...consent, [key]: e.target.checked })}
+                    onChange={(e) =>
+                      setConsent({ ...consent, [key]: e.target.checked })
+                    }
                   />
                   <span className="text-[11px] text-text-muted tracking-wide leading-relaxed">
                     {label}
@@ -310,10 +378,10 @@ export function ClientAgreementModal({
               role="alert"
               className="text-[11px] leading-relaxed text-danger-light tracking-wide border border-danger-border bg-danger-muted px-3 py-2"
             >
-              Please review and check all required health and consent items before continuing.
+              Please review and check all required health and consent items
+              before continuing.
             </p>
           )}
-
         </div>
 
         {/* Footer */}
@@ -326,8 +394,7 @@ export function ClientAgreementModal({
             Submit Form
           </button>
         </div>
-
       </DialogContent>
     </Dialog>
-  )
+  );
 }

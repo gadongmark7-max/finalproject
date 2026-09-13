@@ -75,8 +75,44 @@ export class PostController {
 
     static deletePostById = async (request : AuthRequest , response : Response) => {
         const { id } = request.params
-        const post = await PostService.delete(id)
-        response.send(post)
+        const post = await PostService.get(id)
+
+        if(!post){
+            response.status(404).send("post not found")
+            return
+        }
+
+        if(post.account._id.toString() !== request.account?._id){
+            response.status(403).send("you are not authorized to delete this post")
+            return
+        }
+
+        const deletedPost = await PostService.softDelete(id)
+        response.send(deletedPost)
+    }
+
+    static getDeletedAccountPosts = async (request : AuthRequest , response : Response) => {
+        const { id } = request.params
+        const deletedPosts = await PostService.getDeletedByAccount(id)
+        response.send(deletedPosts)
+    }
+
+    static restorePostById = async (request : AuthRequest , response : Response) => {
+        const { id } = request.params
+        const post = await PostService.get(id)
+
+        if(!post){
+            response.status(404).send("post not found")
+            return
+        }
+
+        if(post.account._id.toString() !== request.account?._id){
+            response.status(403).send("you are not authorized to restore this post")
+            return
+        }
+
+        const restoredPost = await PostService.restore(id)
+        response.send(restoredPost)
     }
 
     static updatePost = async (request : AuthRequest , response : Response) => {

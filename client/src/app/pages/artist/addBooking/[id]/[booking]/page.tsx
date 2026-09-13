@@ -40,6 +40,7 @@ import Swal from "sweetalert2";
 import { BookModal } from "./components/bookModal";
 import useUserStore from "@/app/store/useUserStore";
 import { ClientPicker } from "@/components/ui/client-picker";
+import { ClientAccountFields } from "@/components/ui/client-account-fields";
 import {
   artistInfoInterface,
   bussinessInfoInterface,
@@ -231,6 +232,8 @@ export default function Page() {
   const [clientContact, setClientContact] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [isNoClientAccount, setIsNoClientAccount] = useState(false);
+  const [clientPassword, setClientPassword] = useState<string | undefined>(undefined);
+  const [accountFieldsBlocking, setAccountFieldsBlocking] = useState(false);
 
   const [sessions, setSessions] = useState<number[]>([1]);
 
@@ -344,11 +347,13 @@ export default function Page() {
   const NextButttonValidation = () => {
     if (step == 1) {
       if (isNoClientAccount) {
-        return !bookingClientSchema.safeParse({
-          clientName,
-          clientEmail,
-          clientContact,
-        }).success;
+        return (
+          !bookingClientSchema.safeParse({
+            clientName,
+            clientEmail,
+            clientContact,
+          }).success || accountFieldsBlocking
+        );
       } else {
         return !client;
       }
@@ -362,6 +367,8 @@ export default function Page() {
   const bookHandler = (data: { date: string; time: string[] }) => {
     if (!sessions || !user) return errorAlert("empty field");
     if (!postImg && type == "newPost") return errorAlert("empty field");
+    if (isNoClientAccount && accountFieldsBlocking)
+      return errorAlert("Please finish the client account details");
     const parsedPrice = priceField.safeParse(price);
     if (!parsedPrice.success)
       return errorAlert(
@@ -392,6 +399,10 @@ export default function Page() {
     formData.append("clientName", clientName || "none");
     formData.append("clientContact", clientContact || "none");
     formData.append("clientEmail", clientEmail || "none");
+    formData.append(
+      "clientPassword",
+      isNoClientAccount && clientPassword ? clientPassword : "none",
+    );
 
     formData.append("appointmentId", appointment ? appointment._id : "none");
 
@@ -543,42 +554,54 @@ export default function Page() {
                 </div>
 
                 {isNoClientAccount ? (
-                  <div className="flex flex-col sm:flex-row gap-2 w-full">
-                    <div className="w-full">
-                      <Input
-                        placeholder="Client name"
-                        value={clientName}
-                        type="text"
-                        aria-invalid={!!clientNameError}
-                        onChange={(e) => setClientName(e.target.value)}
-                      />
-                      <FieldError>{clientNameError}</FieldError>
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                      <div className="w-full">
+                        <Input
+                          placeholder="Client name"
+                          value={clientName}
+                          type="text"
+                          aria-invalid={!!clientNameError}
+                          onChange={(e) => setClientName(e.target.value)}
+                        />
+                        <FieldError>{clientNameError}</FieldError>
+                      </div>
+                      <div className="w-full">
+                        <Input
+                          placeholder="Client email"
+                          value={clientEmail}
+                          type="email"
+                          aria-invalid={!!clientEmailError}
+                          onChange={(e) => setClientEmail(e.target.value)}
+                        />
+                        <FieldError>{clientEmailError}</FieldError>
+                      </div>
+                      <div className="w-full">
+                        <Input
+                          placeholder="Client contact"
+                          value={clientContact}
+                          type="text"
+                          inputMode="numeric"
+                          aria-invalid={!!clientContactError}
+                          onChange={(e) =>
+                            setClientContact(
+                              e.target.value.replace(/\D/g, "").slice(0, 11),
+                            )
+                          }
+                        />
+                        <FieldError>{clientContactError}</FieldError>
+                      </div>
                     </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Client email"
-                        value={clientEmail}
-                        type="email"
-                        aria-invalid={!!clientEmailError}
-                        onChange={(e) => setClientEmail(e.target.value)}
+
+                    {!clientEmailError && clientEmail && (
+                      <ClientAccountFields
+                        email={clientEmail}
+                        onChange={({ password, blocking }) => {
+                          setClientPassword(password);
+                          setAccountFieldsBlocking(blocking);
+                        }}
                       />
-                      <FieldError>{clientEmailError}</FieldError>
-                    </div>
-                    <div className="w-full">
-                      <Input
-                        placeholder="Client contact"
-                        value={clientContact}
-                        type="text"
-                        inputMode="numeric"
-                        aria-invalid={!!clientContactError}
-                        onChange={(e) =>
-                          setClientContact(
-                            e.target.value.replace(/\D/g, "").slice(0, 11),
-                          )
-                        }
-                      />
-                      <FieldError>{clientContactError}</FieldError>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <ClientPicker

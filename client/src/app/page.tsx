@@ -294,9 +294,9 @@ export default function Page() {
   ];
 
   const mainArtist = {
-    name: "Mara V.",
+    name: "Lorenzo Regacho",
     role: "Lead Artist · Blackwork & Occult",
-    since: "Est. 2016",
+    since: "Est. 2019",
     bio: "Over eight years of dedicated practice in dark artistry, sacred geometry, and esoteric symbolism. Every piece is drawn by hand, conceptualized in dialogue, and executed with obsessive attention to detail.",
     specialties: ["Blackwork", "Occult", "Sacred Geometry", "Custom Design"],
   };
@@ -345,7 +345,7 @@ export default function Page() {
             </a>
             <a href="#artists" className="inline-flex">
               <Button variant="ghost" className="text-sm">
-                ArtistsF
+                Artists
               </Button>
             </a>
             <a href="#faq" className="inline-flex">
@@ -510,7 +510,6 @@ export default function Page() {
                 alt="Ink Of Baphomet studio"
                 className="h-full w-full object-cover hover:scale-105 transition-transform duration-700 rounded"
               />
-              <div className="absolute left-10 inset-0 bg-black/30 rounded" />
             </div>
           </div>
         </section>
@@ -1128,38 +1127,44 @@ export default function Page() {
             {[
               {
                 heading: "Studio",
-                links: ["Styles", "Artists", "FAQ", "Aftercare"],
-              },
-              {
-                heading: "Visit",
                 links: [
-                  "Book a Session",
-                  "Walk-ins",
-                  "Directions",
-                  "Instagram",
+                  { label: "Styles", href: "#styles" },
+                  { label: "Artists", href: "#artists" },
+                  { label: "FAQ", href: "#faq" },
                 ],
               },
               {
+                heading: "Visit",
+                links: [{ label: "Book a Session", href: "/login" }],
+              },
+              {
                 heading: "Legal",
-                links: ["Privacy Policy", "Terms", "Contact"],
+                links: [
+                  { label: "Contact", href: "#contact" },
+                ],
               },
             ].map((col) => (
               <div key={col.heading}>
+                {" "}
                 <h4 className="mb-4 font-semibold text-[10px] tracking-[0.24em] uppercase text-text">
-                  {col.heading}
-                </h4>
+                  {" "}
+                  {col.heading}{" "}
+                </h4>{" "}
                 <ul className="space-y-3 text-sm text-text-muted">
-                  {col.links.map((l) => (
-                    <li key={l}>
+                  {" "}
+                  {col.links.map((link) => (
+                    <li key={link.label}>
+                      {" "}
                       <a
-                        href="#"
-                        className="hover:text-gold transition-colors duration-200 tracking-wide"
+                        href={link.href}
+                        className="tracking-wide transition-colors duration-200 hover:text-gold"
                       >
-                        {l}
-                      </a>
+                        {" "}
+                        {link.label}{" "}
+                      </a>{" "}
                     </li>
-                  ))}
-                </ul>
+                  ))}{" "}
+                </ul>{" "}
               </div>
             ))}
           </div>
