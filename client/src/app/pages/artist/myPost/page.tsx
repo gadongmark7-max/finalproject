@@ -1,10 +1,11 @@
 "use client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { Plus, ImageOff, Feather } from "lucide-react";
+import { Plus, ImageOff, Feather, Search, SearchX } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { postInterface } from "@/app/types/post.type";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
@@ -18,7 +19,9 @@ export default function Page() {
   const { data: artistBussinesses } = useQuery({
     queryKey: ["bussiness_Infos"],
     queryFn: async (): Promise<bussinessInfoInterface[]> => {
-      const response = await axiosInstance.get(`/account/artistBussiness/${user?._id}`);
+      const response = await axiosInstance.get(
+        `/account/artistBussiness/${user?._id}`,
+      );
       return response.data;
     },
   });
@@ -34,15 +37,30 @@ export default function Page() {
     if (data?.data) setPosts(data.data);
   }, [data]);
 
+  const [search, setSearch] = useState("");
+
+  const filteredPosts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return posts;
+    return posts.filter((post) => {
+      const inCategory = post.category?.toLowerCase().includes(query);
+      const inTags = post.tags?.some((tag) =>
+        tag.trim().toLowerCase().includes(query),
+      );
+      return inCategory || inTags;
+    });
+  }, [posts, search]);
+
   if (!artistBussinesses) return <LoadingScreen />;
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient gold glow */}
@@ -54,7 +72,9 @@ export default function Page() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Artist Portfolio</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Artist Portfolio
+              </span>
             </div>
             <h1
               className="text-4xl font-light text-text tracking-[-0.02em]"
@@ -76,11 +96,22 @@ export default function Page() {
             </Link>
           )}
         </div>
+
+        {posts.length > 0 && (
+          <div className="max-w-7xl mx-auto mt-6 relative">
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search posts by tag or style…"
+              className="pl-9 max-w-md"
+            />
+          </div>
+        )}
       </div>
 
       {/* Posts Grid */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
-
         {posts.length === 0 ? (
           <div className="border border-dashed border-border flex flex-col items-center justify-center py-28 gap-4 bg-surface">
             <div className="bg-surface-alt border border-border p-4">
@@ -88,81 +119,103 @@ export default function Page() {
             </div>
             <div className="text-center space-y-1">
               <p className="text-sm text-text-muted">No posts yet</p>
-              <p className="text-xs text-text-dim tracking-wide">Add your first post to start building your portfolio</p>
+              <p className="text-xs text-text-dim tracking-wide">
+                Add your first post to start building your portfolio
+              </p>
+            </div>
+          </div>
+        ) : filteredPosts.length === 0 ? (
+          <div className="border border-dashed border-border flex flex-col items-center justify-center py-28 gap-4 bg-surface">
+            <div className="bg-surface-alt border border-border p-4">
+              <SearchX className="w-8 h-8 text-text-dim" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm text-text-muted">
+                No posts match &quot;{search}&quot;
+              </p>
+              <p className="text-xs text-text-dim tracking-wide">
+                Try a different tag or style name
+              </p>
             </div>
           </div>
         ) : (
           <>
-           {/* Posts Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {posts.map((post) => (
-            <Link
-              key={post._id}
-              href={`/pages/artist/post/${post._id}`}
-              className="group relative h-[500px] overflow-hidden border border-border hover:border-border-gold transition-all duration-500"
-            >
-              {/* Full Image */}
-              <div className="absolute inset-0 flex items-center justify-center bg-white">
-                <img
-                  src={post.postImg}
-                  alt="post"
-                  className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110"
-                />
-              </div>
-
-              {/* Dark gradient top */}
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-primary/70 to-transparent" />
-
-              {/* Price Badge */}
-              <div className="absolute top-4 right-4">
-                <span className="bg-surface/90 border border-border-gold text-gold text-xs tracking-[0.1em] px-3 py-1">
-                  ₱{post.price.toLocaleString()}
-                </span>
-              </div>
-
-              {/* Tags */}
-              {post.tags?.length > 0 && (
-                <div className="absolute top-4 left-4 flex flex-wrap gap-1 max-w-[60%]">
-                    <span
-                      className="text-[9px] uppercase tracking-[0.18em] text-gold bg-primary/80 border border-border px-2 py-0.5"
-                    >
-                      {post.category}
-                    </span>
-                </div>
-              )}
-
-              {/* Dark gradient bottom */}
-              <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-primary/90 to-transparent" />
-
-              {/* Artist Info */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={post.account.profile}
-                    alt="artist"
-                    className="w-9 h-9 object-cover border border-border-gold flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[9px] uppercase tracking-[0.2em] text-gold">
-                      {post.account.type}
-                    </p>
-                    <h2 className="text-text text-sm font-light truncate" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                      {post.account.name}
-                    </h2>
+            {search.trim() && (
+              <p className="text-xs text-text-dim tracking-wide uppercase mb-4">
+                {filteredPosts.length} result
+                {filteredPosts.length === 1 ? "" : "s"} for &quot;
+                {search.trim()}&quot;
+              </p>
+            )}
+            {/* Posts Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredPosts.map((post) => (
+                <Link
+                  key={post._id}
+                  href={`/pages/artist/post/${post._id}`}
+                  className="group relative h-[500px] overflow-hidden border border-border hover:border-border-gold transition-all duration-500"
+                >
+                  {/* Full Image */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-white">
+                    <img
+                      src={post.postImg}
+                      alt="post"
+                      className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110"
+                    />
                   </div>
-                </div>
-              </div>
 
-              {/* Gold bottom line reveal */}
-              <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
+                  {/* Dark gradient top */}
+                  <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-primary/70 to-transparent" />
 
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-gold/0 group-hover:bg-gold/[0.03] transition-colors duration-500" />
-            </Link>
-          ))}
-        </div>
+                  {/* Price Badge */}
+                  <div className="absolute top-4 right-4">
+                    <span className="bg-surface/90 border border-border-gold text-gold text-xs tracking-[0.1em] px-3 py-1">
+                      ₱{post.price.toLocaleString()}
+                    </span>
+                  </div>
 
-     
+                  {/* Tags */}
+                  {post.tags?.length > 0 && (
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-1 max-w-[60%]">
+                      <span className="text-[9px] uppercase tracking-[0.18em] text-gold bg-primary/80 border border-border px-2 py-0.5">
+                        {post.category}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Dark gradient bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-primary/90 to-transparent" />
+
+                  {/* Artist Info */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={post.account.profile}
+                        alt="artist"
+                        className="w-9 h-9 object-cover border border-border-gold flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] uppercase tracking-[0.2em] text-gold">
+                          {post.account.type}
+                        </p>
+                        <h2
+                          className="text-text text-sm font-light truncate"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
+                          {post.account.name}
+                        </h2>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gold bottom line reveal */}
+                  <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
+
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-gold/0 group-hover:bg-gold/[0.03] transition-colors duration-500" />
+                </Link>
+              ))}
+            </div>
           </>
         )}
       </div>

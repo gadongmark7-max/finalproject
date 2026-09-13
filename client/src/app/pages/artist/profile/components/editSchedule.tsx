@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,84 +9,113 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { useState } from "react"
-import {
-  Calendar,
-  Clock,
-  LoaderCircle,
-  User,
-  Edit
-} from "lucide-react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { errorAlert, successAlert } from "@/app/utils/alert"
-import { convertToAmPm } from "@/app/utils/customFunction"
-import { accountInterface } from "@/app/types/accounts.type"
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useState } from "react";
+import { Calendar, Clock, LoaderCircle, User, Edit } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { errorAlert, successAlert } from "@/app/utils/alert";
+import { convertToAmPm } from "@/app/utils/customFunction";
+import { accountInterface } from "@/app/types/accounts.type";
 
 const times = [
-  "01:00","02:00","03:00","04:00","05:00","06:00",
-  "07:00","08:00","09:00","10:00","11:00","12:00",
-  "13:00","14:00","15:00","16:00","17:00","18:00",
-  "19:00","20:00","21:00","22:00", "23:00", "00:00"
-]
+  "01:00",
+  "02:00",
+  "03:00",
+  "04:00",
+  "05:00",
+  "06:00",
+  "07:00",
+  "08:00",
+  "09:00",
+  "10:00",
+  "11:00",
+  "12:00",
+  "13:00",
+  "14:00",
+  "15:00",
+  "16:00",
+  "17:00",
+  "18:00",
+  "19:00",
+  "20:00",
+  "21:00",
+  "22:00",
+  "23:00",
+  "00:00",
+];
 
 const days = [
-  "Monday","Tuesday","Wednesday",
-  "Thursday","Friday","Saturday","Sunday"
-]
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
-const dutyOptions = [4, 6, 8, 10, 12]
+const dutyOptions = [4, 6, 8, 10, 12];
 
-export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist: accountInterface ,  currentDays  : string[], CurrentTime : string[], hrs  : number}) {
-  const [open, setOpen] = useState(false)
-  const queryClient = useQueryClient()
+export function EditSchedule({
+  artist,
+  currentDays,
+  CurrentTime,
+  hrs,
+}: {
+  artist: accountInterface;
+  currentDays: string[];
+  CurrentTime: string[];
+  hrs: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const [selectedDays, setSelectedDays] = useState(currentDays)
-  const [dutyHours, setDutyHours] = useState<number>(hrs)
-  const [time, setTime] = useState(CurrentTime)
+  const [selectedDays, setSelectedDays] = useState(currentDays);
+  const [dutyHours, setDutyHours] = useState<number>(hrs);
+  const [time, setTime] = useState(CurrentTime);
 
   /* TOGGLE DAY (PUSH / POP) */
   const toggleDay = (day: string) => {
-    setSelectedDays(prev =>
-      prev.includes(day)
-        ? prev.filter(d => d !== day)
-        : [...prev, day]
-    )
-  }
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day],
+    );
+  };
 
-  /* SELECT START TIME */
-  const selectStartTime = (index : number) => {
-    const selectedItem = []
-    for(let i = index; i <= (dutyHours + index); i++){
-      selectedItem.push(times[i])
-    }
-    setTime(selectedItem)
-  }
+  const selectStartTime = (index: number) => {
+    const selectedTimes = times.slice(index, index + dutyHours);
+    setTime(selectedTimes);
+  };
+
+  const isValidStart = (index: number) => index + dutyHours <= times.length;
 
   const uploadMutation = useMutation({
-    mutationFn: (data: { id: string; day: string[]; time: string[], type : string }) =>
-      axiosInstance.put("/account/schedule", data),
+    mutationFn: (data: {
+      id: string;
+      day: string[];
+      time: string[];
+      type: string;
+    }) => axiosInstance.put("/account/schedule", data),
     onSuccess: () => {
-      successAlert("Schedule updated")
-      setOpen(false)
-      queryClient.invalidateQueries({ queryKey: ["artist_profile"] })
+      successAlert("Schedule updated");
+      setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["artist_profile"] });
     },
     onError: () => errorAlert("Something went wrong"),
-  })
+  });
 
   const handleSave = () => {
     if (!selectedDays.length || !time.length) {
-      return errorAlert("Select days and time")
+      return errorAlert("Select days and time");
     }
     uploadMutation.mutate({
       id: artist._id,
       day: selectedDays,
       time,
-      type : "artist"
-    })
-  }
+      type: "artist",
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -102,7 +131,6 @@ export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist
           </DialogDescription>
         </DialogHeader>
 
-   
         {/* DAYS */}
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
@@ -114,7 +142,7 @@ export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist
           </p>
 
           <div className="flex flex-wrap gap-2">
-            {days.map(day => (
+            {days.map((day) => (
               <button
                 key={day}
                 onClick={() => toggleDay(day)}
@@ -137,19 +165,17 @@ export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist
             <Clock className="w-4 h-4" />
             Duty Hours
           </Label>
-          <p className="text-xs text-muted-foreground">
-            Hours per working day
-          </p>
+          <p className="text-xs text-muted-foreground">Hours per working day</p>
 
           <div className="flex gap-2 flex-wrap">
-            {dutyOptions.map(hour => (
+            {dutyOptions.map((hour) => (
               <Button
                 key={hour}
                 size="sm"
                 variant={dutyHours === hour ? "default" : "outline"}
                 onClick={() => {
-                  setDutyHours(hour)
-                  setTime([]) // reset invalid time
+                  setDutyHours(hour);
+                  setTime([]); // reset invalid time
                 }}
               >
                 {hour} hrs
@@ -167,24 +193,32 @@ export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist
 
           <div className="flex flex-wrap gap-2">
             {times.map((t, i) => {
-              const isDisabled = i + dutyHours + 1 > times.length 
+              const isSelected = time.includes(t);
+              const isValid = isValidStart(i);
 
               return (
                 <Button
                   key={t}
+                  type="button"
                   size="sm"
-                  disabled={isDisabled}
-                  variant={time.includes(t) ? "default" : "outline"}
-                  onClick={() => selectStartTime(i)}
+                  variant={isSelected ? "default" : "outline"}
+                  aria-disabled={!isValid}
+                  onClick={() => {
+                    if (!isValid) return;
+                    selectStartTime(i);
+                  }}
+                  className={
+                    !isSelected && !isValid
+                      ? "opacity-40 pointer-events-none cursor-not-allowed"
+                      : undefined
+                  }
                 >
                   {convertToAmPm(t)}
                 </Button>
-              )
+              );
             })}
           </div>
         </div>
-
-      
 
         <DialogFooter>
           <Button
@@ -200,5 +234,5 @@ export function EditSchedule({ artist, currentDays, CurrentTime, hrs }: { artist
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

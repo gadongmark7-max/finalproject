@@ -12,8 +12,10 @@ import {
   Image as ImageIcon,
   Layers,
   DollarSign,
-  PhilippinePeso
+  PhilippinePeso,
+  Wallet
 } from "lucide-react";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 
 const statusStyle: Record<string, string> = {
     pending:     "bg-warning-muted text-warning-light border border-warning-border",
@@ -101,7 +103,17 @@ export default function CompletedBookings({ bookings, setBookings } : {bookings 
                           ₱{booking.originalPrice.toLocaleString()}
                         </p>
                       </div>
-      
+
+                      {/* Payment Method */}
+                      <div className="flex justify-between">
+                        <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
+                          <Wallet className="w-3 h-3 text-gold" /> Payment
+                        </p>
+                        <p className="text-text-muted text-xs">
+                          {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                        </p>
+                      </div>
+
                       {/* Date */}
                       <div className="flex justify-between">
                         <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
@@ -109,7 +121,7 @@ export default function CompletedBookings({ bookings, setBookings } : {bookings 
                         </p>
                         <p className="text-text-muted text-xs">{booking.date}</p>
                       </div>
-      
+
                       {/* Duration */}
                       <div className="flex justify-between">
                         <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">

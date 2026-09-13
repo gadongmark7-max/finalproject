@@ -14,12 +14,14 @@ import {
   DollarSign,
   Check,
   PhilippinePeso,
-  RotateCw
+  RotateCw,
+  Wallet
 } from "lucide-react";
 import { BookNextSession } from "./nextSessionBooking";
 import { Session } from "inspector/promises";
 import { Button } from "@/components/ui/button";
 import { successAlert, confirmAlert, errorAlert } from "@/app/utils/alert";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import { CashPayment } from "./cashPayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
@@ -178,7 +180,17 @@ export default function ActiveBookings({ bookings, setBookings } : {bookings : b
                       </p>
                     )}
                   </div>
-    
+
+                  {/* Payment Method */}
+                  <div className="flex justify-between">
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
+                      <Wallet className="w-3 h-3 text-gold" /> Payment
+                    </p>
+                    <p className="text-text-muted text-xs">
+                      {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                    </p>
+                  </div>
+
                   {/* Date */}
                   <div className="flex justify-between">
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
@@ -186,7 +198,7 @@ export default function ActiveBookings({ bookings, setBookings } : {bookings : b
                     </p>
                     <p className="text-text-muted text-xs">{booking.date}</p>
                   </div>
-    
+
                   {/* Duration */}
                   <div className="flex justify-between">
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">

@@ -33,6 +33,7 @@ route.post("/artistApplyToBussiness/:id", authenticateJWT, AccountController.art
 route.post("/applicationApproval", authenticateJWT, AccountController.artistApplicationApproval)
 route.get("/transaction/sender/:id", authenticateJWT, AccountController.getSenderTransactions)
 route.get("/transaction/receiver/:id", authenticateJWT, AccountController.getReceiverTransactions)
+route.get("/transaction/:id/receipt", authenticateJWT, AccountController.getTransactionReceipt)
 route.get("/artistBussiness/:id", authenticateJWT, AccountController.getArtistBussiness)
 route.get("/notifications/unseen", authenticateJWT, AccountController.getAccountNotificationUnseen)
 route.get("/notifications/:id", authenticateJWT, AccountController.getAccountNotifications)

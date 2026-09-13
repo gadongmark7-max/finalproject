@@ -14,10 +14,12 @@ import {
   DollarSign,
   Check,
   X,
-  PhilippinePeso
+  PhilippinePeso,
+  Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import { rejectionReason } from "@/app/utils/alert"
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import { payMongoRefund } from "@/app/utils/payMongo";
@@ -161,7 +163,17 @@ export default function PendingBookings({ bookings, setBookings } : {bookings : 
                       </p>
                     )}
                   </div>
-      
+
+                  {/* Payment Method */}
+                  <div className="flex justify-between">
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
+                      <Wallet className="w-3 h-3 text-gold" /> Payment
+                    </p>
+                    <p className="text-text-muted text-xs">
+                      {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                    </p>
+                  </div>
+
                   {/* Date */}
                   <div className="flex justify-between">
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">
@@ -169,7 +181,7 @@ export default function PendingBookings({ bookings, setBookings } : {bookings : 
                     </p>
                     <p className="text-text-muted text-xs">{booking.date}</p>
                   </div>
-      
+
                   {/* Duration */}
                   <div className="flex justify-between">
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5">

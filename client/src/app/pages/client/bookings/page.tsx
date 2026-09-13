@@ -10,12 +10,14 @@ import {
   Clock,
   Layers,
   PhilippinePeso,
+  Wallet,
 } from "lucide-react";
 import { ReviewModal } from "./components/reviews";
 import { Button } from "@/components/ui/button";
 import { OnlinePayment } from "./components/onlinePayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import crypto from "crypto";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 
 
 const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
@@ -166,6 +168,16 @@ export default function Page() {
                           ₱{booking.balance.toLocaleString()}
                         </p>
                       )}
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="flex justify-between">
+                      <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
+                        <Wallet className="w-3 h-3 text-gold" /> Payment
+                      </p>
+                      <p className="text-text-muted text-xs">
+                        {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                      </p>
                     </div>
 
                     {/* Date */}

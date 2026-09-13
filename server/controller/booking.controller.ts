@@ -128,7 +128,8 @@ export class BookingController {
                     amount,
                     time,
                     date,
-                    refId
+                    refId,
+                    bookingId
                 })
             }
             response.send("success")
@@ -150,7 +151,8 @@ export class BookingController {
                 amount,
                 time,
                 date,
-                refId : Date.now().toString()
+                refId : Date.now().toString(),
+                bookingId
             })
             response.send("success")
         } catch(e) {

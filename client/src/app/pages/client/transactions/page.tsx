@@ -2,9 +2,10 @@
 
 import axiosInstance from "@/app/utils/axios";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Receipt } from "lucide-react";
+import { ArrowUpRight, Receipt, Download } from "lucide-react";
 import { transactionInterface } from "@/app/types/transaction.type";
 import useUserStore from "@/app/store/useUserStore";
+import Link from "next/link";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -12,14 +13,15 @@ export default function Page() {
   const { data: transactionsData } = useQuery({
     queryKey: ["transactions_sender"],
     queryFn: async (): Promise<transactionInterface[]> => {
-      const response = await axiosInstance.get(`/account/transaction/sender/${user?._id}`);
+      const response = await axiosInstance.get(
+        `/account/transaction/sender/${user?._id}`,
+      );
       return response.data;
     },
   });
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -32,7 +34,6 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -90,15 +91,26 @@ export default function Page() {
                   </div>
                 </div>
 
-                {/* Right — Amount */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
-                  <p
-                    className="text-gold text-lg font-light"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                {/* Right — Amount + Download */}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
+                    <p
+                      className="text-gold text-lg font-light"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      ₱{tx.amount.toLocaleString()}
+                    </p>
+                  </div>
+
+                  <Link
+                    href={`/receipts/transaction/${tx._id}`}
+                    className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-text-muted hover:text-gold border border-border hover:border-border-gold px-2.5 py-1.5 transition-all duration-300"
+                    title="Download Receipt"
                   >
-                    ₱{tx.amount.toLocaleString()}
-                  </p>
+                    <Download className="w-3 h-3" />
+                    Receipt
+                  </Link>
                 </div>
               </div>
             ))}
@@ -119,10 +131,11 @@ export default function Page() {
             >
               No transactions yet
             </p>
-            <p className="text-text-muted text-sm">Your payment history will appear here</p>
+            <p className="text-text-muted text-sm">
+              Your payment history will appear here
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );
