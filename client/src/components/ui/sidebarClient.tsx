@@ -144,7 +144,7 @@ export function SidebarClient({ className }: AppSidebarProps) {
     queryClient.clear();
     localStorage.clear();
     sessionStorage.clear();
-    router.push("/guest/login");
+    router.push("/login");
   };
 
   return (
@@ -237,7 +237,8 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     href={item.url}
                     onClick={() => {
                       closeMobileMenu();
-                      if (item.url.includes("/notifications")) handleNotificationsClick();
+                      if (item.url.includes("/notifications"))
+                        handleNotificationsClick();
                     }}
                     className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                   >
@@ -338,7 +339,8 @@ export function SidebarClient({ className }: AppSidebarProps) {
                       <Link
                         href={item.url}
                         onClick={() => {
-                          if (item.url.includes("/notifications")) handleNotificationsClick();
+                          if (item.url.includes("/notifications"))
+                            handleNotificationsClick();
                         }}
                         className="group flex items-center gap-3 px-3 py-2.5 text-text-muted hover:text-text hover:bg-surface-alt border border-transparent hover:border-border-gold transition-all duration-300"
                       >

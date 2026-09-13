@@ -612,7 +612,7 @@ export default function LoginPage() {
             <p className="text-[0.72rem] text-text-muted font-light tracking-[0.04em]">
               Don&apos;t have an account?{" "}
               <Link
-                href="/guest/register"
+                href="/register"
                 className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200"
               >
                 Sign up here
@@ -620,7 +620,7 @@ export default function LoginPage() {
             </p>
             <p className="text-[0.72rem] text-text-muted font-light tracking-[0.04em] mt-2">
               <Link
-                href="/guest/forgotPassword"
+                href="/forgotPassword"
                 className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200"
               >
                 Forgot password

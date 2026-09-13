@@ -197,7 +197,7 @@ export default function RegisterPage() {
     mutationFn: (data: accountInterfaceInput) =>
       axiosInstance.post("/auth/register", data),
     onSuccess: (response) => {
-      router.push("/guest/otp/" + response.data.userId);
+      router.push("/otp/" + response.data.userId);
     },
     onError: (err: { request: { response: string } }) => {
       errorAlert(err.request.response);
@@ -332,18 +332,6 @@ export default function RegisterPage() {
                 >
                   Create account
                 </h1>
-                <p
-                  ref={subRef}
-                  className="text-[0.75rem] text-text-muted font-light tracking-[0.04em]"
-                >
-                  Already have one?{" "}
-                  <Link
-                    href="/guest/login"
-                    className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200"
-                  >
-                    Sign in
-                  </Link>
-                </p>
               </div>
               <BackButton />
             </div>
@@ -689,7 +677,7 @@ export default function RegisterPage() {
             <p className="text-[0.72rem] text-text-muted font-light tracking-[0.04em]">
               Already have an account?{" "}
               <Link
-                href="/guest/login"
+                href="/login"
                 className="text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200"
               >
                 Sign in here

@@ -83,7 +83,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
     queryClient.clear();
     localStorage.clear();
     sessionStorage.clear();
-    router.push("/guest/login");
+    router.push("/login");
   };
 
   return (
