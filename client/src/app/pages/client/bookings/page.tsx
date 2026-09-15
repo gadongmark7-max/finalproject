@@ -20,9 +20,10 @@ import crypto from "crypto";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 
 
-const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
+const STATUS_TABS = ["to pay", "active", "appointment", "pending", "completed"] as const;
 
 const statusStyle: Record<string, string> = {
+  "to pay":    "bg-warning-muted text-warning-light border border-warning-border",
   pending:     "bg-warning-muted text-warning-light border border-warning-border",
   completed:   "bg-success-muted text-success-light border border-success-border",
   rejected:    "bg-danger-muted text-danger-light border border-danger-border",
@@ -180,6 +181,13 @@ export default function Page() {
                       </p>
                     </div>
 
+                    {/* Pay over the counter reminder */}
+                    {booking.status === "to pay" && booking.paymentMethod === "counter" && (
+                      <p className="text-[10px] text-warning-light bg-warning-muted border border-warning-border px-2.5 py-1.5 leading-relaxed">
+                        Please complete this payment over the counter when you arrive.
+                      </p>
+                    )}
+
                     {/* Date */}
                     <div className="flex justify-between">
                       <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
@@ -297,9 +305,13 @@ export default function Page() {
               className="text-4xl font-light text-text-dim mb-3"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
-              No {type} bookings
+              {type === "to pay" ? "No bookings waiting for payment" : `No ${type} bookings`}
             </p>
-            <p className="text-text-muted text-sm">Your {type} bookings will appear here</p>
+            <p className="text-text-muted text-sm">
+              {type === "to pay"
+                ? "Bookings that still need payment will appear here"
+                : `Your ${type} bookings will appear here`}
+            </p>
           </div>
         )}
 

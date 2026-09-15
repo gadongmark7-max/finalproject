@@ -30,6 +30,7 @@ import {
   Sun,
   Moon,
   House,
+  Settings,
 } from "lucide-react";
 import useLightModeStore from "@/app/store/displayModeStore";
 import NotificationsCount from "./notifCount";
@@ -42,6 +43,7 @@ const navigationItems = [
   { title: "Chat", url: "/pages/client/convos", icon: MessageCircle },
   { title: "Transactions", url: "/pages/client/transactions", icon: History },
   { title: "Notifications", url: "/pages/client/notifications", icon: Bell },
+  { title: "Settings", url: "/pages/client/settings", icon: Settings },
 ];
 
 const bottomNavItems = [

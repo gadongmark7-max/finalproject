@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 import useUserStore from "@/app/store/useUserStore";
 import axiosInstance from "@/app/utils/axios";
 import { errorAlert } from "@/app/utils/alert";
-import { LoaderCircle, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
+import {
+  LoaderCircle,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Lock,
+  ArrowLeft,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
@@ -396,7 +403,12 @@ export default function LoginPage() {
                 Ink Of Baphomet
               </span>
             </div>
-            <BackButton />
+            <Link href="/">
+              <Button type="button" variant="ghost">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            </Link>
           </div>
           <h1
             ref={headRef}

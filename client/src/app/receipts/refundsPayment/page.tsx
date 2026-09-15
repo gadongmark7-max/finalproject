@@ -148,7 +148,7 @@ function PaymentSuccessContent() {
           <Button
             variant="outline"
             onClick={() => window.print()}
-            className="absolute top-5 right-5"
+            className="absolute top-5 right-5 print:hidden"
           >
             <Download />
           </Button>

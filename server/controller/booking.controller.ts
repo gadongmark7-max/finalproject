@@ -9,7 +9,8 @@ import { NotificationService } from "../services/notifications.service";
 import { AccountService } from "../services/acccount.service";
 import { InventoryService } from "../services/inventory.service";
 import { InventoryLogService } from "../services/inventoryLog.service";
-import { sendEmail } from "../utils/customFunction";
+import { sendEmail, sendNewClientAccountEmail } from "../utils/customFunction";
+import { generateSecurePassword } from "../utils/password";
 import { Console } from "console";
 import { ClientDirectoryService } from "../services/clientDirectory.service";
 
@@ -142,7 +143,26 @@ export class BookingController {
     static  bookingCashPayment = async (request : AuthRequest , response : Response) => {
         try{
             const { sender, receiver, bookingId, amount  } = request.body
+
+            const booking = await BookingService.get(bookingId)
+            if(!booking){
+                response.status(404).send("booking not found")
+                return
+            }
+
+            if(booking.artist._id.toString() !== request.account?._id){
+                response.status(403).send("you are not authorized to update this booking")
+                return
+            }
+
+            // Same status progression as an online payment: the first payment
+            // moves a booking out of "to pay" into "pending" (awaiting artist
+            // approval); a later top-up payment on an already-active booking
+            // keeps it "active".
+            const status = booking.originalPrice != booking.balance ? "active" : "pending"
+            await BookingService.updateStatus(bookingId, status)
             await BookingService.deductBalance(bookingId, amount)
+
             const date = getDate()
             const time = getTime()
             await TransactionService.create({
@@ -157,7 +177,7 @@ export class BookingController {
             response.send("success")
         } catch(e) {
             console.log(e)
-            response.status(500).send("error accour") 
+            response.status(500).send("error accour")
         }
     }
 
@@ -270,8 +290,10 @@ export class BookingController {
             if(checkedAccount){
                 client = checkedAccount
             } else {
-                const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, clientPassword)
+                const plainPassword = (clientPassword && clientPassword.length >= 8) ? clientPassword : generateSecurePassword()
+                const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, plainPassword)
                 client = dummyAccount
+                sendNewClientAccountEmail(clientEmail, clientName, plainPassword)
             }
         } else {
             client = await AccountService.get(clientId)
@@ -347,8 +369,10 @@ export class BookingController {
                     if(checkedAccount){
                         client = checkedAccount
                     } else {
-                        const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, clientPassword)
+                        const plainPassword = (clientPassword && clientPassword.length >= 8) ? clientPassword : generateSecurePassword()
+                        const dummyAccount = await AccountService.createDummy(clientName, clientContact, clientEmail, plainPassword)
                         client = dummyAccount
+                        sendNewClientAccountEmail(clientEmail, clientName, plainPassword)
                     }
                 } else {
                     client = await AccountService.get(clientId)

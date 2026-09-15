@@ -55,3 +55,13 @@ export const resetPasswordSchema = z
   })
   .refine(passwordsMatch.check, passwordsMatch.error)
 export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
+
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    password: passwordField(),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine(passwordsMatch.check, passwordsMatch.error)
+export type ChangePasswordValues = z.infer<typeof changePasswordSchema>

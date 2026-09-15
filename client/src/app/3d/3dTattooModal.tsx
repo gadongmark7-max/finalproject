@@ -1,5 +1,5 @@
-"use client"
-import { Button } from "@/components/ui/button"
+"use client";
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 // @ts-ignore
@@ -8,7 +8,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 // @ts-ignore
 import { DecalGeometry } from "three/examples/jsm/geometries/DecalGeometry";
-import { useRouter } from "next/navigation"
+import { useRouter } from "next/navigation";
 import {
   ArrowUp,
   ArrowDown,
@@ -25,51 +25,54 @@ import {
   RefreshCw,
   FlipHorizontal,
   FlipVertical,
-  Save,MapPin, CheckCircle2
+  Save,
+  MapPin,
+  CheckCircle2,
 } from "lucide-react";
 import { FullScreenModal } from "@/components/ui/modal";
 import { TattooDataInterface } from "../types/threejs.type";
- 
 
-export function SetTattoo3DModal({ 
-    img,
-    tattooData ,
-    setTatooData,
-    fixSize
-} : {  
-    img : string,
-    tattooData : TattooDataInterface | null,
-    setTatooData : (val : TattooDataInterface) => void,
-    fixSize : number | null
-}){
-
+export function SetTattoo3DModal({
+  img,
+  tattooData,
+  setTatooData,
+  fixSize,
+}: {
+  img: string;
+  tattooData: TattooDataInterface | null;
+  setTatooData: (val: TattooDataInterface) => void;
+  fixSize: number | null;
+}) {
   const [open, setOpen] = useState(false);
 
-  const jpgUrl = img.replace(/\.(png|jpeg|webp)$/i, ".jpg")
+  const jpgUrl = img.replace(/\.(png|jpeg|webp)$/i, ".jpg");
 
+  const [bodyType, setBodyType] = useState("/gltf/boy.glb");
 
-  const [bodyType, setBodyType] = useState("/gltf/boy.glb")
-
-  const [bodyPart, setBodyPart] = useState("")
+  const [bodyPart, setBodyPart] = useState("");
 
   const mountRef = useRef<HTMLDivElement>(null);
 
   const [tattooSize, setTattooSize] = useState(tattooData?.size || 0.3);
   const currentDecalRef = useRef<THREE.Mesh | null>(null);
   const controlsRef = useRef<any>(null);
-  const historyRef = useRef<Array<{
-    mesh: THREE.Mesh;
-    point: THREE.Vector3;
-    normal: THREE.Vector3;
-    orientation: THREE.Euler;
-    localRotation: THREE.Euler;
-    localScale: number;
-  }>>([]);
+  const historyRef = useRef<
+    Array<{
+      mesh: THREE.Mesh;
+      point: THREE.Vector3;
+      normal: THREE.Vector3;
+      orientation: THREE.Euler;
+      localRotation: THREE.Euler;
+      localScale: number;
+    }>
+  >([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
-  const [isGrayscale, setIsGrayscale] = useState(tattooData?.colorMode === "bw");
+  const [isGrayscale, setIsGrayscale] = useState(
+    tattooData?.colorMode === "bw",
+  );
   const isGrayscaleRef = useRef(isGrayscale);
 
   const [showModelPanel, setShowModelPanel] = useState(false);
@@ -89,12 +92,10 @@ export function SetTattoo3DModal({
   } | null>(null);
 
   useEffect(() => {
-    if(fixSize){
-      setTattooSize(fixSize)
+    if (fixSize) {
+      setTattooSize(fixSize);
     }
-  }, [open])
-
-  
+  }, [open]);
 
   useEffect(() => {
     if (!mountRef.current || !jpgUrl) return;
@@ -107,7 +108,7 @@ export function SetTattoo3DModal({
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      1000,
     );
     camera.position.set(0, 1, 3);
     cameraRef.current = camera;
@@ -137,22 +138,19 @@ export function SetTattoo3DModal({
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    
- 
-
     // Load tattoo texture
     const tattooTexture = new THREE.TextureLoader().load(jpgUrl);
     tattooTexture.flipY = false;
     // @ts-ignore
     loader.load(bodyType, (gltf) => {
       model = gltf.scene;
-      
+
       // Center the model
       const box = new THREE.Box3().setFromObject(model);
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center);
-      model.position.y = -box.min.y  - 0.5; // Place feet at ground level
-      
+      model.position.y = -box.min.y - 0.5; // Place feet at ground level
+
       scene.add(model);
       modelRef.current = model;
     });
@@ -169,39 +167,36 @@ export function SetTattoo3DModal({
 
       if (intersects.length > 0) {
         const intersect = intersects[0];
-        
+
         // Remove previous decal if exists
         if (currentDecalRef.current) {
           scene.remove(currentDecalRef.current);
           currentDecalRef.current.geometry.dispose();
           if (Array.isArray(currentDecalRef.current.material)) {
-            currentDecalRef.current.material.forEach(m => m.dispose());
+            currentDecalRef.current.material.forEach((m) => m.dispose());
           } else {
             currentDecalRef.current.material.dispose();
           }
         }
-        
+
         // Get the surface normal and point
         const point = intersect.point;
         const normal = intersect.face!.normal.clone();
-        
+
         // Transform normal to world space
         const mesh = intersect.object as THREE.Mesh;
 
-     
-      
-        
         let bodyPart = "Unknown";
-        
+
         // Normalize the point for better detection
         const x = point.x;
         const y = point.y;
         const z = point.z;
-        
+
         // Head (topmost part)
         if (y > 1.6) {
           bodyPart = "Head";
-        } 
+        }
         // Arms (extended on X-axis, between shoulder and waist height)
         else if (y > 1.0 && y <= 1.6 && Math.abs(x) > 0.25) {
           // Upper arms
@@ -236,15 +231,14 @@ export function SetTattoo3DModal({
         else if (y <= 0.5) {
           bodyPart = "Calves";
         }
-        
+
         setBodyPart(bodyPart);
-     
 
         normal.transformDirection(mesh.matrixWorld);
 
         // Create orientation for the decal
         const orientation = new THREE.Euler();
-        
+
         // Create a helper to orient the decal
         const helper = new THREE.Object3D();
         helper.position.copy(point);
@@ -277,27 +271,22 @@ export function SetTattoo3DModal({
 
             void main() {
               vec4 tattoo = texture2D(map, vUv);
-              float alpha = 1.0 - tattoo.r;
               float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+              float alpha = 1.0 - luminance;
               vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
               gl_FragColor = vec4(ink, alpha);
             }
           `,
         });
-        
+
         const size = new THREE.Vector3(tattooSize, tattooSize, 0.15);
 
-        const decalGeometry = new DecalGeometry(
-          mesh,
-          point,
-          orientation,
-          size
-        );
+        const decalGeometry = new DecalGeometry(mesh, point, orientation, size);
 
         const decalMesh = new THREE.Mesh(decalGeometry, decalMaterial);
         scene.add(decalMesh);
         currentDecalRef.current = decalMesh;
-        
+
         // Store tattoo data for 3D manipulation
         tattooDataRef.current = {
           mesh: mesh,
@@ -305,22 +294,23 @@ export function SetTattoo3DModal({
           normal: normal.clone(),
           orientation: orientation.clone(),
           localRotation: new THREE.Euler(0, 0, 0),
-          localScale: 1
+          localScale: 1,
         };
-        
+
         // Save initial state to history
-        historyRef.current = [{
-          mesh: mesh,
-          point: point.clone(),
-          normal: normal.clone(),
-          orientation: orientation.clone(),
-          localRotation: new THREE.Euler(0, 0, 0),
-          localScale: 1
-        }];
+        historyRef.current = [
+          {
+            mesh: mesh,
+            point: point.clone(),
+            normal: normal.clone(),
+            orientation: orientation.clone(),
+            localRotation: new THREE.Euler(0, 0, 0),
+            localScale: 1,
+          },
+        ];
         setHistoryIndex(0);
         setCanUndo(false);
         setCanRedo(false);
-      
       }
     }
 
@@ -346,7 +336,10 @@ export function SetTattoo3DModal({
       if (currentDecalRef.current) {
         scene.remove(currentDecalRef.current);
       }
-      if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+      if (
+        mountRef.current &&
+        renderer.domElement.parentNode === mountRef.current
+      ) {
         mountRef.current.removeChild(renderer.domElement);
       }
     };
@@ -356,14 +349,15 @@ export function SetTattoo3DModal({
   const recreateDecal = () => {
     if (!tattooDataRef.current || !sceneRef.current || !jpgUrl) return;
 
-    const { mesh, point, normal, orientation, localRotation, localScale } = tattooDataRef.current;
+    const { mesh, point, normal, orientation, localRotation, localScale } =
+      tattooDataRef.current;
 
     // Remove old decal
     if (currentDecalRef.current && sceneRef.current) {
       sceneRef.current.remove(currentDecalRef.current);
       currentDecalRef.current.geometry.dispose();
       if (Array.isArray(currentDecalRef.current.material)) {
-        currentDecalRef.current.material.forEach(m => m.dispose());
+        currentDecalRef.current.material.forEach((m) => m.dispose());
       } else {
         currentDecalRef.current.material.dispose();
       }
@@ -399,8 +393,8 @@ export function SetTattoo3DModal({
 
         void main() {
           vec4 tattoo = texture2D(map, vUv);
-          float alpha = 1.0 - tattoo.r;
           float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+          float alpha = 1.0 - luminance;
           vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
           gl_FragColor = vec4(ink, alpha);
         }
@@ -412,20 +406,20 @@ export function SetTattoo3DModal({
       orientation.x + localRotation.x,
       orientation.y + localRotation.y,
       orientation.z + localRotation.z,
-      orientation.order
+      orientation.order,
     );
 
     const size = new THREE.Vector3(
       tattooSize * localScale,
       tattooSize * localScale,
-      0.15
+      0.15,
     );
 
     const decalGeometry = new (DecalGeometry as any)(
       mesh,
       point,
       finalOrientation,
-      size
+      size,
     );
 
     const decalMesh = new THREE.Mesh(decalGeometry, decalMaterial);
@@ -451,10 +445,10 @@ export function SetTattoo3DModal({
   // Save state to history
   const saveToHistory = () => {
     if (!tattooDataRef.current) return;
-    
+
     // Remove any future states if we're not at the end
     const newHistory = historyRef.current.slice(0, historyIndex + 1);
-    
+
     // Add current state
     newHistory.push({
       mesh: tattooDataRef.current.mesh,
@@ -462,14 +456,14 @@ export function SetTattoo3DModal({
       normal: tattooDataRef.current.normal.clone(),
       orientation: tattooDataRef.current.orientation.clone(),
       localRotation: tattooDataRef.current.localRotation.clone(),
-      localScale: tattooDataRef.current.localScale
+      localScale: tattooDataRef.current.localScale,
     });
-    
+
     // Keep history limited to 50 states
     if (newHistory.length > 50) {
       newHistory.shift();
     }
-    
+
     historyRef.current = newHistory;
     const newIndex = newHistory.length - 1;
     setHistoryIndex(newIndex);
@@ -482,16 +476,16 @@ export function SetTattoo3DModal({
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       const state = historyRef.current[newIndex];
-      
+
       tattooDataRef.current = {
         mesh: state.mesh,
         point: state.point.clone(),
         normal: state.normal.clone(),
         orientation: state.orientation.clone(),
         localRotation: state.localRotation.clone(),
-        localScale: state.localScale
+        localScale: state.localScale,
       };
-      
+
       setHistoryIndex(newIndex);
       setCanUndo(newIndex > 0);
       setCanRedo(true);
@@ -504,16 +498,16 @@ export function SetTattoo3DModal({
     if (historyIndex < historyRef.current.length - 1) {
       const newIndex = historyIndex + 1;
       const state = historyRef.current[newIndex];
-      
+
       tattooDataRef.current = {
         mesh: state.mesh,
         point: state.point.clone(),
         normal: state.normal.clone(),
         orientation: state.orientation.clone(),
         localRotation: state.localRotation.clone(),
-        localScale: state.localScale
+        localScale: state.localScale,
       };
-      
+
       setHistoryIndex(newIndex);
       setCanUndo(true);
       setCanRedo(newIndex < historyRef.current.length - 1);
@@ -522,75 +516,79 @@ export function SetTattoo3DModal({
   };
 
   // UI Control Functions - Move along surface
-  const moveTattoo = (direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!tattooDataRef.current || !modelRef.current || !sceneRef.current) return;
-    
+  const moveTattoo = (direction: "up" | "down" | "left" | "right") => {
+    if (!tattooDataRef.current || !modelRef.current || !sceneRef.current)
+      return;
+
     const moveAmount = 0.03;
     const raycaster = new THREE.Raycaster();
-    
+
     // Calculate movement direction based on current orientation
     const { normal, point } = tattooDataRef.current;
-    
+
     // Create a local coordinate system on the surface
     const tangent = new THREE.Vector3();
     const bitangent = new THREE.Vector3();
-    
+
     // Find a perpendicular vector to the normal
     if (Math.abs(normal.y) < 0.9) {
       tangent.set(0, 1, 0);
     } else {
       tangent.set(1, 0, 0);
     }
-    
+
     tangent.cross(normal).normalize();
     bitangent.crossVectors(normal, tangent).normalize();
-    
+
     // Calculate new position based on direction
     const newPoint = point.clone();
-    
-    switch(direction) {
-      case 'up':
+
+    switch (direction) {
+      case "up":
         newPoint.add(bitangent.multiplyScalar(moveAmount));
         break;
-      case 'down':
+      case "down":
         newPoint.add(bitangent.multiplyScalar(-moveAmount));
         break;
-      case 'left':
+      case "left":
         newPoint.add(tangent.multiplyScalar(-moveAmount));
         break;
-      case 'right':
+      case "right":
         newPoint.add(tangent.multiplyScalar(moveAmount));
         break;
     }
-    
+
     // Raycast to find new surface point
     const rayDirection = normal.clone().multiplyScalar(-1);
-    raycaster.set(newPoint.clone().add(normal.clone().multiplyScalar(0.1)), rayDirection);
-    
+    raycaster.set(
+      newPoint.clone().add(normal.clone().multiplyScalar(0.1)),
+      rayDirection,
+    );
+
     const intersects = raycaster.intersectObject(modelRef.current, true);
-    
+
     if (intersects.length > 0) {
       const newIntersect = intersects[0];
       tattooDataRef.current.point = newIntersect.point.clone();
-      
+
       // Update normal
       const newNormal = newIntersect.face!.normal.clone();
       const mesh = newIntersect.object as THREE.Mesh;
       newNormal.transformDirection(mesh.matrixWorld);
       tattooDataRef.current.normal = newNormal;
-      
+
       // Update orientation
       const helper = new THREE.Object3D();
       helper.position.copy(newIntersect.point);
       helper.lookAt(newIntersect.point.clone().add(newNormal));
       tattooDataRef.current.orientation.copy(helper.rotation);
-      
+
       saveToHistory();
       recreateDecal();
     }
   };
 
-  const rotateTattoo = (axis: 'x' | 'y' | 'z', direction: number) => {
+  const rotateTattoo = (axis: "x" | "y" | "z", direction: number) => {
     if (!tattooDataRef.current) return;
     const rotateAmount = 0.2;
     tattooDataRef.current.localRotation[axis] += direction * rotateAmount;
@@ -598,9 +596,9 @@ export function SetTattoo3DModal({
     recreateDecal();
   };
 
-  const flipTattoo = (axis: 'horizontal' | 'vertical') => {
+  const flipTattoo = (axis: "horizontal" | "vertical") => {
     if (!tattooDataRef.current) return;
-    if (axis === 'horizontal') {
+    if (axis === "horizontal") {
       tattooDataRef.current.localRotation.y += Math.PI;
     } else {
       tattooDataRef.current.localRotation.x += Math.PI;
@@ -611,57 +609,55 @@ export function SetTattoo3DModal({
 
   const scaleTattoo = (direction: number) => {
     if (!tattooDataRef.current) return;
-  
+
     const step = 0.1;
     const minSize = 0.05;
     const maxSize = 3;
-  
+
     const nextSize = tattooSize * (1 + direction * step);
-  
+
     if (nextSize < minSize || nextSize > maxSize) return;
-  
+
     setTattooSize(nextSize);
-  
+
     // keep scale normalized
     tattooDataRef.current.localScale = 1;
-  
+
     saveToHistory();
     recreateDecal();
   };
-  
 
-
-  const rotateCamera = (direction: 'left' | 'right') => {
+  const rotateCamera = (direction: "left" | "right") => {
     if (!controlsRef.current || !cameraRef.current) return;
-    const angle = direction === 'left' ? 0.3 : -0.3;
+    const angle = direction === "left" ? 0.3 : -0.3;
     const cam = cameraRef.current;
     const target = controlsRef.current.target;
-    
+
     const offset = new THREE.Vector3().subVectors(cam.position, target);
     const radius = offset.length();
     const theta = Math.atan2(offset.x, offset.z) + angle;
-    
+
     cam.position.x = target.x + radius * Math.sin(theta);
     cam.position.z = target.z + radius * Math.cos(theta);
     controlsRef.current.update();
   };
 
-  const moveModel = (direction: 'up' | 'down') => {
+  const moveModel = (direction: "up" | "down") => {
     if (!controlsRef.current || !cameraRef.current) return;
-    const moveAmount = direction === 'down' ? 0.2 : -0.2;
+    const moveAmount = direction === "down" ? 0.2 : -0.2;
     cameraRef.current.position.y += moveAmount;
     controlsRef.current.target.y += moveAmount;
     controlsRef.current.update();
   };
 
-  const zoomCamera = (direction: 'in' | 'out') => {
+  const zoomCamera = (direction: "in" | "out") => {
     if (!controlsRef.current || !cameraRef.current) return;
     const cam = cameraRef.current;
     const target = controlsRef.current.target;
     const offset = new THREE.Vector3().subVectors(cam.position, target);
     const distance = offset.length();
-    const newDistance = direction === 'in' ? distance * 0.9 : distance * 1.1;
-    
+    const newDistance = direction === "in" ? distance * 0.9 : distance * 1.1;
+
     if (newDistance >= 1 && newDistance <= 10) {
       offset.normalize().multiplyScalar(newDistance);
       cam.position.copy(target).add(offset);
@@ -669,71 +665,74 @@ export function SetTattoo3DModal({
     }
   };
 
-
   const saveTatoo = () => {
-    if(tattooDataRef.current){
+    if (tattooDataRef.current) {
       setTatooData({
         modelUrl: bodyType,
-        meshName: bodyPart, 
-        size : tattooSize,
+        meshName: bodyPart,
+        size: tattooSize,
         position: {
           x: tattooDataRef.current.point.x,
           y: tattooDataRef.current.point.y,
-          z: tattooDataRef.current.point.z
+          z: tattooDataRef.current.point.z,
         },
-        
+
         rotation: {
-          x: tattooDataRef.current.orientation.x + tattooDataRef.current.localRotation.x,
-          y: tattooDataRef.current.orientation.y + tattooDataRef.current.localRotation.y,
-          z: tattooDataRef.current.orientation.z + tattooDataRef.current.localRotation.z,
-          order: tattooDataRef.current.orientation.order
+          x:
+            tattooDataRef.current.orientation.x +
+            tattooDataRef.current.localRotation.x,
+          y:
+            tattooDataRef.current.orientation.y +
+            tattooDataRef.current.localRotation.y,
+          z:
+            tattooDataRef.current.orientation.z +
+            tattooDataRef.current.localRotation.z,
+          order: tattooDataRef.current.orientation.order,
         },
-        
+
         scale: tattooDataRef.current.localScale,
 
         uv: undefined,
 
-        colorMode: isGrayscale ? "bw" : "original"
-      })
-      setOpen(false)
+        colorMode: isGrayscale ? "bw" : "original",
+      });
+      setOpen(false);
     }
-  }
+  };
 
-  
   useEffect(() => {
-    if(tattooData && tattooDataRef.current){
+    if (tattooData && tattooDataRef.current) {
       // Update scale
-      tattooDataRef.current.localScale = tattooData.scale
-  
+      tattooDataRef.current.localScale = tattooData.scale;
+
       // Update position
-      tattooDataRef.current.point.x = tattooData.position.x
-      tattooDataRef.current.point.y = tattooData.position.y
-      tattooDataRef.current.point.z = tattooData.position.z
-  
+      tattooDataRef.current.point.x = tattooData.position.x;
+      tattooDataRef.current.point.y = tattooData.position.y;
+      tattooDataRef.current.point.z = tattooData.position.z;
+
       // Update rotation (split combined rotation back into orientation and localRotation)
-      tattooDataRef.current.orientation.x = tattooData.rotation.x
-      tattooDataRef.current.orientation.y = tattooData.rotation.y
-      tattooDataRef.current.orientation.z = tattooData.rotation.z
-      tattooDataRef.current.orientation.order = tattooData.rotation.order
-  
+      tattooDataRef.current.orientation.x = tattooData.rotation.x;
+      tattooDataRef.current.orientation.y = tattooData.rotation.y;
+      tattooDataRef.current.orientation.z = tattooData.rotation.z;
+      tattooDataRef.current.orientation.order = tattooData.rotation.order;
+
       // Reset local rotation since we're putting everything in orientation
-      tattooDataRef.current.localRotation.x = 0
-      tattooDataRef.current.localRotation.y = 0
-      tattooDataRef.current.localRotation.z = 0
+      tattooDataRef.current.localRotation.x = 0;
+      tattooDataRef.current.localRotation.y = 0;
+      tattooDataRef.current.localRotation.z = 0;
 
       // Restore the previously chosen appearance
-      const grayscale = tattooData.colorMode === "bw"
-      isGrayscaleRef.current = grayscale
-      setIsGrayscale(grayscale)
+      const grayscale = tattooData.colorMode === "bw";
+      isGrayscaleRef.current = grayscale;
+      setIsGrayscale(grayscale);
 
       // Recreate the decal with updated data
       recreateDecal();
     }
-  }, [open, tattooData])
+  }, [open, tattooData]);
 
   return (
     <div>
-
       {/* Trigger Button */}
       <div className="w-full mt-3 mb-3">
         <button
@@ -756,7 +755,9 @@ export function SetTattoo3DModal({
             )}
             <div>
               <p className="text-sm font-light tracking-wide">
-                {tattooData ? "Tattoo position selected" : "Select tattoo position"}
+                {tattooData
+                  ? "Tattoo position selected"
+                  : "Select tattoo position"}
               </p>
             </div>
           </div>
@@ -772,61 +773,79 @@ export function SetTattoo3DModal({
         title="Full Screen Modal"
       >
         <div className="relative w-full h-screen bg-primary text-text">
-
           {/* Grain overlay */}
           <div
             className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            }}
           />
 
           {/* 3D Viewport */}
           <div ref={mountRef} className="w-full h-full" />
 
-          {/* Top Bar */}
-          <div className="absolute top-0 left-0 right-0 z-[100] flex items-center justify-between gap-2 px-3 sm:px-5 py-3 bg-primary/95 backdrop-blur border-b border-border">
-            <div className="flex items-center gap-2">
-              <Button size="sm" onClick={() => setOpen(false)}>
-                <ArrowLeft /> Back
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="lg:hidden"
-                onClick={() => setShowModelPanel((prev) => !prev)}
-              >
-                View
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="lg:hidden"
-                onClick={() => setShowEditorPanel((prev) => !prev)}
-              >
-                Adjust
-              </Button>
-            </div>
-            <Button size="sm" onClick={saveTatoo}>
-              <Save /> Save
+          {/* Back Button — desktop position unchanged; mobile moves to a safe top-left spot */}
+          <Button
+            className="absolute left-3 top-3 lg:left-[335px] lg:top-5 z-[100]"
+            size="lg"
+            onClick={() => setOpen(false)}
+          >
+            <ArrowLeft /> Back
+          </Button>
+
+          {/* Mobile-only panel toggles (desktop always shows both panels) */}
+          <div className="lg:hidden absolute left-3 top-16 z-[100] flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowModelPanel((prev) => !prev)}
+            >
+              View
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowEditorPanel((prev) => !prev)}
+            >
+              Adjust
             </Button>
           </div>
 
-          {/* Tattoo Preview */}
-          <div className="hidden sm:block absolute right-5 top-20 z-[100] bg-surface border border-border w-[110px] h-[110px] lg:w-[150px] lg:h-[150px] overflow-hidden">
-            <img src={jpgUrl!} alt="Tattoo preview" className="w-full h-full object-cover" />
+          {/* Save Button — desktop position unchanged; mobile moves to top-right */}
+          <Button
+            className="absolute right-3 top-3 left-auto lg:left-[475px] lg:right-auto lg:top-5 z-[100]"
+            size="lg"
+            onClick={saveTatoo}
+          >
+            <Save /> Save
+          </Button>
+
+          {/* Tattoo Preview — desktop position/size unchanged; mobile is smaller and sits below Save */}
+          <div className="absolute right-3 top-16 w-16 h-16 lg:top-5 lg:right-[335px] lg:w-[150px] lg:h-[150px] z-[100] bg-surface border border-border overflow-hidden">
+            <img
+              src={jpgUrl!}
+              alt="Tattoo preview"
+              className="w-full h-full object-cover"
+            />
             <div className="absolute bottom-0 left-0 right-0 py-1 bg-primary/80 flex justify-center">
-              <span className="text-[9px] uppercase tracking-[0.2em] text-gold">Preview</span>
+              <span className="text-[9px] uppercase tracking-[0.2em] text-gold">
+                Preview
+              </span>
             </div>
           </div>
 
           {/* ─── LEFT PANEL — Model View ─── */}
-          <div className={`absolute top-16 lg:top-0 left-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-r border-border flex-col overflow-auto z-30
-            ${showModelPanel ? 'flex' : 'hidden'} lg:flex`}>
-
+          <div
+            className={`absolute top-28 lg:top-0 left-0 h-[calc(100%-7rem)] lg:h-full w-full sm:w-80 bg-secondary border-r border-border flex-col overflow-auto z-30
+            ${showModelPanel ? "flex" : "hidden"} lg:flex`}
+          >
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">
               <div className="flex items-center gap-2 mb-1">
                 <div className="h-px w-4 bg-gold opacity-60" />
-                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Model View</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  Model View
+                </span>
               </div>
               <h3
                 className="text-2xl font-light text-text tracking-[-0.02em]"
@@ -834,16 +853,19 @@ export function SetTattoo3DModal({
               >
                 Camera Controls
               </h3>
-              <p className="text-xs text-text-muted mt-1">Control your viewing angle</p>
+              <p className="text-xs text-text-muted mt-1">
+                Control your viewing angle
+              </p>
             </div>
 
             <div className="flex flex-col gap-px flex-1 bg-border overflow-auto bg-secondary">
-
               {/* Change Model */}
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Change Model</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Change Model
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -865,17 +887,19 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Rotate Around</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Rotate Around
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => rotateCamera('left')}
+                    onClick={() => rotateCamera("left")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => rotateCamera('right')}
+                    onClick={() => rotateCamera("right")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowRight className="w-5 h-5" />
@@ -887,17 +911,19 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Move Model</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Move Model
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => moveModel('up')}
+                    onClick={() => moveModel("up")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowUp className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => moveModel('down')}
+                    onClick={() => moveModel("down")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowDown className="w-5 h-5" />
@@ -909,36 +935,40 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Zoom</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Zoom
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => zoomCamera('in')}
+                    onClick={() => zoomCamera("in")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ZoomIn className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => zoomCamera('out')}
+                    onClick={() => zoomCamera("out")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ZoomOut className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-
             </div>
           </div>
 
           {/* ─── RIGHT PANEL — Edit Tattoo ─── */}
-          <div className={`absolute top-16 lg:top-0 right-0 h-[calc(100%-4rem)] lg:h-full w-full sm:w-80 bg-secondary border-l border-border flex-col overflow-y-auto z-30
-            ${showEditorPanel ? 'flex' : 'hidden'} lg:flex`}>
-
+          <div
+            className={`absolute top-28 lg:top-0 right-0 h-[calc(100%-7rem)] lg:h-full w-full sm:w-80 bg-secondary border-l border-border flex-col overflow-y-auto z-30
+            ${showEditorPanel ? "flex" : "hidden"} lg:flex`}
+          >
             {/* Panel Header */}
             <div className="px-6 pt-8 pb-5 border-b border-border">
               <div className="flex items-center gap-2 mb-1">
                 <div className="h-px w-4 bg-gold opacity-60" />
-                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Tattoo Editor</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  Tattoo Editor
+                </span>
               </div>
               <h3
                 className="text-2xl font-light text-text tracking-[-0.02em]"
@@ -946,40 +976,43 @@ export function SetTattoo3DModal({
               >
                 Edit Your Tattoo
               </h3>
-              <p className="text-xs text-text-muted mt-1">Adjust position, size, and orientation</p>
+              <p className="text-xs text-text-muted mt-1">
+                Adjust position, size, and orientation
+              </p>
             </div>
 
             <div className="flex flex-col gap-px flex-1 bg-border overflow-y-auto">
-
               {/* Position */}
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Position</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Position
+                  </span>
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <button
-                    onClick={() => moveTattoo('up')}
+                    onClick={() => moveTattoo("up")}
                     className="w-12 h-12 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowUp className="w-5 h-5" />
                   </button>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => moveTattoo('left')}
+                      onClick={() => moveTattoo("left")}
                       className="w-12 h-12 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </button>
                     <button
-                      onClick={() => moveTattoo('right')}
+                      onClick={() => moveTattoo("right")}
                       className="w-12 h-12 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                     >
                       <ArrowRight className="w-5 h-5" />
                     </button>
                   </div>
                   <button
-                    onClick={() => moveTattoo('down')}
+                    onClick={() => moveTattoo("down")}
                     className="w-12 h-12 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <ArrowDown className="w-5 h-5" />
@@ -992,7 +1025,9 @@ export function SetTattoo3DModal({
                 <div className="bg-secondary p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="h-px w-3 bg-gold opacity-50" />
-                    <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Size</span>
+                    <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                      Size
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -1015,17 +1050,19 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Flip</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Flip
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => flipTattoo('horizontal')}
+                    onClick={() => flipTattoo("horizontal")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <FlipHorizontal className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => flipTattoo('vertical')}
+                    onClick={() => flipTattoo("vertical")}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <FlipVertical className="w-5 h-5" />
@@ -1037,25 +1074,29 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Appearance</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Appearance
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => applyColorMode('original')}
+                    onClick={() => applyColorMode("original")}
                     className={`flex-1 py-3 text-[10px] uppercase tracking-[0.15em] border transition-all duration-300
-                      ${!isGrayscale
-                        ? 'bg-surface-alt border-border-gold text-gold'
-                        : 'bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold'
+                      ${
+                        !isGrayscale
+                          ? "bg-surface-alt border-border-gold text-gold"
+                          : "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold"
                       }`}
                   >
                     Original
                   </button>
                   <button
-                    onClick={() => applyColorMode('bw')}
+                    onClick={() => applyColorMode("bw")}
                     className={`flex-1 py-3 text-[10px] uppercase tracking-[0.15em] border transition-all duration-300
-                      ${isGrayscale
-                        ? 'bg-surface-alt border-border-gold text-gold'
-                        : 'bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold'
+                      ${
+                        isGrayscale
+                          ? "bg-surface-alt border-border-gold text-gold"
+                          : "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold"
                       }`}
                   >
                     Black &amp; White
@@ -1067,17 +1108,19 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">Roll</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    Roll
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => rotateTattoo('z', -1)}
+                    onClick={() => rotateTattoo("z", -1)}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <RotateCcw className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => rotateTattoo('z', 1)}
+                    onClick={() => rotateTattoo("z", 1)}
                     className="flex-1 py-3 bg-surface border border-border text-text-muted hover:border-border-gold hover:text-gold transition-all duration-300 flex items-center justify-center"
                   >
                     <RotateCw className="w-5 h-5" />
@@ -1089,16 +1132,19 @@ export function SetTattoo3DModal({
               <div className="bg-secondary p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="h-px w-3 bg-gold opacity-50" />
-                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">History</span>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
+                    History
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={undo}
                     disabled={!canUndo}
                     className={`flex-1 py-3 border transition-all duration-300 flex items-center justify-center
-                      ${canUndo
-                        ? "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold cursor-pointer"
-                        : "bg-surface border-border text-text-dim cursor-not-allowed opacity-40"
+                      ${
+                        canUndo
+                          ? "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold cursor-pointer"
+                          : "bg-surface border-border text-text-dim cursor-not-allowed opacity-40"
                       }`}
                   >
                     <Undo className="w-5 h-5" />
@@ -1107,21 +1153,20 @@ export function SetTattoo3DModal({
                     onClick={redo}
                     disabled={!canRedo}
                     className={`flex-1 py-3 border transition-all duration-300 flex items-center justify-center
-                      ${canRedo
-                        ? "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold cursor-pointer"
-                        : "bg-surface border-border text-text-dim cursor-not-allowed opacity-40"
+                      ${
+                        canRedo
+                          ? "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold cursor-pointer"
+                          : "bg-surface border-border text-text-dim cursor-not-allowed opacity-40"
                       }`}
                   >
                     <Redo className="w-5 h-5" />
                   </button>
                 </div>
               </div>
-
             </div>
           </div>
-
         </div>
       </FullScreenModal>
     </div>
-  )
+  );
 }

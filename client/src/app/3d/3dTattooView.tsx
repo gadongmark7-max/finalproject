@@ -317,8 +317,8 @@ export function ViewTattoo3DModal({
 
         void main() {
           vec4 tattoo = texture2D(map, vUv);
-          float alpha = 1.0 - tattoo.r;
           float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
+          float alpha = 1.0 - luminance;
           vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
           gl_FragColor = vec4(ink, alpha);
         }
