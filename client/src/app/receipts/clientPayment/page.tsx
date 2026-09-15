@@ -7,6 +7,8 @@ import { useEffect, useState, Suspense } from "react";
 import { accountInterface } from "@/app/types/accounts.type";
 import { CheckCircle, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { downloadReceiptPdf } from "@/app/utils/downloadReceipt";
+import { errorAlert } from "@/app/utils/alert";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
@@ -39,6 +41,19 @@ function PaymentSuccessContent() {
   });
 
   const [hasCalled, setHasCalled] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadReceiptPdf("receipt", `receipt-${refId || Date.now()}.pdf`);
+    } catch (e) {
+      console.error(e);
+      errorAlert("Failed to download receipt");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   useEffect(() => {
     if (sender && receiver && bookingId && amount && !hasCalled && refId) {
@@ -167,13 +182,19 @@ function PaymentSuccessContent() {
           className="bg-[#fafafa] p-8 rounded-sm border border-gray-300 font-mono text-sm shadow-sm relative"
           id="receipt"
         >
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            className="absolute top-5 right-5"
+          <div
+            className="absolute top-5 right-5 print:hidden"
+            data-pdf-ignore="true"
           >
-            <Download />
-          </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              title="Download Receipt"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
 
           <div className="text-center mb-6">
             <h2 className="text-lg font-bold tracking-widest">

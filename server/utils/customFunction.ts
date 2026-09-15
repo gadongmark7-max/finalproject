@@ -215,6 +215,16 @@ htmlContent: `
   }
 };
 
+export const sendNewClientAccountEmail = (email : string, name : string, tempPassword : string) => {
+  return sendEmail(
+    email,
+    "Your Ink Of Baphomet Account",
+    `Hi ${name}, your artist has created an account for you so you can manage this booking online.<br/><br/>` +
+    `Temporary password: <strong style="color:#C9A84C;">${tempPassword}</strong><br/><br/>` +
+    `Please log in and change this password as soon as possible.`
+  )
+}
+
 export const sendEmail_old = (email : string, title : string,  message : string) => {
         const transporter = nodemailer.createTransport({
                 service: 'gmail', 

@@ -16,7 +16,7 @@ import LoadingScreen from "@/components/ui/loadingScreen";
 
 export const BookingContext = createContext<() => void>(() => {});
 
-const STATUS_TABS = ["active", "pending", "appointment", "completed"] as const;
+const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
 type StatusTab = typeof STATUS_TABS[number];
 
 export default function Page() {

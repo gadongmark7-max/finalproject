@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { transactionReceiptInterface } from "@/app/types/transaction.type";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import LoadingScreen from "@/components/ui/loadingScreen";
+import { useState } from "react";
+import { downloadReceiptPdf } from "@/app/utils/downloadReceipt";
+import { errorAlert } from "@/app/utils/alert";
 
 export default function TransactionReceiptPage() {
   const params = useParams();
@@ -28,6 +31,8 @@ export default function TransactionReceiptPage() {
     },
     retry: false,
   });
+
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (isLoading) return <LoadingScreen />;
 
@@ -61,6 +66,21 @@ export default function TransactionReceiptPage() {
 
   const booking = transaction.bookingId;
   const paymentMethod = booking?.paymentMethod ?? "online";
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadReceiptPdf(
+        "receipt",
+        `receipt-${transaction.refId || id}.pdf`,
+      );
+    } catch (e) {
+      console.error(e);
+      errorAlert("Failed to download receipt");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const baseAmount = transaction.amount;
   const tax = baseAmount * 0.14;
@@ -167,13 +187,19 @@ export default function TransactionReceiptPage() {
           className="bg-[#fafafa] p-8 rounded-sm border border-gray-300 font-mono text-sm shadow-sm relative"
           id="receipt"
         >
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            className="absolute top-5 right-5"
+          <div
+            className="absolute top-5 right-5 print:hidden"
+            data-pdf-ignore="true"
           >
-            <Download />
-          </Button>
+            <Button
+              variant="outline"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              title="Download Receipt"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
 
           <div className="text-center mb-6">
             <h2 className="text-lg font-bold tracking-widest">

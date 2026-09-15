@@ -135,6 +135,31 @@ export class AccountController {
     response.send("success");
   };
 
+  static changePassword = async (request: AuthRequest, response: Response) => {
+    const { currentPassword, newPassword } = request.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      response.status(400).send("new password is too short");
+      return;
+    }
+
+    const account = await AccountService.get(request.account?._id!);
+    if (!account) {
+      response.status(404).send("account not found");
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, account.password);
+    if (!isMatch) {
+      response.status(400).send("current password is incorrect");
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await AccountService.updatePasswordByEmail(account.email, hashedPassword);
+    response.send("success");
+  };
+
   static toggleIsBan = async (request: AuthRequest, response: Response) => {
     const { id } = request.params;
     await AccountService.toggleIsBan(id);
