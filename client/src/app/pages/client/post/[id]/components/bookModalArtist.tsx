@@ -134,7 +134,7 @@ export function ArtistBookModal({
       date: date!.toLocaleDateString("en-US").toString(),
       time: selectedtime,
       duration: selectedtime.length - 1,
-      status: "to pay",
+      status: "pending",
       isReviewed: false,
       balance: post.price,
       itemUsed: post.itemUsed,

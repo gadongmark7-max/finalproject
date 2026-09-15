@@ -23,7 +23,7 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   online: "Online Payment",
-  counter: "Pay Over the Counter",
+  counter: "Over-the-Counter",
 };
 
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS, {

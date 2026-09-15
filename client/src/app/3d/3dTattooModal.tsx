@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { FullScreenModal } from "@/components/ui/modal";
 import { TattooDataInterface } from "../types/threejs.type";
+import { detectHasAlpha } from "./detectImageAlpha";
 
 export function SetTattoo3DModal({
   img,
@@ -45,7 +46,7 @@ export function SetTattoo3DModal({
 }) {
   const [open, setOpen] = useState(false);
 
-  const jpgUrl = img.replace(/\.(png|jpeg|webp)$/i, ".jpg");
+  const jpgUrl = img.replace(/\.(png|jpeg|webp)$/i, ".png");
 
   const [bodyType, setBodyType] = useState("/gltf/boy.glb");
 
@@ -74,6 +75,7 @@ export function SetTattoo3DModal({
     tattooData?.colorMode === "bw",
   );
   const isGrayscaleRef = useRef(isGrayscale);
+  const hasAlphaRef = useRef(false);
 
   const [showModelPanel, setShowModelPanel] = useState(false);
   const [showEditorPanel, setShowEditorPanel] = useState(false);
@@ -139,7 +141,21 @@ export function SetTattoo3DModal({
     const mouse = new THREE.Vector2();
 
     // Load tattoo texture
-    const tattooTexture = new THREE.TextureLoader().load(jpgUrl);
+    const tattooTexture = new THREE.TextureLoader().load(
+      jpgUrl,
+      (loadedTexture) => {
+        hasAlphaRef.current = detectHasAlpha(loadedTexture.image);
+        const material = currentDecalRef.current?.material as
+          | THREE.ShaderMaterial
+          | undefined;
+        if (material?.uniforms?.uHasAlpha) {
+          material.uniforms.uHasAlpha.value = hasAlphaRef.current;
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+        }
+      },
+    );
     tattooTexture.flipY = false;
     // @ts-ignore
     loader.load(bodyType, (gltf) => {
@@ -249,6 +265,7 @@ export function SetTattoo3DModal({
           uniforms: {
             map: { value: tattooTexture },
             uGrayscale: { value: isGrayscaleRef.current },
+            uHasAlpha: { value: hasAlphaRef.current },
           },
           transparent: true,
           depthWrite: false,
@@ -267,12 +284,17 @@ export function SetTattoo3DModal({
           fragmentShader: `
             uniform sampler2D map;
             uniform bool uGrayscale;
+            uniform bool uHasAlpha;
             varying vec2 vUv;
 
             void main() {
               vec4 tattoo = texture2D(map, vUv);
               float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
-              float alpha = 1.0 - luminance;
+              // Prefer the image's real alpha channel when it has one (a PNG
+              // with genuine transparency); otherwise derive a mask from
+              // luminance, since a flattened/opaque source has no real
+              // transparency to read.
+              float alpha = uHasAlpha ? tattoo.a : (1.0 - luminance);
               vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
               gl_FragColor = vec4(ink, alpha);
             }
@@ -364,13 +386,23 @@ export function SetTattoo3DModal({
     }
 
     // Load tattoo texture
-    const tattooTexture = new THREE.TextureLoader().load(jpgUrl);
+    const tattooTexture = new THREE.TextureLoader().load(
+      jpgUrl,
+      (loadedTexture) => {
+        hasAlphaRef.current = detectHasAlpha(loadedTexture.image);
+        decalMaterial.uniforms.uHasAlpha.value = hasAlphaRef.current;
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+          rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
+      },
+    );
     tattooTexture.flipY = false;
 
     const decalMaterial = new THREE.ShaderMaterial({
       uniforms: {
         map: { value: tattooTexture },
         uGrayscale: { value: isGrayscaleRef.current },
+        uHasAlpha: { value: hasAlphaRef.current },
       },
       transparent: true,
       depthWrite: false,
@@ -389,12 +421,13 @@ export function SetTattoo3DModal({
       fragmentShader: `
         uniform sampler2D map;
         uniform bool uGrayscale;
+        uniform bool uHasAlpha;
         varying vec2 vUv;
 
         void main() {
           vec4 tattoo = texture2D(map, vUv);
           float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
-          float alpha = 1.0 - luminance;
+          float alpha = uHasAlpha ? tattoo.a : (1.0 - luminance);
           vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
           gl_FragColor = vec4(ink, alpha);
         }
@@ -800,7 +833,7 @@ export function SetTattoo3DModal({
               variant="outline"
               onClick={() => setShowModelPanel((prev) => !prev)}
             >
-              View
+              ViewP
             </Button>
             <Button
               size="sm"

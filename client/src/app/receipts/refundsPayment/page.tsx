@@ -8,6 +8,9 @@ import { accountInterface } from "@/app/types/accounts.type";
 import { CheckCircle, Download, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import useUserStore from "@/app/store/useUserStore";
+import { useState } from "react";
+import { downloadReceiptPdf } from "@/app/utils/downloadReceipt";
+import { errorAlert } from "@/app/utils/alert";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
@@ -42,6 +45,20 @@ function PaymentSuccessContent() {
   const tax = baseAmount * 0.14;
   const subTotal = baseAmount - tax;
   const total = baseAmount;
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      await downloadReceiptPdf("receipt", `receipt-${refId || Date.now()}.pdf`);
+    } catch (e) {
+      console.error(e);
+      errorAlert("Failed to download receipt");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-primary px-4 py-8 relative overflow-hidden">
@@ -145,13 +162,16 @@ function PaymentSuccessContent() {
           className="bg-[#fafafa] p-8 rounded-sm border border-gray-300 font-mono text-sm shadow-sm relative"
           id="receipt"
         >
-          <Button
-            variant="outline"
-            onClick={() => window.print()}
-            className="absolute top-5 right-5 print:hidden"
-          >
-            <Download />
-          </Button>
+          <div className="absolute top-5 right-5 print:hidden" data-pdf-ignore="true">
+            <Button
+              variant="outline"
+              onClick={handleDownload}
+              disabled={isDownloading}
+              title="Download Receipt"
+            >
+              <Download className="w-4 h-4" /> Download Receipt
+            </Button>
+          </div>
 
           <div className="text-center mb-6">
             <h2 className="text-lg font-bold tracking-widest">

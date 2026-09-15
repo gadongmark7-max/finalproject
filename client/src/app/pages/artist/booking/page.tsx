@@ -10,14 +10,13 @@ import PendingBookings from "./components/pendingBooking";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import AppointmentBookings from "./components/appointmentBooking";
-import ToPayBookings from "./components/toPayBooking";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import { isBussinessApproveArtistAppoitnment } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
 
 export const BookingContext = createContext<() => void>(() => {});
 
-const STATUS_TABS = ["to pay", "active", "pending", "appointment", "completed"] as const;
+const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
 type StatusTab = typeof STATUS_TABS[number];
 
 export default function Page() {
@@ -135,12 +134,6 @@ export default function Page() {
           </div>
 
           {/* Booking Views */}
-          {type === "to pay" && (
-            <ToPayBookings
-              setBookings={setBookings}
-              bookings={bookings.filter((b) => b.status === "to pay")}
-            />
-          )}
           {type === "active" && (
             <ActiveBookings
               setBookings={setBookings}
