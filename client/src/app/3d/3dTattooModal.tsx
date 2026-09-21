@@ -32,6 +32,7 @@ import {
 import { FullScreenModal } from "@/components/ui/modal";
 import { TattooDataInterface } from "../types/threejs.type";
 import { detectHasAlpha } from "./detectImageAlpha";
+import { createTattooDecalMaterial } from "./tattooDecalMaterial";
 
 export function SetTattoo3DModal({
   img,
@@ -76,6 +77,8 @@ export function SetTattoo3DModal({
   );
   const isGrayscaleRef = useRef(isGrayscale);
   const hasAlphaRef = useRef(false);
+  // One texture per image, reused every time the decal is rebuilt.
+  const textureRef = useRef<THREE.Texture | null>(null);
 
   const [showModelPanel, setShowModelPanel] = useState(false);
   const [showEditorPanel, setShowEditorPanel] = useState(false);
@@ -157,6 +160,7 @@ export function SetTattoo3DModal({
       },
     );
     tattooTexture.flipY = false;
+    textureRef.current = tattooTexture;
     // @ts-ignore
     loader.load(bodyType, (gltf) => {
       model = gltf.scene;
@@ -261,44 +265,9 @@ export function SetTattoo3DModal({
         helper.lookAt(point.clone().add(normal));
         orientation.copy(helper.rotation);
 
-        const decalMaterial = new THREE.ShaderMaterial({
-          uniforms: {
-            map: { value: tattooTexture },
-            uGrayscale: { value: isGrayscaleRef.current },
-            uHasAlpha: { value: hasAlphaRef.current },
-          },
-          transparent: true,
-          depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -4,
-          side: THREE.FrontSide,
-
-          vertexShader: `
-            varying vec2 vUv;
-            void main() {
-              vUv = uv;
-              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-          `,
-
-          fragmentShader: `
-            uniform sampler2D map;
-            uniform bool uGrayscale;
-            uniform bool uHasAlpha;
-            varying vec2 vUv;
-
-            void main() {
-              vec4 tattoo = texture2D(map, vUv);
-              float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
-              // Prefer the image's real alpha channel when it has one (a PNG
-              // with genuine transparency); otherwise derive a mask from
-              // luminance, since a flattened/opaque source has no real
-              // transparency to read.
-              float alpha = uHasAlpha ? tattoo.a : (1.0 - luminance);
-              vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
-              gl_FragColor = vec4(ink, alpha);
-            }
-          `,
+        const decalMaterial = createTattooDecalMaterial(tattooTexture, {
+          grayscale: isGrayscaleRef.current,
+          hasAlpha: hasAlphaRef.current,
         });
 
         const size = new THREE.Vector3(tattooSize, tattooSize, 0.15);
@@ -364,12 +333,17 @@ export function SetTattoo3DModal({
       ) {
         mountRef.current.removeChild(renderer.domElement);
       }
+      tattooTexture.dispose();
+      textureRef.current = null;
     };
   }, [bodyType, jpgUrl, open]);
 
   // Recreate decal with new parameters
   const recreateDecal = () => {
     if (!tattooDataRef.current || !sceneRef.current || !jpgUrl) return;
+
+    const tattooTexture = textureRef.current;
+    if (!tattooTexture) return;
 
     const { mesh, point, normal, orientation, localRotation, localScale } =
       tattooDataRef.current;
@@ -385,53 +359,9 @@ export function SetTattoo3DModal({
       }
     }
 
-    // Load tattoo texture
-    const tattooTexture = new THREE.TextureLoader().load(
-      jpgUrl,
-      (loadedTexture) => {
-        hasAlphaRef.current = detectHasAlpha(loadedTexture.image);
-        decalMaterial.uniforms.uHasAlpha.value = hasAlphaRef.current;
-        if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-      },
-    );
-    tattooTexture.flipY = false;
-
-    const decalMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        map: { value: tattooTexture },
-        uGrayscale: { value: isGrayscaleRef.current },
-        uHasAlpha: { value: hasAlphaRef.current },
-      },
-      transparent: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      side: THREE.FrontSide,
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D map;
-        uniform bool uGrayscale;
-        uniform bool uHasAlpha;
-        varying vec2 vUv;
-
-        void main() {
-          vec4 tattoo = texture2D(map, vUv);
-          float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
-          float alpha = uHasAlpha ? tattoo.a : (1.0 - luminance);
-          vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
-          gl_FragColor = vec4(ink, alpha);
-        }
-      `,
+    const decalMaterial = createTattooDecalMaterial(tattooTexture, {
+      grayscale: isGrayscaleRef.current,
+      hasAlpha: hasAlphaRef.current,
     });
 
     // Apply local rotation to the orientation
@@ -833,7 +763,7 @@ export function SetTattoo3DModal({
               variant="outline"
               onClick={() => setShowModelPanel((prev) => !prev)}
             >
-              ViewP
+              View
             </Button>
             <Button
               size="sm"

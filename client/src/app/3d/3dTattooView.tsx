@@ -25,6 +25,7 @@ import { TattooDataInterface } from "../types/threejs.type";
 import { bookingInterface } from "../types/booking.type";
 import { Artifika } from "next/font/google";
 import { detectHasAlpha } from "./detectImageAlpha";
+import { createTattooDecalMaterial } from "./tattooDecalMaterial";
 
 export function ViewTattoo3DModal({
   img,
@@ -68,6 +69,8 @@ export function ViewTattoo3DModal({
   } | null>(null);
 
   const hasAlphaRef = useRef(false);
+  const textureRef = useRef<THREE.Texture | null>(null);
+  const textureUrlRef = useRef<string | null>(null);
 
   // Initialize tattooDataRef with default data
   useEffect(() => {
@@ -131,10 +134,6 @@ export function ViewTattoo3DModal({
     scene.add(dir);
 
     const loader = new GLTFLoader();
-
-    // Load tattoo texture
-    const tattooTexture = new THREE.TextureLoader().load(jpgUrl);
-    tattooTexture.flipY = false;
 
     // @ts-ignore
     loader.load(bodyType, (gltf) => {
@@ -221,6 +220,9 @@ export function ViewTattoo3DModal({
       ) {
         mountRef.current.removeChild(renderer.domElement);
       }
+      textureRef.current?.dispose();
+      textureRef.current = null;
+      textureUrlRef.current = null;
       setModelLoaded(false);
       setIsPositioned(false);
     };
@@ -292,55 +294,32 @@ export function ViewTattoo3DModal({
       }
     }
 
-    // Load tattoo texture
-    const tattooTexture = new THREE.TextureLoader().load(
-      jpgUrl,
-      (loadedTexture) => {
-        hasAlphaRef.current = detectHasAlpha(loadedTexture.image);
-        decalMaterial.uniforms.uHasAlpha.value = hasAlphaRef.current;
-        if (rendererRef.current && sceneRef.current && cameraRef.current) {
-          rendererRef.current.render(sceneRef.current, cameraRef.current);
-        }
-      },
-    );
-    tattooTexture.flipY = false;
+    if (!textureRef.current || textureUrlRef.current !== jpgUrl) {
+      textureRef.current?.dispose();
+      hasAlphaRef.current = false;
+      textureUrlRef.current = jpgUrl;
+      const loadedTexture = new THREE.TextureLoader().load(
+        jpgUrl,
+        (texture) => {
+          hasAlphaRef.current = detectHasAlpha(texture.image);
+          const material = currentDecalRef.current?.material as
+            | THREE.ShaderMaterial
+            | undefined;
+          if (material?.uniforms?.uHasAlpha) {
+            material.uniforms.uHasAlpha.value = hasAlphaRef.current;
+          }
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+        },
+      );
+      loadedTexture.flipY = false;
+      textureRef.current = loadedTexture;
+    }
 
-    const isGrayscale = tattooData?.colorMode === "bw";
-
-    const decalMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        map: { value: tattooTexture },
-        uGrayscale: { value: isGrayscale },
-        uHasAlpha: { value: hasAlphaRef.current },
-      },
-      transparent: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      side: THREE.FrontSide,
-
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-
-      fragmentShader: `
-        uniform sampler2D map;
-        uniform bool uGrayscale;
-        uniform bool uHasAlpha;
-        varying vec2 vUv;
-
-        void main() {
-          vec4 tattoo = texture2D(map, vUv);
-          float luminance = dot(tattoo.rgb, vec3(0.299, 0.587, 0.114));
-          float alpha = uHasAlpha ? tattoo.a : (1.0 - luminance);
-          vec3 ink = uGrayscale ? vec3(luminance) : tattoo.rgb;
-          gl_FragColor = vec4(ink, alpha);
-        }
-      `,
+    const decalMaterial = createTattooDecalMaterial(textureRef.current, {
+      grayscale: tattooData?.colorMode === "bw",
+      hasAlpha: hasAlphaRef.current,
     });
 
     // Apply local rotation to the orientation
