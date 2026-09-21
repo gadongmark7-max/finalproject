@@ -9,6 +9,9 @@ import { errorAlert } from "@/app/utils/alert";
 import useUserStore from "@/app/store/useUserStore";
 import { Send } from "lucide-react";
 import { UploadImageModal } from "./components/uploadImageModal";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -59,16 +62,18 @@ export default function Page() {
     messageMutation.mutate({ message, convoId: convo!._id });
   };
 
-  if (!convo) return (
-    <div className="w-full h-dvh bg-primary flex items-center justify-center">
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
-      <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">Loading...</p>
-    </div>
-  );
+  if (!convo)
+    return (
+      <div className="w-full h-dvh bg-primary flex items-center justify-center">
+        <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
+        <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">
+          Loading...
+        </p>
+      </div>
+    );
 
   return (
     <div className="flex flex-col h-dvh w-full bg-primary overflow-hidden">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -81,27 +86,39 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.06] blur-[120px] bg-gold" />
 
       {/* Header */}
-      <div className="relative flex items-center gap-4 px-6 py-4 border-b border-border bg-surface z-10">
+      <div className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-border bg-surface z-10">
         {/* Gold accent line */}
         <div className="absolute bottom-0 left-0 h-[1px] w-full bg-gradient-to-r from-gold/40 via-gold/10 to-transparent" />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-shrink-0">
+            <img
+              src={p2Profile}
+              alt="profile"
+              className="w-10 h-10 object-cover border border-border"
+            />
+            <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+          </div>
 
-        <div className="relative flex-shrink-0">
-          <img
-            src={p2Profile}
-            alt="profile"
-            className="w-10 h-10 object-cover border border-border"
-          />
-          <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
+              Conversation
+            </p>
+            <h1
+              className="text-lg font-light text-text leading-none"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            >
+              {p2Name}
+            </h1>
+          </div>
         </div>
 
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">Conversation</p>
-          <h1
-            className="text-lg font-light text-text leading-none"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
-          >
-            {p2Name}
-          </h1>
+        <div className="flex items-center justify-end">
+          <Link href="/pages/client/convos">
+            <Button type="button" variant="ghost">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </Link>
         </div>
       </div>
 
@@ -133,7 +150,9 @@ export default function Page() {
                 )}
 
                 {chat.type === "text" && (
-                  <p className="text-[13px] leading-relaxed tracking-wide">{chat.message}</p>
+                  <p className="text-[13px] leading-relaxed tracking-wide">
+                    {chat.message}
+                  </p>
                 )}
 
                 {chat.type === "image" && (
@@ -167,7 +186,7 @@ export default function Page() {
 
         <input
           placeholder="Type a message..."
-            maxLength={2000}
+          maxLength={2000}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleMessageSend()}
@@ -182,7 +201,6 @@ export default function Page() {
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
-
     </div>
   );
 }

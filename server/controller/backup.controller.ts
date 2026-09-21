@@ -2,6 +2,7 @@ import { Response } from "express";
 import fs from "fs";
 import { AuthRequest } from "../types/request.type";
 import { BackupService } from "../services/backup.service";
+import { AccountService } from "../services/acccount.service";
 
 function isAuthorized(request: AuthRequest) {
   const role = request.account?.type;
@@ -17,14 +18,45 @@ export class BackupController {
     }
 
     try {
-      const payload = await BackupService.createBackup(request.account?._id!);
-      const filename = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-      response.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-      response.setHeader("Content-Type", "application/json");
-      response.send(payload);
+      const backup = await BackupService.createBackup(request.account?._id!);
+      response.status(201).send(backup);
     } catch (e) {
       console.log(e);
       response.status(500).send("failed to create backup");
+    }
+  };
+
+  static listBackups = async (request: AuthRequest, response: Response) => {
+    if (!isAuthorized(request)) {
+      response.status(403).send("you are not authorized to access backups");
+      return;
+    }
+
+    try {
+      response.send(await BackupService.listBackups());
+    } catch (e) {
+      console.log(e);
+      response.status(500).send("failed to list backups");
+    }
+  };
+
+  static downloadBackup = async (request: AuthRequest, response: Response) => {
+    if (!isAuthorized(request)) {
+      response.status(403).send("you are not authorized to access backups");
+      return;
+    }
+
+    const filename = String(request.params.filename);
+
+    try {
+      const filePath = await BackupService.getBackupFilePath(filename);
+      if (!filePath) {
+        response.status(404).send("backup not found");
+        return;
+      }
+      response.download(filePath, filename);
+    } catch (e: any) {
+      response.status(400).send(e?.message || "invalid backup filename");
     }
   };
 
@@ -59,7 +91,9 @@ export class BackupController {
     try {
       const fileContent = fs.readFileSync(filePath, "utf-8");
       const result = await BackupService.restoreBackup(fileContent);
-      response.send(result);
+      // Restored data replaces every account, so tell the client whether the caller's own session still maps to one.
+      const sessionValid = !!(await AccountService.get(request.account?._id!));
+      response.send({ ...result, sessionValid });
     } catch (e: any) {
       console.log(e);
       response.status(400).send(e?.message || "failed to restore backup");

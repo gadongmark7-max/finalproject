@@ -5,7 +5,9 @@ import { restoreUpload } from "../utils/upload";
 
 const route = Router()
 
-route.get("/", authenticateJWT, BackupController.createBackup)
+route.get("/", authenticateJWT, BackupController.listBackups)
+route.post("/", authenticateJWT, BackupController.createBackup)
+route.get("/download/:filename", authenticateJWT, BackupController.downloadBackup)
 route.get("/last", authenticateJWT, BackupController.getLastBackupInfo)
 route.post("/restore", authenticateJWT, restoreUpload.single("file"), BackupController.restoreBackup)
 

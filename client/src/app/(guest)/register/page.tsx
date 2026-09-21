@@ -479,7 +479,7 @@ export default function RegisterPage() {
                     type="email"
                     {...register("email")}
                     aria-invalid={!!errors.email}
-                    placeholder="you@example.com"
+                    placeholder="you@gmail..com"
                     style={{
                       borderRadius: 0,
                       fontFamily: "'Raleway', sans-serif",

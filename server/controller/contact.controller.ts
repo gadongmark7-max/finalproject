@@ -56,22 +56,37 @@ export class ContactController {
         v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
       const rows: string[] = [
-        `<strong>Name:</strong> ${esc(cleanName)}`,
-        `<strong>Email:</strong> ${esc(cleanEmail)}`,
+        `<strong style="color:#ffffff;">Name:</strong> ${esc(cleanName)}`,
+        `<strong style="color:#ffffff;">Email:</strong> ${esc(cleanEmail)}`,
       ];
-      if (cleanPhone) rows.push(`<strong>Phone:</strong> ${esc(cleanPhone)}`);
-      if (cleanSubject)
-        rows.push(`<strong>Style / Service:</strong> ${esc(cleanSubject)}`);
+
+      if (cleanPhone) {
+        rows.push(
+          `<strong style="color:#ffffff;">Phone:</strong> ${esc(cleanPhone)}`,
+        );
+      }
+
+      if (cleanSubject) {
+        rows.push(
+          `<strong style="color:#ffffff;">Style / Service:</strong> ${esc(cleanSubject)}`,
+        );
+      }
+
       rows.push(
-        `<strong>Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`,
+        `<strong style="color:#ffffff;">Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`,
       );
 
       const htmlMessage = `
-        <p style="margin:0 0 16px 0;">New inquiry from the <strong>Book a Consultation</strong> form on the website.</p>
-        <div style="text-align:left;line-height:1.9;font-size:14px;">
-          ${rows.map((r) => `<p style="margin:0 0 8px 0;">${r}</p>`).join("")}
-        </div>
-      `;
+  <p style="margin:0 0 16px 0;color:#ffffff;">
+    New inquiry from the <strong style="color:#ffffff;">Book a Consultation</strong> form on the website.
+  </p>
+
+  <div style="text-align:left;line-height:1.9;font-size:14px;color:#ffffff;">
+    ${rows
+      .map((r) => `<p style="margin:0 0 8px 0;color:#ffffff;">${r}</p>`)
+      .join("")}
+  </div>
+`;
 
       const subjectLine = `Book a Consultation — ${cleanName}${
         cleanSubject ? ` (${cleanSubject})` : ""

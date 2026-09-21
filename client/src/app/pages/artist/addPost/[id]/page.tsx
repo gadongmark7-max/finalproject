@@ -88,11 +88,38 @@ export default function Page() {
   });
 
   useEffect(() => {
-    if (paramsId != "new" && data?.data) {
+    const loadExistingImage = async () => {
+      if (paramsId === "new" || !data?.data?.screenShot) return;
+
       setType("workPost");
       setPreview(data.data.screenShot);
-    }
-  }, [data]);
+
+      try {
+        const response = await fetch(data.data.screenShot);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch existing image");
+        }
+
+        const blob = await response.blob();
+
+        const fileName =
+          data.data.screenShot.split("/").pop()?.split("?")[0] ||
+          "existing-tattoo-image.jpg";
+
+        const file = new File([blob], fileName, {
+          type: blob.type || "image/jpeg",
+        });
+
+        setPostImg(file);
+      } catch (error) {
+        console.error("Failed to load existing image:", error);
+        setPostImg(null);
+      }
+    };
+
+    loadExistingImage();
+  }, [paramsId, data]);
 
   const [step, setStep] = useState(1);
 
@@ -289,7 +316,7 @@ export default function Page() {
 
     const formData = new FormData();
 
-    formData.append("file", postImg || "none");
+    formData.append("file", postImg);
 
     aiMutation.mutate(formData);
   };
