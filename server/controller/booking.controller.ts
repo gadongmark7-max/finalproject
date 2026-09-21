@@ -5,6 +5,7 @@ import cloudinary from "../utils/cloudinary";
 import fs from "fs";
 import { TransactionService } from "../services/transaction.service";
 import { getDate, getTime } from "../utils/customFunction";
+import { getPaidCheckout, PaymentError } from "../utils/payMongo";
 import { NotificationService } from "../services/notifications.service";
 import { AccountService } from "../services/acccount.service";
 import { InventoryService } from "../services/inventory.service";
@@ -134,30 +135,119 @@ export class BookingController {
     }
   };
 
+  private static recordBookingPayment = async (
+    payment: {
+      sender: string;
+      receiver: string;
+      bookingId: string;
+      amount: number;
+      refId: string;
+      paymentMethod: "online" | "counter";
+    },
+    options: { requireSufficientBalance: boolean },
+  ): Promise<"recorded" | "duplicate"> => {
+    const { sender, receiver, bookingId, amount, refId, paymentMethod } =
+      payment;
+
+    const existing = await TransactionService.checkIfRefIdExist(refId);
+    if (existing) {
+      if (existing.bookingId?.toString() !== bookingId) {
+        throw new PaymentError(409, "payment reference already used");
+      }
+      return "duplicate";
+    }
+
+    const booking = await BookingService.get(bookingId);
+    if (!booking) throw new PaymentError(404, "booking not found");
+    const balanceBefore = Number(booking.balance);
+
+    let transaction;
+    try {
+      transaction = await TransactionService.create({
+        sender,
+        receiver,
+        amount,
+        time: getTime(),
+        date: getDate(),
+        refId,
+        bookingId,
+        paymentMethod,
+      });
+    } catch (e: any) {
+      if (e?.code === 11000) return "duplicate";
+      throw e;
+    }
+
+    try {
+      if (options.requireSufficientBalance) {
+        const updated = await BookingService.deductBalanceIfSufficient(
+          bookingId,
+          amount,
+        );
+        if (!updated) {
+          throw new PaymentError(
+            400,
+            "amount is more than the remaining balance",
+          );
+        }
+      } else {
+        const deduct = Math.min(amount, balanceBefore);
+        if (deduct > 0) await BookingService.deductBalance(bookingId, deduct);
+      }
+
+      if (
+        booking.status === "pending" &&
+        booking.originalPrice != balanceBefore
+      ) {
+        await BookingService.updateStatus(bookingId, "active");
+      }
+    } catch (e) {
+      await TransactionService.deleteById(transaction._id.toString());
+      throw e;
+    }
+
+    return "recorded";
+  };
+
   static bookingPayment = async (request: AuthRequest, response: Response) => {
     try {
-      const { sender, receiver, bookingId, amount, refId } = request.body;
-      const transaction = await TransactionService.checkIfRefIdExist(refId);
-      if (!transaction) {
-        const booking = await BookingService.get(bookingId);
-        const status =
-          booking?.originalPrice != booking?.balance ? "active" : "pending";
-        await BookingService.updateStatus(bookingId, status);
-        await BookingService.deductBalance(bookingId, amount);
-        const date = getDate();
-        const time = getTime();
-        await TransactionService.create({
+      const paid = await getPaidCheckout(request.body.checkoutSessionId);
+      if (!paid) {
+        response.status(402).send("payment not completed");
+        return;
+      }
+
+      const { sender, receiver, bookingId } = paid.metadata;
+      if (
+        !paid.refId ||
+        !sender ||
+        !receiver ||
+        !bookingId ||
+        !(paid.amount > 0)
+      ) {
+        response
+          .status(422)
+          .send("checkout session is missing payment details");
+        return;
+      }
+
+      await BookingController.recordBookingPayment(
+        {
           sender,
           receiver,
-          amount,
-          time,
-          date,
-          refId,
           bookingId,
-        });
-      }
+          amount: paid.amount,
+          refId: paid.refId,
+          paymentMethod: "online",
+        },
+        { requireSufficientBalance: false },
+      );
       response.send("success");
     } catch (e) {
+      if (e instanceof PaymentError) {
+        response.status(e.status).send(e.message);
+        return;
+      }
       console.log(e);
       response.status(500).send("error occur");
     }
@@ -168,7 +258,17 @@ export class BookingController {
     response: Response,
   ) => {
     try {
-      const { sender, receiver, bookingId, amount } = request.body;
+      const { bookingId } = request.body;
+      const amount = Number(request.body.amount);
+      const refId =
+        typeof request.body.refId === "string" && request.body.refId.trim()
+          ? request.body.refId.trim().slice(0, 100)
+          : Date.now().toString();
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        response.status(400).send("invalid amount");
+        return;
+      }
 
       const booking = await BookingService.get(bookingId);
       if (!booking) {
@@ -176,34 +276,34 @@ export class BookingController {
         return;
       }
 
-      if (booking.artist._id.toString() !== request.account?._id) {
+      const callerId = request.account?._id;
+      const isBookingArtist = booking.artist._id.toString() === callerId;
+      const isBookingBusiness =
+        !!booking.bussiness && booking.bussiness._id.toString() === callerId;
+      if (!isBookingArtist && !isBookingBusiness) {
         response
           .status(403)
           .send("you are not authorized to update this booking");
         return;
       }
 
-      // Same status progression as an online payment: the first payment
-      // keeps a booking "pending" (awaiting artist approval); a later
-      // top-up payment on an already-active booking keeps it "active".
-      const status =
-        booking.originalPrice != booking.balance ? "active" : "pending";
-      await BookingService.updateStatus(bookingId, status);
-      await BookingService.deductBalance(bookingId, amount);
-
-      const date = getDate();
-      const time = getTime();
-      await TransactionService.create({
-        sender,
-        receiver,
-        amount,
-        time,
-        date,
-        refId: Date.now().toString(),
-        bookingId,
-      });
+      await BookingController.recordBookingPayment(
+        {
+          sender: booking.client._id.toString(),
+          receiver: (booking.bussiness ?? booking.artist)._id.toString(),
+          bookingId,
+          amount,
+          refId,
+          paymentMethod: "counter",
+        },
+        { requireSufficientBalance: true },
+      );
       response.send("success");
     } catch (e) {
+      if (e instanceof PaymentError) {
+        response.status(e.status).send(e.message);
+        return;
+      }
       console.log(e);
       response.status(500).send("error occur");
     }

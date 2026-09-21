@@ -79,19 +79,31 @@ export function CashPayment({ booking }: { booking: bookingInterface }) {
   const payment = Number(watch("customerPayment")) || 0;
   const paymentMethod = watch("paymentMethod");
 
+  const [paymentKey] = useState(
+    () => `${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+  );
+
   const paymentMutation = useMutation({
     mutationFn: (data: {
       amount: number;
       sender: string;
       receiver: string;
       bookingId: string;
+      refId: string;
     }) => axiosInstance.post(`/booking/cashPayment`, data),
     onSuccess: (response) => {
       setIsLoading(false);
       successAlert("payment recorded");
       setShowReceipt(true);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (err: any) => {
+      setIsLoading(false);
+      errorAlert(
+        typeof err?.response?.data === "string"
+          ? err.response.data
+          : "error occur",
+      );
+    },
   });
 
   useEffect(() => {
@@ -108,6 +120,7 @@ export function CashPayment({ booking }: { booking: bookingInterface }) {
       sender,
       receiver,
       bookingId,
+      refId: paymentKey,
     });
   });
 

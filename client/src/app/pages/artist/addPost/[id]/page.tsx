@@ -82,44 +82,60 @@ export default function Page() {
   const paramsId = params.id as string;
 
   const { data } = useQuery({
-    queryKey: ["work_post"],
+    queryKey: ["work_post", paramsId],
     queryFn: () => axiosInstance.get(`/works/${paramsId}`),
     enabled: paramsId !== "new",
   });
 
+  const workScreenShot: string | null =
+    typeof data?.data?.screenShot === "string" && data.data.screenShot
+      ? data.data.screenShot
+      : null;
+
+  const [isLoadingWorkImage, setIsLoadingWorkImage] = useState(false);
+
   useEffect(() => {
+    if (!workScreenShot) return;
+
+    let cancelled = false;
+    setType("workPost");
+    setPreview(workScreenShot);
+    setPostImg(null);
+    setIsLoadingWorkImage(true);
+
     const loadExistingImage = async () => {
-      if (paramsId === "new" || !data?.data?.screenShot) return;
-
-      setType("workPost");
-      setPreview(data.data.screenShot);
-
       try {
-        const response = await fetch(data.data.screenShot);
-
+        const response = await fetch(workScreenShot);
         if (!response.ok) {
-          throw new Error("Failed to fetch existing image");
+          throw new Error(
+            `Failed to fetch existing image (${response.status})`,
+          );
         }
 
         const blob = await response.blob();
+        if (cancelled) return;
 
         const fileName =
-          data.data.screenShot.split("/").pop()?.split("?")[0] ||
-          "existing-tattoo-image.jpg";
+          workScreenShot.split("/").pop()?.split("?")[0] ||
+          "existing-tattoo-image.png";
 
-        const file = new File([blob], fileName, {
-          type: blob.type || "image/jpeg",
-        });
-
-        setPostImg(file);
+        setPostImg(
+          new File([blob], fileName, { type: blob.type || "image/png" }),
+        );
       } catch (error) {
+        if (cancelled) return;
         console.error("Failed to load existing image:", error);
         setPostImg(null);
+      } finally {
+        if (!cancelled) setIsLoadingWorkImage(false);
       }
     };
 
     loadExistingImage();
-  }, [paramsId, data]);
+    return () => {
+      cancelled = true;
+    };
+  }, [workScreenShot]);
 
   const [step, setStep] = useState(1);
 
@@ -312,7 +328,14 @@ export default function Page() {
   };
 
   const AiAutoFillHanlder = () => {
-    if (!postImg) return errorAlert("Feature Not Available");
+    if (isLoadingWorkImage)
+      return errorAlert("Still loading the work image, try again in a moment");
+    if (!postImg)
+      return errorAlert(
+        type === "workPost"
+          ? "Could not load this work's image for AI analysis"
+          : "Feature Not Available",
+      );
 
     const formData = new FormData();
 
@@ -512,7 +535,7 @@ export default function Page() {
                     <div className="flex gap-2">
                       <Button
                         onClick={AiAutoFillHanlder}
-                        disabled={aiMutation.isPending}
+                        disabled={aiMutation.isPending || isLoadingWorkImage}
                         size="sm"
                       >
                         <Cpu className="w-4 h-4" />

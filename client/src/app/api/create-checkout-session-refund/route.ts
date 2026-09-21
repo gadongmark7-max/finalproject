@@ -10,6 +10,7 @@ function getAuthHeader() {
 export async function POST(req: Request) {
   try {
     const { amount, sender, receiver, referenceId } = await req.json();
+    const baseUrl = req.headers.get("origin") || process.env.NEXT_PUBLIC_BASE_URL_LIVE;
 
     const body = JSON.stringify({
       data: {
@@ -25,8 +26,8 @@ export async function POST(req: Request) {
           ],
           payment_method_types: ['gcash'],
           description: `Refund payment from ${sender} to ${receiver}`,
-          success_url: `${process.env.NEXT_PUBLIC_BASE_URL_LIVE}/receipts/refundsPayment?sender=${sender}&receiver=${receiver}&amount=${amount / 100}&refId=${referenceId}`,
-          cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL_LIVE}/pages/artist/booking`,
+          success_url: `${baseUrl}/receipts/refundsPayment?sender=${sender}&receiver=${receiver}&amount=${amount / 100}&refId=${referenceId}`,
+          cancel_url: `${baseUrl}/pages/artist/booking`,
           reference_number: referenceId,
         },
       },

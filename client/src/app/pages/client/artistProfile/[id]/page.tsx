@@ -189,29 +189,26 @@ export default function Page() {
               <div className="mt-2">
                 {imgType === "studio" && (
                   <ImgCard
-                    type="studio"
-                    addImg={true}
-                    images={artistInfo.profileImages
-                      .filter((item) => item.type === "studio")
-                      .map((item) => item.fileUrl)}
+                    files={artistInfo.profileImages.filter(
+                      (item) => item.type === "studio",
+                    )}
+                    viewAllHref={`/pages/client/artistProfile/${artistId}/gallery?type=studio`}
                   />
                 )}
                 {imgType === "achievement" && (
                   <ImgCard
-                    type="achievement"
-                    addImg={true}
-                    images={artistInfo.profileImages
-                      .filter((item) => item.type === "achievement")
-                      .map((item) => item.fileUrl)}
+                    files={artistInfo.profileImages.filter(
+                      (item) => item.type === "achievement",
+                    )}
+                    viewAllHref={`/pages/client/artistProfile/${artistId}/gallery?type=achievement`}
                   />
                 )}
                 {imgType === "client" && (
                   <ImgCard
-                    type="client"
-                    addImg={true}
-                    images={artistInfo.profileImages
-                      .filter((item) => item.type === "client")
-                      .map((item) => item.fileUrl)}
+                    files={artistInfo.profileImages.filter(
+                      (item) => item.type === "client",
+                    )}
+                    viewAllHref={`/pages/client/artistProfile/${artistId}/gallery?type=client`}
                   />
                 )}
               </div>

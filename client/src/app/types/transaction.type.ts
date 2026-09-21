@@ -20,6 +20,7 @@ export interface transactionInterface {
   refId: string;
   amount: number;
   bookingId?: string;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface transactionReceiptBookingInterface {
@@ -31,6 +32,7 @@ export interface transactionReceiptBookingInterface {
   time: string[];
   duration: number;
   status: string;
+  session?: number;
   paymentMethod?: PaymentMethod;
 }
 

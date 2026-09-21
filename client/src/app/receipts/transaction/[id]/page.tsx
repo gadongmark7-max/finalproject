@@ -65,7 +65,8 @@ export default function TransactionReceiptPage() {
   }
 
   const booking = transaction.bookingId;
-  const paymentMethod = booking?.paymentMethod ?? "online";
+  const paymentMethod =
+    transaction.paymentMethod ?? booking?.paymentMethod ?? "online";
 
   const handleDownload = async () => {
     setIsDownloading(true);

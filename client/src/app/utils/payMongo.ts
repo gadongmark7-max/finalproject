@@ -38,6 +38,9 @@ export async function payMongoBooking(
 
     // ✅ Direct redirect - no Stripe.js needed
     if (data.checkoutUrl) {
+      if (data.checkoutSessionId) {
+        localStorage.setItem(`paymongo_session_${referenceId}`, data.checkoutSessionId);
+      }
       window.location.href = data.checkoutUrl;
     } else {
       alert('Failed to get checkout URL');

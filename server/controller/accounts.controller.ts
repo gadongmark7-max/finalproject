@@ -6,7 +6,8 @@ import {
 } from "../types/accounts.type";
 import { AccountService } from "../services/acccount.service";
 import { ArtistInfoService } from "../services/artistInfo.service";
-import cloudinary from "../utils/cloudinary";
+import cloudinary, { deleteCloudinaryAsset } from "../utils/cloudinary";
+import mongoose from "mongoose";
 import { ArtistVerificationServices } from "../services/artistVerification.service";
 import fs from "fs";
 import { BookingService } from "../services/booking.service";
@@ -535,6 +536,10 @@ export class AccountController {
     response: Response,
   ) => {
     const { id } = request.params;
+    if (request.account?._id !== id) {
+      response.status(403).send("you are not authorized to view these transactions");
+      return;
+    }
     const transactions = await TransactionService.getBySender(id);
     response.send(transactions);
   };
@@ -544,7 +549,12 @@ export class AccountController {
     response: Response,
   ) => {
     const { id } = request.params;
-    const transactions = await TransactionService.getByReceiver(id);
+    if (request.account?._id !== id) {
+      response.status(403).send("you are not authorized to view these transactions");
+      return;
+    }
+    const transactions =
+      await TransactionService.getByReceiverOrBookingArtist(id);
     response.send(transactions);
   };
 
@@ -1079,6 +1089,45 @@ export class AccountController {
     }
   };
 
+  static deleteGalleryImage = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const account = request.account;
+      const imageId = String(request.params.imageId);
+
+      if (account?.type !== "artist") {
+        response.status(403).send("only artists can manage a gallery");
+        return;
+      }
+
+      if (!mongoose.isValidObjectId(imageId)) {
+        response.status(400).send("invalid image id");
+        return;
+      }
+
+      // Looked up under the authenticated artist's own profile, so an image
+      // that belongs to anyone else is simply "not found".
+      const image = await ArtistInfoService.getImg(account._id, imageId);
+      if (!image) {
+        response.status(404).send("image not found");
+        return;
+      }
+
+      // Storage first: if it fails the DB record is kept and the delete can be retried.
+      if (image.fileUrl) {
+        await deleteCloudinaryAsset(image.fileUrl, image.fileType ?? "image");
+      }
+      await ArtistInfoService.removeImg(account._id, imageId);
+
+      response.send(await ArtistInfoService.getByArtist(account._id));
+    } catch (error) {
+      console.error(error);
+      response.status(500).send("failed to delete image");
+    }
+  };
+
   static changePofilePicture = async (
     request: AuthRequest,
     response: Response,
@@ -1408,7 +1457,9 @@ export class AccountController {
         {
           inlineData: {
             data: imageData,
-            mimeType: "image/png",
+            mimeType: request.file.mimetype?.startsWith("image/")
+              ? request.file.mimetype
+              : "image/png",
           },
         },
         prompt,

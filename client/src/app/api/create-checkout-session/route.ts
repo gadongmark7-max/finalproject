@@ -48,6 +48,9 @@ export async function POST(req: Request) {
     const { amount, sender, receiver, bookingId, referenceId } =
       await req.json();
 
+    const baseUrl =
+      req.headers.get("origin") || process.env.NEXT_PUBLIC_BASE_URL_LIVE;
+
     const body = JSON.stringify({
       data: {
         attributes: {
@@ -62,9 +65,10 @@ export async function POST(req: Request) {
           ],
           payment_method_types: getPaymentMethodTypes(),
           description: `Booking payment from ${sender} to ${receiver}`,
-          success_url: `${process.env.NEXT_PUBLIC_BASE_URL_LIVE}/receipts/clientPayment?sender=${sender}&receiver=${receiver}&bookingId=${bookingId}&amount=${amount / 100}&refId=${referenceId}`,
-          cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL_LIVE}/pages/client/posts`,
+          success_url: `${baseUrl}/receipts/clientPayment?sender=${sender}&receiver=${receiver}&bookingId=${bookingId}&amount=${amount / 100}&refId=${referenceId}`,
+          cancel_url: `${baseUrl}/pages/client/posts`,
           reference_number: referenceId,
+          metadata: { sender, receiver, bookingId },
         },
       },
     });
@@ -90,6 +94,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       checkoutUrl: data.data.attributes.checkout_url,
+      checkoutSessionId: data.data.id,
     });
   } catch (error: any) {
     console.error("PayMongo error:", error);

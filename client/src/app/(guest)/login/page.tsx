@@ -100,6 +100,15 @@ export default function LoginPage() {
 
   const isLocked = lockedUntil !== null && secondsLeft > 0;
 
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const wasLockedRef = useRef(false);
+  useEffect(() => {
+    if (wasLockedRef.current && !isLocked) {
+      emailInputRef.current?.focus();
+    }
+    wasLockedRef.current = isLocked;
+  }, [isLocked]);
+
   const { setUser } = useUserStore();
   const router = useRouter();
 
@@ -368,6 +377,7 @@ export default function LoginPage() {
     gsap.to(wrap, { y: 0, duration: 0.22, ease: "power2.out" });
   };
 
+  const emailField = register("email");
   const attemptsLeft = ATTEMPTS_PER_BATCH - failedAttempts;
   const circumference = 2 * Math.PI * 26;
 
@@ -546,7 +556,11 @@ export default function LoginPage() {
                   </svg>
                   <input
                     type="email"
-                    {...register("email")}
+                    {...emailField}
+                    ref={(el) => {
+                      emailField.ref(el);
+                      emailInputRef.current = el;
+                    }}
                     placeholder="you@example.com"
                     aria-invalid={!!errors.email}
                     className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.email ? "border-danger" : "border-border"}`}

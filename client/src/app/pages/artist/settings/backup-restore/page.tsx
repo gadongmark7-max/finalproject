@@ -75,11 +75,18 @@ export default function Page() {
   });
 
   const backupMutation = useMutation({
-    mutationFn: () => axiosInstance.post("/backup"),
-    onSuccess: () => {
+    mutationFn: async (): Promise<BackupFile> =>
+      (await axiosInstance.post("/backup")).data,
+    onSuccess: (created) => {
       successAlert("Backup created");
-      queryClient.invalidateQueries({ queryKey: ["backup-last"] });
-      queryClient.invalidateQueries({ queryKey: ["backup-list"] });
+      queryClient.setQueryData<BackupFile[]>(["backup-list"], (old = []) => [
+        created,
+        ...old.filter((file) => file.filename !== created.filename),
+      ]);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["backup-last"] }),
+        queryClient.invalidateQueries({ queryKey: ["backup-list"] }),
+      ]);
     },
     onError: () => errorAlert("Failed to create backup"),
   });
@@ -127,7 +134,7 @@ export default function Page() {
         router.push("/login");
         return;
       }
-      queryClient.invalidateQueries();
+      return queryClient.invalidateQueries();
     },
     onError: (err: any) => {
       errorAlert(
@@ -135,6 +142,8 @@ export default function Page() {
           ? err.response.data
           : "Restore failed. Please check the backup file.",
       );
+      queryClient.invalidateQueries({ queryKey: ["backup-list"] });
+      queryClient.invalidateQueries({ queryKey: ["backup-last"] });
     },
   });
 
