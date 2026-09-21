@@ -49,7 +49,7 @@ export class BookingController {
       response.send({ bookingId: data._id });
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -63,7 +63,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -74,7 +74,7 @@ export class BookingController {
       response.send(booking);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -88,7 +88,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -102,7 +102,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -116,7 +116,7 @@ export class BookingController {
       response.send("success");
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -130,7 +130,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -159,7 +159,7 @@ export class BookingController {
       response.send("success");
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -205,7 +205,7 @@ export class BookingController {
       response.send("success");
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -287,7 +287,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -301,7 +301,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -319,7 +319,7 @@ export class BookingController {
       response.send(bookings);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -559,7 +559,7 @@ export class BookingController {
       response.send(result);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -588,7 +588,7 @@ export class BookingController {
       response.send(result);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 }

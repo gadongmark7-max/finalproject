@@ -66,7 +66,7 @@ export default function ActiveBookings({
       setBookings(response.data);
       successAlert("status updated");
     },
-    onError: () => errorAlert("ERROR ACCOUR"),
+    onError: () => errorAlert("error occur"),
   });
 
   const handleComplete = (id: string) => {
@@ -85,7 +85,7 @@ export default function ActiveBookings({
     onSuccess: (response) => {
       setBookings(response.data);
     },
-    onError: () => errorAlert("ERROR ACCOUR"),
+    onError: () => errorAlert("error occur"),
   });
 
   const handleRefund = (booking: bookingInterface) => {

@@ -232,7 +232,9 @@ export default function Page() {
   const [clientContact, setClientContact] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [isNoClientAccount, setIsNoClientAccount] = useState(false);
-  const [clientPassword, setClientPassword] = useState<string | undefined>(undefined);
+  const [clientPassword, setClientPassword] = useState<string | undefined>(
+    undefined,
+  );
   const [accountFieldsBlocking, setAccountFieldsBlocking] = useState(false);
 
   const [sessions, setSessions] = useState<number[]>([1]);
@@ -286,7 +288,7 @@ export default function Page() {
         router.push("/pages/artist/booking");
       });
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const aiMutation = useMutation({
@@ -298,7 +300,7 @@ export default function Page() {
       setIsColored(response.data.isColored);
       successAlert("Ai Responded");
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const updateSession = (index: number, value: number) => {

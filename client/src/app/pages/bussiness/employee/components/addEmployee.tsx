@@ -1,5 +1,5 @@
-"use client"
-import { Button } from "@/components/ui/button"
+"use client";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,41 +8,56 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { useState } from "react"
-import { useQuery , useMutation} from "@tanstack/react-query";
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
-import { accountInterface, bussinessInfoInterface } from "@/app/types/accounts.type"
-import { errorAlert, confirmAlert, successAlert } from "@/app/utils/alert"
 import {
-    Plus
-  } from "lucide-react"
- import { accountInterfaceInput } from "@/app/types/accounts.type";
- import { LoaderCircle, User, Lock, Eye, EyeOff , PhoneIncoming, Sparkles} from "lucide-react";
- import {
-   Select,
-   SelectTrigger,
-   SelectValue,
-   SelectContent,
-   SelectItem,
- } from "@/components/ui/select";
+  accountInterface,
+  bussinessInfoInterface,
+} from "@/app/types/accounts.type";
+import { errorAlert, confirmAlert, successAlert } from "@/app/utils/alert";
+import { Plus } from "lucide-react";
+import { accountInterfaceInput } from "@/app/types/accounts.type";
+import {
+  LoaderCircle,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  PhoneIncoming,
+  Sparkles,
+} from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { addEmployeeSchema, type AddEmployeeValues } from "@/lib/validation/schemas/staff";
+import {
+  addEmployeeSchema,
+  type AddEmployeeValues,
+} from "@/lib/validation/schemas/staff";
 import { FieldError } from "@/components/ui/field-error";
 import { Controller } from "react-hook-form";
 
-
-
-export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void, bussinessInfo : bussinessInfoInterface}) {
-
+export function AddEmployee({
+  refetch,
+  bussinessInfo,
+}: {
+  refetch: () => void;
+  bussinessInfo: bussinessInfoInterface;
+}) {
   const [open, setOpen] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
@@ -51,49 +66,61 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
     reset,
     formState: { errors, isValid },
   } = useZodForm(addEmployeeSchema, {
-    defaultValues: { name: "", email: "", contact: "", role: "", password: "", confirmPassword: "" },
-  })
+    defaultValues: {
+      name: "",
+      email: "",
+      contact: "",
+      role: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
   const AddMutation = useMutation({
-    mutationFn : (data : { accountData : accountInterfaceInput, role : string, permissions : string[] }) => axiosInstance.post("/account/add/employee", data),
-    onSuccess : () => {
-        successAlert(`employee successfully added`)
-        setOpen(false)
-        refetch()
-        setIsLoading(false)
-        reset()
+    mutationFn: (data: {
+      accountData: accountInterfaceInput;
+      role: string;
+      permissions: string[];
+    }) => axiosInstance.post("/account/add/employee", data),
+    onSuccess: () => {
+      successAlert(`employee successfully added`);
+      setOpen(false);
+      refetch();
+      setIsLoading(false);
+      reset();
     },
-    onError : () => { errorAlert("error accour"); setIsLoading(false) }
-  })
+    onError: () => {
+      errorAlert("error occur");
+      setIsLoading(false);
+    },
+  });
 
-  const addHandler = handleSubmit((values : AddEmployeeValues) => {
-      const selectedRole = bussinessInfo.roles[Number(values.role)]
-      if (!selectedRole) return errorAlert("Please select a role")
+  const addHandler = handleSubmit((values: AddEmployeeValues) => {
+    const selectedRole = bussinessInfo.roles[Number(values.role)];
+    if (!selectedRole) return errorAlert("Please select a role");
 
-      const account : accountInterfaceInput = {
-        name : values.name,
-        type : "employee",
-        email : values.email,
-        password : values.password,
-        contact : values.contact,
-        profile : "/default_profile.jpg",
-        location : null,
-        subscriptionExpiration : null,
-        isBan : false,
-        pin : null
-      }
+    const account: accountInterfaceInput = {
+      name: values.name,
+      type: "employee",
+      email: values.email,
+      password: values.password,
+      contact: values.contact,
+      profile: "/default_profile.jpg",
+      location: null,
+      subscriptionExpiration: null,
+      isBan: false,
+      pin: null,
+    };
 
-      setIsLoading(true)
+    setIsLoading(true);
 
-      AddMutation.mutate({
-        accountData : account,
-        role : selectedRole.role,
-        permissions : selectedRole.permissions
-      });
-  })
+    AddMutation.mutate({
+      accountData: account,
+      role: selectedRole.role,
+      permissions: selectedRole.permissions,
+    });
+  });
 
-
-    
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -102,23 +129,22 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
           Add Employee
         </Button>
       </DialogTrigger>
-  
+
       <DialogContent className="">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
             Add Employee
           </DialogTitle>
-          <DialogDescription>
-           Search Employee
-          </DialogDescription>
+          <DialogDescription>Search Employee</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 ">
-
-        <div  className="space-y-6">
-
-            <h1 className="font-bold text-3xl text-gold"> Register Employee  </h1>
+          <div className="space-y-6">
+            <h1 className="font-bold text-3xl text-gold">
+              {" "}
+              Register Employee{" "}
+            </h1>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Name */}
@@ -153,7 +179,13 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                   <Input
                     type="text"
                     inputMode="numeric"
-                    {...register("contact", { onChange: (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 11) } })}
+                    {...register("contact", {
+                      onChange: (e) => {
+                        e.target.value = e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 11);
+                      },
+                    })}
                     aria-invalid={!!errors.contact}
                     placeholder="09XXXXXXXXX"
                     className="block w-full pl-10 py-3 border-0 border-b-2  bg-transparent focus:border-stone-600 text-sm"
@@ -162,7 +194,6 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 <FieldError>{errors.contact?.message}</FieldError>
               </div>
             </div>
-
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Username Field */}
@@ -185,7 +216,6 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 <FieldError>{errors.email?.message}</FieldError>
               </div>
 
-
               <div className="space-y-2">
                 <Label>Role</Label>
                 <Controller
@@ -198,7 +228,10 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                       </SelectTrigger>
                       <SelectContent>
                         {bussinessInfo.roles.map((item, index) => (
-                           <SelectItem key={index} value={index.toString()}> {item.role} </SelectItem>
+                          <SelectItem key={index} value={index.toString()}>
+                            {" "}
+                            {item.role}{" "}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -206,23 +239,16 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 />
                 <FieldError>{errors.role?.message}</FieldError>
               </div>
-
-
-
-
             </div>
 
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">         
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Password Field */}
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-stone-400 uppercase tracking-wide">
                   Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    
-                  </div>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"></div>
                   <Input
                     type={showPassword ? "text" : "password"}
                     {...register("password")}
@@ -244,15 +270,12 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 <FieldError>{errors.password?.message}</FieldError>
               </div>
 
-
               <div className="space-y-2">
                 <label className="block text-xs font-medium text-stone-400 uppercase tracking-wide">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    
-                  </div>
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"></div>
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
                     {...register("confirmPassword")}
@@ -273,16 +296,14 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 </div>
                 <FieldError>{errors.confirmPassword?.message}</FieldError>
               </div>
-
             </div>
-
 
             {/* Submit Button */}
             <div className="pt-4">
               <Button
                 onClick={addHandler}
                 disabled={isLoading || !isValid}
-                    className="w-full"
+                className="w-full"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
@@ -294,12 +315,9 @@ export function AddEmployee({ refetch, bussinessInfo } : { refetch : () => void,
                 )}
               </Button>
             </div>
-            </div>
-        
+          </div>
         </div>
-
-
       </DialogContent>
     </Dialog>
-  )
+  );
 }

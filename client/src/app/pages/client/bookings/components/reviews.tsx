@@ -1,5 +1,5 @@
-"use client"
-import { Button } from "@/components/ui/button"
+"use client";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,93 +8,89 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { useState } from "react"
-import { useMutation } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { successAlert, errorAlert } from "@/app/utils/alert"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { bookingInterface } from "@/app/types/booking.type"
-import { LoaderCircle , Star} from "lucide-react"
-import { useImageField } from "@/lib/validation/useFileField"
-import { FieldError } from "@/components/ui/field-error"
-import { firstError, longText } from "@/lib/validation/fields"
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { successAlert, errorAlert } from "@/app/utils/alert";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { bookingInterface } from "@/app/types/booking.type";
+import { LoaderCircle, Star } from "lucide-react";
+import { useImageField } from "@/lib/validation/useFileField";
+import { FieldError } from "@/components/ui/field-error";
+import { firstError, longText } from "@/lib/validation/fields";
 
-const commentSchema = longText("Comment", { min: 3, max: 500 })
-
+const commentSchema = longText("Comment", { min: 3, max: 500 });
 
 const reviewSuggestions: Record<number, string[]> = {
-  1: [
-    "Very disappointing work.",
-    "Not satisfied with the result.",
-  ],
-  2: [
-    "Below expectations.",
-    "Some parts were not done well.",
-  ],
-  3: [
-    "Average experience.",
-    "It was okay overall."
-  ],
-  4: [
-    "Good work and professional.",
-    "Very satisfied.",
-  ],
-  5: [
-    "Excellent work!",
-    "Outstanding quality and service."
-  ]
+  1: ["Very disappointing work.", "Not satisfied with the result."],
+  2: ["Below expectations.", "Some parts were not done well."],
+  3: ["Average experience.", "It was okay overall."],
+  4: ["Good work and professional.", "Very satisfied."],
+  5: ["Excellent work!", "Outstanding quality and service."],
 };
 
-export function ReviewModal({ booking, setBookings } : { booking : bookingInterface, setBookings : (data : bookingInterface[]) => void}) {
-
+export function ReviewModal({
+  booking,
+  setBookings,
+}: {
+  booking: bookingInterface;
+  setBookings: (data: bookingInterface[]) => void;
+}) {
   const [open, setOpen] = useState(false);
 
-  const [text, setText] = useState<string>("")
-  const [rating, setRating] = useState(0)
+  const [text, setText] = useState<string>("");
+  const [rating, setRating] = useState(0);
 
-  const { file: img, preview, error: imgError, onSelect, reset } = useImageField()
+  const {
+    file: img,
+    preview,
+    error: imgError,
+    onSelect,
+    reset,
+  } = useImageField();
 
-  const commentError = firstError(commentSchema, text)
-  const ratingError = rating < 1 ? "Please pick a star rating" : undefined
+  const commentError = firstError(commentSchema, text);
+  const ratingError = rating < 1 ? "Please pick a star rating" : undefined;
 
   const submitMutation = useMutation({
-    mutationFn : (data : FormData) => axiosInstance.post("/account/review", data),
-    onSuccess : (response) => {
-        successAlert("Review Submited")
-        setBookings(response.data.reverse())
-        setOpen(false)
-        reset()
-        setText("")
-        setRating(0)
+    mutationFn: (data: FormData) => axiosInstance.post("/account/review", data),
+    onSuccess: (response) => {
+      successAlert("Review Submited");
+      setBookings(response.data.reverse());
+      setOpen(false);
+      reset();
+      setText("");
+      setRating(0);
     },
-    onError : () => errorAlert("error accour")
-  })
+    onError: () => errorAlert("error occur"),
+  });
 
   const handleSubmit = () => {
-    if(!img) return errorAlert(imgError ?? "Please choose an image")
-    if(ratingError) return errorAlert(ratingError)
-    const parsedComment = commentSchema.safeParse(text)
-    if(!parsedComment.success) return errorAlert(parsedComment.error.issues[0]?.message ?? "Please write a comment")
-    const formData = new FormData()
-    formData.append("file", img)
-    formData.append("rating", rating.toString())
-    formData.append("comment", text)
-    formData.append("bookingId", booking._id)
-    formData.append("artistId", booking.artist._id)
-    formData.append("bussinessId",  booking?.bussiness?._id ?? "none")
-    submitMutation.mutate(formData)
-  }
+    if (!img) return errorAlert(imgError ?? "Please choose an image");
+    if (ratingError) return errorAlert(ratingError);
+    const parsedComment = commentSchema.safeParse(text);
+    if (!parsedComment.success)
+      return errorAlert(
+        parsedComment.error.issues[0]?.message ?? "Please write a comment",
+      );
+    const formData = new FormData();
+    formData.append("file", img);
+    formData.append("rating", rating.toString());
+    formData.append("comment", text);
+    formData.append("bookingId", booking._id);
+    formData.append("artistId", booking.artist._id);
+    formData.append("bussinessId", booking?.bussiness?._id ?? "none");
+    submitMutation.mutate(formData);
+  };
 
-
-    
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-            <Button   onClick={() => setOpen(true)}>
-              <Star /> Place Reviews
-            </Button>
+        <Button onClick={() => setOpen(true)}>
+          <Star /> Place Reviews
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[760px]">
         <DialogHeader>
@@ -106,7 +102,6 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
 
         {/* TWO COLUMN LAYOUT */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
           {/* LEFT: IMAGE */}
           <div className="flex flex-col items-center gap-4">
             {preview ? (
@@ -132,10 +127,8 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
           </div>
 
           {/* RIGHT: RATING + COMMENT */}
-        {/* RIGHT: COMMENT + RATING */}
+          {/* RIGHT: COMMENT + RATING */}
           <div className="flex flex-col  h-full">
-
-
             {/* STAR RATING (BOTTOM) */}
             <div className="">
               <p className="text-sm font-medium mb-1 text-gold">Rating</p>
@@ -156,8 +149,7 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
               <FieldError>{ratingError}</FieldError>
             </div>
 
-
-          {/* RECOMMENDED COMMENTS */}
+            {/* RECOMMENDED COMMENTS */}
             {rating > 0 && (
               <div className="mt-4">
                 <p className="text-sm font-medium mb-2 text-gold">
@@ -179,8 +171,6 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
               </div>
             )}
 
-
-
             {/* COMMENT */}
             <div className="space-y-2 mt-4">
               <p className="text-sm font-medium text-gold">Comment</p>
@@ -193,15 +183,20 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
               />
               <FieldError>{commentError}</FieldError>
             </div>
-
-            
-
           </div>
-
         </div>
 
         <DialogFooter className="mt-6">
-          <Button onClick={handleSubmit} disabled={submitMutation.isPending || !img || !!ratingError || !!commentError} className="w-full">
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              submitMutation.isPending ||
+              !img ||
+              !!ratingError ||
+              !!commentError
+            }
+            className="w-full"
+          >
             {submitMutation.isPending && (
               <LoaderCircle className="h-4 w-4 animate-spin mr-2" />
             )}
@@ -209,7 +204,6 @@ export function ReviewModal({ booking, setBookings } : { booking : bookingInterf
           </Button>
         </DialogFooter>
       </DialogContent>
-
     </Dialog>
-  )
+  );
 }

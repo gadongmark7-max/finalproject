@@ -14,70 +14,67 @@ import { UploadImageModal } from "./components/uploadImageModal";
 import { getChatIndex } from "@/app/utils/customFunction";
 
 export default function Page() {
+  const { user } = useUserStore();
 
-  const {user} = useUserStore()
-
-  const [p2Profile, setP2Profile] = useState("")
-  const [p2Name, setP2name] = useState("")
+  const [p2Profile, setP2Profile] = useState("");
+  const [p2Name, setP2name] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  const params = useParams()
-  const paramsId = params.id as string
-  
-  const [convo, setConvo] = useState<convoInterface | null>(null)
+  const params = useParams();
+  const paramsId = params.id as string;
+
+  const [convo, setConvo] = useState<convoInterface | null>(null);
 
   const { data } = useQuery({
-    queryKey : ['convo'],
-    queryFn : () => axiosInstance.get(`/convo/${paramsId}`),
-    refetchInterval : 5000
-  })
+    queryKey: ["convo"],
+    queryFn: () => axiosInstance.get(`/convo/${paramsId}`),
+    refetchInterval: 5000,
+  });
 
   useEffect(() => {
-    if(data?.data){
-      const convoData : convoInterface = data?.data
-      setConvo(convoData)
-      setP2Profile(convoData.accounts[getChatIndex(user?._id!, convoData)].profile)
-      setP2name(convoData.accounts[getChatIndex(user?._id!, convoData)].name)
-    } 
-  }, [data])
+    if (data?.data) {
+      const convoData: convoInterface = data?.data;
+      setConvo(convoData);
+      setP2Profile(
+        convoData.accounts[getChatIndex(user?._id!, convoData)].profile,
+      );
+      setP2name(convoData.accounts[getChatIndex(user?._id!, convoData)].name);
+    }
+  }, [data]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [convo?.chats]);
-  
 
-
-  const [message, setMessage] = useState("")
+  const [message, setMessage] = useState("");
 
   const messageMutation = useMutation({
-    mutationFn : (data : { convoId : string, message : string}) => axiosInstance.post(`/convo/message`, data),
-    onSuccess : (response) => {
-        setConvo(response.data)
-        setMessage("")
+    mutationFn: (data: { convoId: string; message: string }) =>
+      axiosInstance.post(`/convo/message`, data),
+    onSuccess: (response) => {
+      setConvo(response.data);
+      setMessage("");
     },
-    onError : () => errorAlert("error accour")
-  })
-
+    onError: () => errorAlert("error occur"),
+  });
 
   const handleMessageSend = () => {
-    if(!message.trim()) return errorAlert("empty field")
+    if (!message.trim()) return errorAlert("empty field");
     messageMutation.mutate({
       message,
-      convoId : convo!._id
-    })
-  }
+      convoId: convo!._id,
+    });
+  };
 
   useEffect(() => {
-  bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-}, [convo?.chats]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [convo?.chats]);
 
-
-  if(!convo) return <div> laoding </div>
+  if (!convo) return <div> laoding </div>;
 
   return (
     <div className="flex flex-col h-dvh w-full bg-primary overflow-hidden">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -104,7 +101,9 @@ export default function Page() {
         </div>
 
         <div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">Conversation</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
+            Conversation
+          </p>
           <h1
             className="text-lg font-light text-text leading-none"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -142,7 +141,9 @@ export default function Page() {
                 )}
 
                 {chat.type === "text" && (
-                  <p className="text-[13px] leading-relaxed tracking-wide">{chat.message}</p>
+                  <p className="text-[13px] leading-relaxed tracking-wide">
+                    {chat.message}
+                  </p>
                 )}
 
                 {chat.type === "image" && (
@@ -176,7 +177,7 @@ export default function Page() {
 
         <input
           placeholder="Type a message..."
-            maxLength={2000}
+          maxLength={2000}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleMessageSend()}
@@ -191,8 +192,6 @@ export default function Page() {
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>
-
     </div>
   );
-  
 }

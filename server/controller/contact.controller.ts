@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
 import { sendEmail } from "../utils/customFunction";
 
-
 export class ContactController {
-
   static sendConsultation = async (request: Request, response: Response) => {
     try {
       const {
@@ -31,10 +29,16 @@ export class ContactController {
         return;
       }
       if (cleanMessage.length < 10) {
-        response.status(400).send("Please tell us a little more about what you're looking for.");
+        response
+          .status(400)
+          .send("Please tell us a little more about what you're looking for.");
         return;
       }
-      if (cleanMessage.length > 5000 || cleanName.length > 120 || cleanSubject.length > 200) {
+      if (
+        cleanMessage.length > 5000 ||
+        cleanName.length > 120 ||
+        cleanSubject.length > 200
+      ) {
         response.status(400).send("One of the fields is too long.");
         return;
       }
@@ -42,7 +46,9 @@ export class ContactController {
       const contactInbox = process.env.CONTACT_EMAIL || "";
       if (!contactInbox) {
         console.log("CONTACT_EMAIL is not configured");
-        response.status(500).send("Contact form is not configured. Please try again later.");
+        response
+          .status(500)
+          .send("Contact form is not configured. Please try again later.");
         return;
       }
 
@@ -54,8 +60,11 @@ export class ContactController {
         `<strong>Email:</strong> ${esc(cleanEmail)}`,
       ];
       if (cleanPhone) rows.push(`<strong>Phone:</strong> ${esc(cleanPhone)}`);
-      if (cleanSubject) rows.push(`<strong>Style / Service:</strong> ${esc(cleanSubject)}`);
-      rows.push(`<strong>Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`);
+      if (cleanSubject)
+        rows.push(`<strong>Style / Service:</strong> ${esc(cleanSubject)}`);
+      rows.push(
+        `<strong>Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`,
+      );
 
       const htmlMessage = `
         <p style="margin:0 0 16px 0;">New inquiry from the <strong>Book a Consultation</strong> form on the website.</p>
@@ -74,7 +83,11 @@ export class ContactController {
       });
 
       if (!ok) {
-        response.status(502).send("We couldn't send your message right now. Please try again shortly.");
+        response
+          .status(502)
+          .send(
+            "We couldn't send your message right now. Please try again shortly.",
+          );
         return;
       }
 

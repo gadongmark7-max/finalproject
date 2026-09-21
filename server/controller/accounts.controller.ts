@@ -46,7 +46,10 @@ export class AccountController {
     response.send("sucdess");
   };
 
-  static checkEmailExists = async (request: AuthRequest, response: Response) => {
+  static checkEmailExists = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
     const email = ((request.query.email as string) || "").trim().toLowerCase();
     if (!email) {
       response.status(400).send("email required");
@@ -568,7 +571,7 @@ export class AccountController {
       response.send(transaction);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -1279,11 +1282,11 @@ export class AccountController {
 
         response.send(updatedAccount);
       } else {
-        response.status(500).send("error accour");
+        response.status(500).send("error occur");
       }
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 

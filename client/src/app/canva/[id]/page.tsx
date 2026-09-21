@@ -135,7 +135,7 @@ const TattooEditor: React.FC = () => {
       successAlert("design saved")
       setIsCanvaSaving(false)
     },
-    onError : (err) => errorAlert("error accour")
+    onError : (err) => errorAlert("error occur")
   })
 
   const updateMutation = useMutation({
@@ -144,7 +144,7 @@ const TattooEditor: React.FC = () => {
       successAlert("design saved")
       setIsCanvaSaving(false)
     },
-    onError : (err) => errorAlert("error accour")
+    onError : (err) => errorAlert("error occur")
   })
 
   

@@ -1,66 +1,75 @@
-"use client"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { useState } from "react"
- import { LoaderCircle } from "lucide-react"
-import { Input } from "@/components/ui/input"
- import { useMutation } from "@tanstack/react-query"
- import axiosInstance from "@/app/utils/axios"
-import { errorAlert, successAlert } from "@/app/utils/alert"
-import { useQueryClient } from "@tanstack/react-query"
-import useUserStore from "@/app/store/useUserStore"
-import { useImageField } from "@/lib/validation/useFileField"
-import { FieldError } from "@/components/ui/field-error"
+"use client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import { LoaderCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useMutation } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { errorAlert, successAlert } from "@/app/utils/alert";
+import { useQueryClient } from "@tanstack/react-query";
+import useUserStore from "@/app/store/useUserStore";
+import { useImageField } from "@/lib/validation/useFileField";
+import { FieldError } from "@/components/ui/field-error";
 
-
-export function ChangeProfile({ profile } : { profile : string}) {
-
+export function ChangeProfile({ profile }: { profile: string }) {
   const [open, setOpen] = useState(false);
 
-  const {setUser} = useUserStore()
+  const { setUser } = useUserStore();
 
-  const { file: img, preview, error: imgError, onSelect, reset } = useImageField({ initialPreview: profile })
+  const {
+    file: img,
+    preview,
+    error: imgError,
+    onSelect,
+    reset,
+  } = useImageField({ initialPreview: profile });
 
   const uploadMutation = useMutation({
-    mutationFn : (data : FormData) => axiosInstance.post("/account/changeProfilePic", data),
-    onSuccess : (response) => {
-        successAlert("profile changed")
-        setOpen(false)
-        reset()
-        setUser(response.data)
+    mutationFn: (data: FormData) =>
+      axiosInstance.post("/account/changeProfilePic", data),
+    onSuccess: (response) => {
+      successAlert("profile changed");
+      setOpen(false);
+      reset();
+      setUser(response.data);
     },
-    onError : () => errorAlert("error accour")
-  })
+    onError: () => errorAlert("error occur"),
+  });
 
   const handleUploadImg = () => {
-    if(!img) return errorAlert(imgError ?? "Please choose an image")
-    const formData = new FormData()
-    formData.append("file", img)
-    uploadMutation.mutate(formData)
-  }
-
+    if (!img) return errorAlert(imgError ?? "Please choose an image");
+    const formData = new FormData();
+    formData.append("file", img);
+    uploadMutation.mutate(formData);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <img
-            src={profile}
-            alt="artist profile"
-            className="w-42 h-42 rounded-full object-cover border cursor-pointer hover:opacity-80 hover:scale-105 transition"
-            onClick={() => setOpen(true)}
+          src={profile}
+          alt="artist profile"
+          className="w-42 h-42 rounded-full object-cover border cursor-pointer hover:opacity-80 hover:scale-105 transition"
+          onClick={() => setOpen(true)}
         />
-
       </DialogTrigger>
-  
+
       <DialogContent className="sm:max-w-[450px]">
         <DialogHeader className="text-center">
           <DialogTitle>Change Profile</DialogTitle>
         </DialogHeader>
-  
+
         {/* CENTER CONTAINER */}
         <div className="flex justify-center">
           <div className="w-full max-w-[350px] space-y-4">
-  
             {/* IMAGE PREVIEW */}
             {preview ? (
               <img
@@ -73,7 +82,7 @@ export function ChangeProfile({ profile } : { profile : string}) {
                 No image
               </div>
             )}
-  
+
             {/* FILE INPUT */}
             <Input
               type="file"
@@ -87,10 +96,19 @@ export function ChangeProfile({ profile } : { profile : string}) {
         </div>
 
         <DialogFooter className="flex justify-center">
-          <Button disabled={uploadMutation.isPending || !img} className="w-full " onClick={handleUploadImg}> {uploadMutation.isPending &&   <LoaderCircle className="h-4 w-4 animate-spin" />} Change Profile </Button>
+          <Button
+            disabled={uploadMutation.isPending || !img}
+            className="w-full "
+            onClick={handleUploadImg}
+          >
+            {" "}
+            {uploadMutation.isPending && (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            )}{" "}
+            Change Profile{" "}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-  
+  );
 }

@@ -226,7 +226,7 @@ export default function Page() {
         );
         return;
       }
-      errorAlert("error accour");
+      errorAlert("error occur");
     },
   });
 
@@ -239,7 +239,7 @@ export default function Page() {
       setIsColored(response.data.isColored);
       successAlert("Ai Responded");
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const addTag = () => {
@@ -299,14 +299,22 @@ export default function Page() {
   // once and clears itself the moment it's fixed — no toast needed for these.
   const [triedSubmit, setTriedSubmit] = useState(false);
 
-  const priceError = firstError(priceField, price, { showWhenEmpty: triedSubmit });
-  const rateError = firstError(rateSchema, perHour, { showWhenEmpty: triedSubmit });
+  const priceError = firstError(priceField, price, {
+    showWhenEmpty: triedSubmit,
+  });
+  const rateError = firstError(rateSchema, perHour, {
+    showWhenEmpty: triedSubmit,
+  });
   const downPaymentError = firstError(downPaymentSchema, downPercentage, {
     showWhenEmpty: triedSubmit,
   });
-  const categoryError = firstError(categorySchema, category, { showWhenEmpty: triedSubmit });
+  const categoryError = firstError(categorySchema, category, {
+    showWhenEmpty: triedSubmit,
+  });
   const tagsError =
-    triedSubmit && tags.length === 0 ? "Please enter at least one tag." : undefined;
+    triedSubmit && tags.length === 0
+      ? "Please enter at least one tag."
+      : undefined;
   const imageError =
     triedSubmit && !postImg && type === "newPost"
       ? "Please select an image."

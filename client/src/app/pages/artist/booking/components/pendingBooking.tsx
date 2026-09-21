@@ -53,7 +53,7 @@ export default function PendingBookings({
       setBookings(response.data);
       successAlert("Success");
     },
-    onError: () => errorAlert("ERROR ACCOUR"),
+    onError: () => errorAlert("error occur"),
   });
 
   const handleApprove = (booking: bookingInterface) => {
