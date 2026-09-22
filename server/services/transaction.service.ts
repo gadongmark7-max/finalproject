@@ -1,4 +1,5 @@
 import TransactionModel from "../model/transactions.model";
+import mongoose from "mongoose";
 import BookingModel from "../model/booking.model";
 import {
   transactionInterface,
@@ -11,6 +12,14 @@ const BOOKING_LIST_FIELDS =
 export class TransactionService {
   static async create(data: transactionInterfaceInput) {
     return await TransactionModel.create(data);
+  }
+
+  static async getTotalByBooking(bookingId: string) {
+    const [result] = await TransactionModel.aggregate([
+      { $match: { bookingId: new mongoose.Types.ObjectId(bookingId) } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    return result?.total ?? 0;
   }
 
   static async deleteById(id: string) {

@@ -309,6 +309,34 @@ export class BookingController {
     }
   };
 
+  private static reconcileBookingPayment = async (booking: any) => {
+    const bookingId = booking._id.toString();
+    const paid = Number(booking.originalPrice) - Number(booking.balance);
+    if (!(paid > 0)) return;
+
+    const recorded = await TransactionService.getTotalByBooking(bookingId);
+    const missing = Math.round((paid - recorded) * 100) / 100;
+    if (missing <= 0) return;
+
+    const refId = `booking-${bookingId}-paid-${paid}`;
+    if (await TransactionService.checkIfRefIdExist(refId)) return;
+
+    try {
+      await TransactionService.create({
+        sender: booking.client.toString(),
+        receiver: (booking.bussiness ?? booking.artist).toString(),
+        amount: missing,
+        time: getTime(),
+        date: getDate(),
+        refId,
+        bookingId,
+        paymentMethod: booking.paymentMethod ?? "online",
+      });
+    } catch (e: any) {
+      if (e?.code !== 11000) throw e;
+    }
+  };
+
   static updateBookingStatus = async (
     request: AuthRequest,
     response: Response,
@@ -344,6 +372,11 @@ export class BookingController {
           `Thankyou For Trusting us!!`,
         );
       } else if (status == "active" && booking) {
+        try {
+          await BookingController.reconcileBookingPayment(booking);
+        } catch (e) {
+          console.error("payment reconciliation failed for booking", id, e);
+        }
         await NotificationService.create({
           account: clientId,
           date: getDate(),
