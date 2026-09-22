@@ -8,9 +8,11 @@ import convoRoute from "./convo.route"
 import inventoryRoute from "./inventory.route"
 import contactRoute from "./contact.route"
 import backupRoute from "./backup.route"
+import artistRoute from "./artist.route"
 
 const routes = Router()
 
+routes.use("/artist", artistRoute)
 routes.use("/account", accountRoute)
 routes.use("/auth", authRoute)
 routes.use("/works", worksRoute)

@@ -307,7 +307,7 @@ export default function LoginPage() {
           router.push(`/pages/client/profile`);
           break;
         case "artist":
-          router.push(`/pages/artist/profile`);
+          router.push(`/pages/artist/dashboard`);
           break;
         case "bussiness":
           router.push(`/pages/bussiness/dashboard`);
