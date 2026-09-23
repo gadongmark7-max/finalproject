@@ -31,6 +31,7 @@ import {
   Moon,
   House,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import useLightModeStore from "@/app/store/displayModeStore";
 import NotificationsCount from "./notifCount";
@@ -40,6 +41,11 @@ const navigationItems = [
   { title: "Posts", url: "/pages/client/posts", icon: Image },
   { title: "Map", url: "/pages/client/map", icon: MapPin },
   { title: "Booking", url: "/pages/client/bookings", icon: CalendarCheck },
+  {
+    title: "AI Price Estimator",
+    url: "/pages/client/estimator",
+    icon: Sparkles,
+  },
   { title: "Chat", url: "/pages/client/convos", icon: MessageCircle },
   { title: "Transactions", url: "/pages/client/transactions", icon: History },
   { title: "Notifications", url: "/pages/client/notifications", icon: Bell },
@@ -134,10 +140,6 @@ export function SidebarClient({ className }: AppSidebarProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // Clear the sidebar's unread badge the instant Notifications is clicked —
-  // the notifications page itself marks them seen server-side on load, this
-  // just makes the badge reflect that immediately instead of waiting on a
-  // refetch. invalidateQueries on the notifications page reconciles it.
   const handleNotificationsClick = () => {
     queryClient.setQueryData(["unseen-notif"], []);
   };

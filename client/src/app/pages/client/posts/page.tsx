@@ -8,24 +8,27 @@ import { postInterface } from "@/app/types/post.type";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
 import { checkIfSubsExpired } from "@/app/utils/customFunction";
-import { SearchIcon, SlidersHorizontalIcon, XIcon, ChevronDownIcon } from "lucide-react";
+import {
+  SearchIcon,
+  SlidersHorizontalIcon,
+  XIcon,
+  ChevronDownIcon,
+} from "lucide-react";
 
 const CATEGORIES = [
   "all",
-  "Minimalist",   // 1.0
-  "Fine Line",    // 1.1
-  "Tribal",       // 1.1
-  "Blackwork",    // 1.2
+  "Minimalist", // 1.0
+  "Fine Line", // 1.1
+  "Tribal", // 1.1
+  "Blackwork", // 1.2
   "Illustrative", // 1.2
-  "Anime",        // 1.3
-  "Dotwork",      // 1.4
-  "Geometric",    // 1.4
-  "Japanese",    // 1.5
-  "Realism",     // 1.8
-  "Portrait",    // 1.9
-] ;
-
-
+  "Anime", // 1.3
+  "Dotwork", // 1.4
+  "Geometric", // 1.4
+  "Japanese", // 1.5
+  "Realism", // 1.8
+  "Portrait", // 1.9
+];
 
 const SORT_OPTIONS = [
   { label: "Latest", value: "latest" },
@@ -37,6 +40,16 @@ export default function Page() {
   const [posts, setPosts] = useState<postInterface[]>([]);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get(
+      "category",
+    );
+    const match = CATEGORIES.find(
+      (c) => c !== "all" && c.toLowerCase() === requested?.toLowerCase(),
+    );
+    if (match) setActiveCategory(match);
+  }, []);
   const [sortBy, setSortBy] = useState("latest");
   const [sortOpen, setSortOpen] = useState(false);
 
@@ -50,8 +63,11 @@ export default function Page() {
       setPosts(
         data.data.filter(
           (e: postInterface) =>
-            !(e.account.type == "bussiness" && checkIfSubsExpired(e.account.subscriptionExpiration!))
-        )
+            !(
+              e.account.type == "bussiness" &&
+              checkIfSubsExpired(e.account.subscriptionExpiration!)
+            ),
+        ),
       );
     }
   }, [data]);
@@ -62,16 +78,17 @@ export default function Page() {
     // Search by tags
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      result = result.filter((p) =>
-        p.tags?.some((tag: string) => tag.toLowerCase().includes(q)) ||
-        p.account.name.toLowerCase().includes(q)
+      result = result.filter(
+        (p) =>
+          p.tags?.some((tag: string) => tag.toLowerCase().includes(q)) ||
+          p.account.name.toLowerCase().includes(q),
       );
     }
 
     // Category filter via tags
     if (activeCategory !== "All") {
-      result = result.filter((p) =>
-        p.category.toLowerCase() == activeCategory.toLowerCase()
+      result = result.filter(
+        (p) => p.category.toLowerCase() == activeCategory.toLowerCase(),
       );
     }
 
@@ -86,11 +103,12 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-primary">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient Gold Glow */}
@@ -101,7 +119,9 @@ export default function Page() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
           <div className="flex items-center gap-3 mb-1">
             <div className="h-px w-8 bg-gold" />
-            <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Discover</span>
+            <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+              Discover
+            </span>
           </div>
           <h1
             className="text-5xl font-light text-text tracking-[-0.02em]"
@@ -113,10 +133,8 @@ export default function Page() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10 space-y-8">
-
         {/* Search + Sort Row */}
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
-
           {/* Search */}
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-dim pointer-events-none" />
@@ -146,7 +164,9 @@ export default function Page() {
                 <SlidersHorizontalIcon className="w-3.5 h-3.5 text-gold" />
                 <span>{activeSortLabel}</span>
               </div>
-              <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${sortOpen ? "rotate-180" : ""}`} />
+              <ChevronDownIcon
+                className={`w-3.5 h-3.5 transition-transform duration-200 ${sortOpen ? "rotate-180" : ""}`}
+              />
             </button>
 
             {sortOpen && (
@@ -154,7 +174,10 @@ export default function Page() {
                 {SORT_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => { setSortBy(opt.value); setSortOpen(false); }}
+                    onClick={() => {
+                      setSortBy(opt.value);
+                      setSortOpen(false);
+                    }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors duration-150 ${
                       sortBy === opt.value
                         ? "text-gold bg-surface-alt"
@@ -193,7 +216,10 @@ export default function Page() {
           </p>
           {(search || activeCategory !== "All") && (
             <button
-              onClick={() => { setSearch(""); setActiveCategory("All"); }}
+              onClick={() => {
+                setSearch("");
+                setActiveCategory("All");
+              }}
               className="text-[10px] uppercase tracking-[0.2em] text-text-dim hover:text-gold transition-colors flex items-center gap-1.5"
             >
               <XIcon className="w-3 h-3" /> Clear filters
@@ -231,11 +257,9 @@ export default function Page() {
               {/* Tags */}
               {post.tags?.length > 0 && (
                 <div className="absolute top-4 left-4 flex flex-wrap gap-1 max-w-[60%]">
-                    <span
-                      className="text-[9px] uppercase tracking-[0.18em] text-gold bg-primary/80 border border-border px-2 py-0.5"
-                    >
-                      {post.category}
-                    </span>
+                  <span className="text-[9px] uppercase tracking-[0.18em] text-gold bg-primary/80 border border-border px-2 py-0.5">
+                    {post.category}
+                  </span>
                 </div>
               )}
 
@@ -254,7 +278,10 @@ export default function Page() {
                     <p className="text-[9px] uppercase tracking-[0.2em] text-gold">
                       {post.account.type}
                     </p>
-                    <h2 className="text-text text-sm font-light truncate" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                    <h2
+                      className="text-text text-sm font-light truncate"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
                       {post.account.name}
                     </h2>
                   </div>
@@ -283,10 +310,11 @@ export default function Page() {
             >
               No results found
             </p>
-            <p className="text-text-muted text-sm">Try adjusting your search or filters</p>
+            <p className="text-text-muted text-sm">
+              Try adjusting your search or filters
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );

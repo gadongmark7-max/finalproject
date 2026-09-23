@@ -9,6 +9,7 @@ import {
 
 // 1️⃣ Art Styles
 export const tattooArtStyles = [
+  "Traditional",
   "Minimalist",   // 1.0
   "Fine Line",    // 1.1
   "Tribal",       // 1.1

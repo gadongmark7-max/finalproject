@@ -33,17 +33,25 @@ import { FullScreenModal } from "@/components/ui/modal";
 import { TattooDataInterface } from "../types/threejs.type";
 import { detectHasAlpha } from "./detectImageAlpha";
 import { createTattooDecalMaterial } from "./tattooDecalMaterial";
+import {
+  DEFAULT_CM_PER_WORLD_UNIT,
+  cmPerUnitForModelHeight,
+  decalSizeToCm,
+} from "../utils/tattooScale";
 
 export function SetTattoo3DModal({
   img,
   tattooData,
   setTatooData,
   fixSize,
+  onSnapshot,
 }: {
   img: string;
   tattooData: TattooDataInterface | null;
   setTatooData: (val: TattooDataInterface) => void;
   fixSize: number | null;
+  /** Optional: receives a PNG of the 3D scene as it looked when saved. */
+  onSnapshot?: (dataUrl: string) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -56,6 +64,9 @@ export function SetTattoo3DModal({
   const mountRef = useRef<HTMLDivElement>(null);
 
   const [tattooSize, setTattooSize] = useState(tattooData?.size || 0.3);
+  const [cmPerUnit, setCmPerUnit] = useState(
+    tattooData?.cmPerUnit ?? DEFAULT_CM_PER_WORLD_UNIT,
+  );
   const currentDecalRef = useRef<THREE.Mesh | null>(null);
   const controlsRef = useRef<any>(null);
   const historyRef = useRef<
@@ -101,6 +112,10 @@ export function SetTattoo3DModal({
       setTattooSize(fixSize);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!fixSize && tattooData?.size) setTattooSize(tattooData.size);
+  }, [tattooData?.size]);
 
   useEffect(() => {
     if (!mountRef.current || !jpgUrl) return;
@@ -167,6 +182,7 @@ export function SetTattoo3DModal({
 
       // Center the model
       const box = new THREE.Box3().setFromObject(model);
+      setCmPerUnit(cmPerUnitForModelHeight(box.max.y - box.min.y));
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center);
       model.position.y = -box.min.y - 0.5; // Place feet at ground level
@@ -658,7 +674,19 @@ export function SetTattoo3DModal({
         uv: undefined,
 
         colorMode: isGrayscale ? "bw" : "original",
+
+        cmPerUnit,
       });
+      if (
+        onSnapshot &&
+        rendererRef.current &&
+        sceneRef.current &&
+        cameraRef.current
+      ) {
+        // Render then read back in the same tick — no preserveDrawingBuffer needed.
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        onSnapshot(rendererRef.current.domElement.toDataURL("image/png"));
+      }
       setOpen(false);
     }
   };
@@ -746,6 +774,20 @@ export function SetTattoo3DModal({
 
           {/* 3D Viewport */}
           <div ref={mountRef} className="w-full h-full" />
+
+          {/* Selected body part (from the click → body-part mapping above) */}
+          <div
+            className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 bg-secondary/90 border border-border-gold"
+            aria-live="polite"
+          >
+            <span className="text-[10px] uppercase tracking-[0.22em] text-gold whitespace-nowrap">
+              {!bodyPart
+                ? "Tap the body to place the tattoo"
+                : bodyPart === "Unknown"
+                  ? "Tap directly on the body"
+                  : `Selected: ${bodyPart}`}
+            </span>
+          </div>
 
           {/* Back Button — desktop position unchanged; mobile moves to a safe top-left spot */}
           <Button
@@ -990,6 +1032,10 @@ export function SetTattoo3DModal({
                     <div className="h-px w-3 bg-gold opacity-50" />
                     <span className="text-[10px] uppercase tracking-[0.22em] text-gold">
                       Size
+                    </span>
+                    <span className="ml-auto text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                      ≈ {decalSizeToCm(tattooSize, cmPerUnit)} ×{" "}
+                      {decalSizeToCm(tattooSize, cmPerUnit)} cm
                     </span>
                   </div>
                   <div className="flex gap-2">
