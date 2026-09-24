@@ -1,5 +1,6 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { UNREAD_MESSAGES_KEY } from "@/components/ui/messagesCount";
 import axiosInstance from "@/app/utils/axios";
 import { useState, useEffect, useRef } from "react";
 import { convoInterface } from "@/app/types/convo.type";
@@ -22,14 +23,17 @@ export default function Page() {
   const paramsId = params.id as string;
   const [convo, setConvo] = useState<convoInterface | null>(null);
 
+  const queryClient = useQueryClient();
+
   const { data } = useQuery({
-    queryKey: ["convo"],
+    queryKey: ["convo", paramsId],
     queryFn: () => axiosInstance.get(`/convo/${paramsId}`),
     refetchInterval: 5000,
   });
 
   useEffect(() => {
     if (data?.data) {
+      queryClient.invalidateQueries({ queryKey: UNREAD_MESSAGES_KEY });
       const convoData: convoInterface = data?.data;
       setConvo(convoData);
       setP2Profile(

@@ -135,6 +135,13 @@ export const getChatIndex = (userId: string, convo: convoInterface) => {
   return userId == convo.accounts[0]._id ? 1 : 0;
 };
 
+export const getUnreadCount = (userId: string, convo: convoInterface) =>
+  convo.chats.filter((chat) => {
+    const sender = chat.sender as string | { _id: string };
+    const senderId = typeof sender === "string" ? sender : sender?._id;
+    return chat.seen === false && senderId !== userId;
+  }).length;
+
 export const isNear = (
   currentLocation: { lat: number; lng: number },
   targetLocation: { lat: number; lng: number },

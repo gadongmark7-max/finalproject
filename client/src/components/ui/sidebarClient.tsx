@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import useLightModeStore from "@/app/store/displayModeStore";
 import NotificationsCount from "./notifCount";
+import MessagesCount from "./messagesCount";
 
 const navigationItems = [
   { title: "Profile", url: "/pages/client/profile", icon: User },
@@ -88,7 +89,7 @@ function MobileBottomNav() {
               className="group flex flex-col items-center gap-1 px-3 py-1 min-w-[52px]"
             >
               <div
-                className={`p-2 border transition-all duration-300 ${
+                className={`relative p-2 border transition-all duration-300 ${
                   isActive
                     ? "bg-surface border-border-gold"
                     : "bg-surface border-border group-hover:border-border-gold"
@@ -102,6 +103,7 @@ function MobileBottomNav() {
                       : "text-text-dim group-hover:text-gold"
                   }`}
                 />
+                {item.title == "Chat" && <MessagesCount floating />}
               </div>
               <span
                 className={`text-[9px] uppercase tracking-[0.2em] transition-colors duration-300 ${
@@ -251,6 +253,7 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     </div>
                     <span className="text-sm tracking-wide">{item.title}</span>{" "}
                     {item.title == "Notifications" && <NotificationsCount />}
+                    {item.title == "Chat" && <MessagesCount />}
                   </Link>
                 ))}
               </nav>
@@ -357,6 +360,7 @@ export function SidebarClient({ className }: AppSidebarProps) {
                         {item.title == "Notifications" && (
                           <NotificationsCount />
                         )}
+                        {item.title == "Chat" && <MessagesCount />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

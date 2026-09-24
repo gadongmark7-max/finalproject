@@ -15,8 +15,10 @@ import {
   ChevronDownIcon,
 } from "lucide-react";
 
+const ALL = "All";
+
 const CATEGORIES = [
-  "all",
+  ALL,
   "Minimalist", // 1.0
   "Fine Line", // 1.1
   "Tribal", // 1.1
@@ -39,14 +41,14 @@ const SORT_OPTIONS = [
 export default function Page() {
   const [posts, setPosts] = useState<postInterface[]>([]);
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [activeCategory, setActiveCategory] = useState(ALL);
 
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get(
       "category",
     );
     const match = CATEGORIES.find(
-      (c) => c !== "all" && c.toLowerCase() === requested?.toLowerCase(),
+      (c) => c !== ALL && c.toLowerCase() === requested?.toLowerCase(),
     );
     if (match) setActiveCategory(match);
   }, []);
@@ -54,7 +56,8 @@ export default function Page() {
   const [sortOpen, setSortOpen] = useState(false);
 
   const { data } = useQuery({
-    queryKey: ["artist_post"],
+    // Own key: other pages cache a single account's posts under "artist_post".
+    queryKey: ["all_posts"],
     queryFn: () => axiosInstance.get(`/post`),
   });
 
@@ -86,7 +89,7 @@ export default function Page() {
     }
 
     // Category filter via tags
-    if (activeCategory !== "All") {
+    if (activeCategory !== ALL) {
       result = result.filter(
         (p) => p.category.toLowerCase() == activeCategory.toLowerCase(),
       );
@@ -214,11 +217,11 @@ export default function Page() {
           <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
             {filtered.length} {filtered.length === 1 ? "result" : "results"}
           </p>
-          {(search || activeCategory !== "All") && (
+          {(search || activeCategory !== ALL) && (
             <button
               onClick={() => {
                 setSearch("");
-                setActiveCategory("All");
+                setActiveCategory(ALL);
               }}
               className="text-[10px] uppercase tracking-[0.2em] text-text-dim hover:text-gold transition-colors flex items-center gap-1.5"
             >

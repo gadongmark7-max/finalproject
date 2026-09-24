@@ -39,6 +39,7 @@ import {
   Receipt,
 } from "lucide-react";
 import NotificationsCount from "./notifCount";
+import MessagesCount from "./messagesCount";
 
 const navigationItems = [
   { title: "Dashboard", url: "/pages/artist/dashboard", icon: LayoutDashboard },
@@ -180,6 +181,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                     </div>
                     <span className="text-sm tracking-wide">{item.title}</span>{" "}
                     {item.title == "Notifications" && <NotificationsCount />}
+                    {item.title == "Chat" && <MessagesCount />}
                   </Link>
                 ))}
               </nav>
@@ -286,6 +288,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                         {item.title == "Notifications" && (
                           <NotificationsCount />
                         )}
+                        {item.title == "Chat" && <MessagesCount />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

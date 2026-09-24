@@ -127,7 +127,7 @@ export function EstimateResult({
         </p>
       </div>
 
-      <div className="p-5 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="p-5 border-t border-border flex flex-col gap-3">
         <Button asChild>
           <Link
             href={`/pages/client/posts?category=${encodeURIComponent(result.style)}`}

@@ -1,60 +1,55 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { errorAlert } from "@/app/utils/alert"
-import { useQuery, useMutation } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { useParams } from "next/navigation"
-import { postInterface } from "@/app/types/post.type"
-import Link from "next/link"
-import { MessageCircle, Building, User, Layers } from "lucide-react"
-import { ArtistSelectionModal } from "./components/artistSelectionModal"
-import useUserStore from "@/app/store/useUserStore"
-import { useRouter } from "next/navigation"
-import { artistInfoInterface } from "@/app/types/accounts.type"
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { useParams } from "next/navigation";
+import { postInterface } from "@/app/types/post.type";
+import Link from "next/link";
+import { Building, User, Layers } from "lucide-react";
+import { ArtistSelectionModal } from "./components/artistSelectionModal";
+import useUserStore from "@/app/store/useUserStore";
+import { artistInfoInterface } from "@/app/types/accounts.type";
 
 export default function Page() {
-  const { user } = useUserStore()
-  const router = useRouter()
-  const params = useParams()
-  const postId = params.id as string
+  const { user } = useUserStore();
+  const params = useParams();
+  const postId = params.id as string;
 
-  const [post, setPost] = useState<postInterface | null>(null)
+  const [post, setPost] = useState<postInterface | null>(null);
 
   const { data } = useQuery({
     queryKey: ["view_post"],
     queryFn: () => axiosInstance.get(`/post/${postId}`),
-  })
+  });
 
   const { data: artistInfo } = useQuery({
     queryKey: ["artistInfo"],
     queryFn: async (): Promise<artistInfoInterface> => {
-      const response = await axiosInstance.get(`/account/artistInfo/${post?.account._id}`)
-      return response.data
+      const response = await axiosInstance.get(
+        `/account/artistInfo/${post?.account._id}`,
+      );
+      return response.data;
     },
     enabled: post?.account.type === "artist",
-  })
+  });
 
   useEffect(() => {
-    if (data?.data) setPost(data?.data)
-  }, [data])
+    if (data?.data) setPost(data?.data);
+  }, [data]);
 
-  const messageMutation = useMutation({
-    mutationFn: () => axiosInstance.post(`/convo/convoId/${post?.account._id}`),
-    onSuccess: (response) => router.push(`/pages/client/convo/${response.data}`),
-    onError: () => errorAlert("error occured"),
-  })
-
-  if (!post) return (
-    <div className="w-full h-dvh bg-primary flex items-center justify-center">
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
-      <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">Loading...</p>
-    </div>
-  )
+  if (!post)
+    return (
+      <div className="w-full h-dvh bg-primary flex items-center justify-center">
+        <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
+        <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">
+          Loading...
+        </p>
+      </div>
+    );
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -68,7 +63,6 @@ export default function Page() {
 
       <div className="max-w-6xl mx-auto px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
           {/* LEFT — Image + Book */}
           <div className="space-y-4">
             <div className="relative border border-border overflow-hidden h-[320px] sm:h-[420px] lg:h-[600px] bg-surface">
@@ -93,7 +87,6 @@ export default function Page() {
 
           {/* RIGHT — Details */}
           <div className="space-y-5">
-
             {/* Artist / Business Info */}
             <div className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold p-6">
               <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -126,27 +119,23 @@ export default function Page() {
 
               <div className="flex gap-3 mt-5">
                 {post.account.type === "artist" ? (
-                  <Link href={`/pages/client/artistProfile/${post.account._id}`} className="flex-1">
+                  <Link
+                    href={`/pages/client/artistProfile/${post.account._id}`}
+                    className="flex-1"
+                  >
                     <button className="w-full flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] px-4 py-3 border border-gold text-gold hover:bg-gold hover:text-primary transition-all duration-200">
                       <User className="w-3.5 h-3.5" /> View Artist
                     </button>
                   </Link>
                 ) : (
-                  <Link href={`/pages/client/bussinessProfile/${post.account._id}`} className="flex-1">
+                  <Link
+                    href={`/pages/client/bussinessProfile/${post.account._id}`}
+                    className="flex-1"
+                  >
                     <button className="w-full flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] px-4 py-3 border border-gold text-gold hover:bg-gold hover:text-primary transition-all duration-200">
                       <Building className="w-3.5 h-3.5" /> View Business
                     </button>
                   </Link>
-                )}
-
-                {user?._id !== post.account._id && (
-                  <button
-                    onClick={() => messageMutation.mutate()}
-                    disabled={messageMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] px-4 py-3 border border-border text-text-muted hover:border-border-gold hover:text-text transition-all duration-200 disabled:opacity-40"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" /> Message
-                  </button>
                 )}
               </div>
             </div>
@@ -155,7 +144,9 @@ export default function Page() {
             <div className="bg-surface border border-border">
               <div className="grid grid-cols-3 gap-px bg-border">
                 <div className="bg-surface px-3 sm:px-5 py-5">
-                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Price</p>
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Price
+                  </p>
                   <p
                     className="text-base sm:text-2xl font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -164,7 +155,9 @@ export default function Page() {
                   </p>
                 </div>
                 <div className="bg-surface px-3 sm:px-5 py-5">
-                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Down Payment</p>
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Down Payment
+                  </p>
                   <p
                     className="text-base sm:text-2xl font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -173,7 +166,9 @@ export default function Page() {
                   </p>
                 </div>
                 <div className="bg-surface px-3 sm:px-5 py-5">
-                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">Category</p>
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Category
+                  </p>
                   <p
                     className="text-sm sm:text-lg font-light text-text"
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -194,7 +189,8 @@ export default function Page() {
                     <Layers className="w-3 h-3" /> Sessions
                   </p>
                   <span className="text-[9px] uppercase tracking-[0.15em] px-2.5 py-1 border border-gold text-gold">
-                    {post.sessions.length} {post.sessions.length > 1 ? "sessions" : "session"}
+                    {post.sessions.length}{" "}
+                    {post.sessions.length > 1 ? "sessions" : "session"}
                   </span>
                 </div>
 
@@ -224,7 +220,9 @@ export default function Page() {
             {post.tags.length > 0 && (
               <div className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold p-6">
                 <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
-                <p className="text-[9px] uppercase tracking-[0.28em] text-gold mb-4">Tags</p>
+                <p className="text-[9px] uppercase tracking-[0.28em] text-gold mb-4">
+                  Tags
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((tag, index) => (
                     <span
@@ -237,10 +235,9 @@ export default function Page() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
