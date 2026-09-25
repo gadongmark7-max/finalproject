@@ -1,34 +1,27 @@
-"use client"
+"use client";
+import Link from "next/link";
+import { Gallery, type GalleryFile } from "@/components/ui/gallery";
 
-
-
-export default function ImgCard({ images , type, addImg} :  { images : string[], type : string, addImg : boolean }) {
-
-  if(images.length == 0){
-    return(
-        <div className="w-full flex gap-3 ">
-             <div   className="w-[200px] h-[250px] rounded shadow border flex justify-center items-center">
-                <h1> No images </h1>
-            </div>
-            
-
-        </div>
-    )
-  }
-
+export default function ImgCard({
+  files,
+  viewAllHref,
+}: {
+  files: GalleryFile[];
+  viewAllHref?: string;
+}) {
   return (
-    <div className="w-full overflow-x-auto overflow-y-hidden flex gap-3">
-    {images.map((img, index) => (
-      <div key={index} className="min-w-[200px] h-[250px] rounded shadow border">
-        <img
-          src={img}
-          alt=""
-          className="w-full h-full rounded object-cover"
-        />
-      </div>
-    ))}
-
-  </div>
-  
-  )
+    <div className="space-y-3">
+      <Gallery files={files} />
+      {viewAllHref && files.length > 0 && (
+        <div className="flex justify-end">
+          <Link
+            href={viewAllHref}
+            className="text-[10px] uppercase tracking-[0.2em] text-gold border-b border-gold/30 pb-px hover:border-gold transition-colors duration-200"
+          >
+            View All ({files.length})
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 }

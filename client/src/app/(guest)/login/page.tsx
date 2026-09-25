@@ -23,6 +23,60 @@ import { BackButton } from "@/components/ui/back-button";
 
 const ATTEMPTS_PER_BATCH = 3;
 const BASE_LOCKOUT_SECONDS = 20;
+const ATTEMPT_STATE_KEY = "loginAttemptState";
+const LOCKOUT_BATCH_KEY = "loginLockoutBatch";
+
+interface StoredAttemptState {
+  failedAttempts: number;
+  lockedUntil: number | null;
+  lockDuration: number;
+}
+
+const readAttemptState = (): StoredAttemptState => {
+  const fallback = {
+    failedAttempts: 0,
+    lockedUntil: null,
+    lockDuration: BASE_LOCKOUT_SECONDS,
+  };
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(ATTEMPT_STATE_KEY) || "null",
+    );
+    if (!parsed || typeof parsed !== "object") return fallback;
+
+    const failed = Number(parsed.failedAttempts);
+    const until = Number(parsed.lockedUntil);
+    const duration = Number(parsed.lockDuration);
+    return {
+      failedAttempts:
+        Number.isInteger(failed) && failed > 0
+          ? Math.min(failed, ATTEMPTS_PER_BATCH - 1)
+          : 0,
+      lockedUntil: Number.isFinite(until) && until > Date.now() ? until : null,
+      lockDuration:
+        Number.isFinite(duration) && duration > 0
+          ? duration
+          : BASE_LOCKOUT_SECONDS,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const writeAttemptState = (state: StoredAttemptState) => {
+  try {
+    localStorage.setItem(ATTEMPT_STATE_KEY, JSON.stringify(state));
+  } catch {}
+};
+
+const readLockoutBatch = () => {
+  try {
+    const v = Number(localStorage.getItem(LOCKOUT_BATCH_KEY));
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch {
+    return 0;
+  }
+};
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -40,15 +94,20 @@ export default function LoginPage() {
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [lockDuration, setLockDuration] = useState(BASE_LOCKOUT_SECONDS);
-  const [lockoutBatch, setLockoutBatch] = useState(() => {
-    if (typeof window !== "undefined") {
-      const v = Number(localStorage.getItem("loginLockoutBatch"));
-      return Number.isFinite(v) && v > 0 ? v : 0;
-    }
-    return 0;
-  });
+  const [lockoutBatch, setLockoutBatch] = useState(() =>
+    typeof window !== "undefined" ? readLockoutBatch() : 0,
+  );
 
   const isLocked = lockedUntil !== null && secondsLeft > 0;
+
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const wasLockedRef = useRef(false);
+  useEffect(() => {
+    if (wasLockedRef.current && !isLocked) {
+      emailInputRef.current?.focus();
+    }
+    wasLockedRef.current = isLocked;
+  }, [isLocked]);
 
   const { setUser } = useUserStore();
   const router = useRouter();
@@ -177,8 +236,37 @@ export default function LoginPage() {
 
   // ── Persist lockout multiplier across refreshes ──
   useEffect(() => {
-    localStorage.setItem("loginLockoutBatch", String(lockoutBatch));
+    localStorage.setItem(LOCKOUT_BATCH_KEY, String(lockoutBatch));
   }, [lockoutBatch]);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const stored = readAttemptState();
+      setFailedAttempts(stored.failedAttempts);
+      setLockDuration(stored.lockDuration);
+      setLockedUntil(stored.lockedUntil);
+      setSecondsLeft(
+        stored.lockedUntil
+          ? Math.ceil((stored.lockedUntil - Date.now()) / 1000)
+          : 0,
+      );
+      setLockoutBatch(readLockoutBatch());
+    };
+
+    const onStorage = (e: StorageEvent) => {
+      if (
+        e.key === null ||
+        e.key === ATTEMPT_STATE_KEY ||
+        e.key === LOCKOUT_BATCH_KEY
+      ) {
+        syncFromStorage();
+      }
+    };
+
+    syncFromStorage();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // ── Animate lock panel in/out + progress ring ──
   useEffect(() => {
@@ -212,13 +300,14 @@ export default function LoginPage() {
       setUser(account);
       setFailedAttempts(0);
       setLockoutBatch(0);
-      localStorage.setItem("loginLockoutBatch", "0");
+      localStorage.setItem(LOCKOUT_BATCH_KEY, "0");
+      localStorage.removeItem(ATTEMPT_STATE_KEY);
       switch (account.type) {
         case "client":
           router.push(`/pages/client/profile`);
           break;
         case "artist":
-          router.push(`/pages/artist/profile`);
+          router.push(`/pages/artist/dashboard`);
           break;
         case "bussiness":
           router.push(`/pages/bussiness/dashboard`);
@@ -242,19 +331,27 @@ export default function LoginPage() {
         { x: 0, duration: 0.55, ease: "elastic.out(1, 0.35)" },
       );
 
-      setFailedAttempts((prev) => {
-        const next = prev + 1;
-        if (next >= ATTEMPTS_PER_BATCH) {
-          const batch = lockoutBatch + 1;
-          const duration = batch * BASE_LOCKOUT_SECONDS;
-          setLockoutBatch(batch);
-          setLockDuration(duration);
-          setLockedUntil(Date.now() + duration * 1000);
-          setSecondsLeft(duration);
-          return 0;
-        }
-        return next;
-      });
+      const stored = readAttemptState();
+      const next = stored.failedAttempts + 1;
+      if (next >= ATTEMPTS_PER_BATCH) {
+        const batch = readLockoutBatch() + 1;
+        const duration = batch * BASE_LOCKOUT_SECONDS;
+        const until = Date.now() + duration * 1000;
+        setLockoutBatch(batch);
+        localStorage.setItem(LOCKOUT_BATCH_KEY, String(batch));
+        setLockDuration(duration);
+        setLockedUntil(until);
+        setSecondsLeft(duration);
+        setFailedAttempts(0);
+        writeAttemptState({
+          failedAttempts: 0,
+          lockedUntil: until,
+          lockDuration: duration,
+        });
+      } else {
+        setFailedAttempts(next);
+        writeAttemptState({ ...stored, failedAttempts: next });
+      }
     },
   });
 
@@ -280,6 +377,7 @@ export default function LoginPage() {
     gsap.to(wrap, { y: 0, duration: 0.22, ease: "power2.out" });
   };
 
+  const emailField = register("email");
   const attemptsLeft = ATTEMPTS_PER_BATCH - failedAttempts;
   const circumference = 2 * Math.PI * 26;
 
@@ -458,7 +556,11 @@ export default function LoginPage() {
                   </svg>
                   <input
                     type="email"
-                    {...register("email")}
+                    {...emailField}
+                    ref={(el) => {
+                      emailField.ref(el);
+                      emailInputRef.current = el;
+                    }}
                     placeholder="you@example.com"
                     aria-invalid={!!errors.email}
                     className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.email ? "border-danger" : "border-border"}`}

@@ -27,18 +27,35 @@ function PaymentSuccessContent() {
     },
   });
 
+  const sessionKey = refId ? `paymongo_session_${refId}` : null;
+  const [sessionMissing, setSessionMissing] = useState(false);
+
   const paymentMutation = useMutation({
-    mutationFn: (data: {
-      sender: string;
-      receiver: string;
-      bookingId: string;
-      amount: number;
-      refId: string;
-    }) => axiosInstance.post("/booking/payment", data),
+    mutationFn: (data: { checkoutSessionId: string }) =>
+      axiosInstance.post("/booking/payment", data),
     onSuccess: () => {
-      console.log("sucesssss");
+      if (sessionKey) localStorage.removeItem(sessionKey);
     },
+    onError: (err: any) =>
+      errorAlert(
+        typeof err?.response?.data === "string"
+          ? err.response.data
+          : "Could not record your payment",
+      ),
   });
+
+  const recordPayment = () => {
+    const checkoutSessionId = sessionKey && localStorage.getItem(sessionKey);
+    if (!checkoutSessionId) {
+      setSessionMissing(true);
+      return;
+    }
+    setSessionMissing(false);
+    paymentMutation.mutate({ checkoutSessionId });
+  };
+
+  const isRecording = paymentMutation.isPending;
+  const recordFailed = paymentMutation.isError || sessionMissing;
 
   const [hasCalled, setHasCalled] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -57,13 +74,7 @@ function PaymentSuccessContent() {
 
   useEffect(() => {
     if (sender && receiver && bookingId && amount && !hasCalled && refId) {
-      paymentMutation.mutate({
-        sender,
-        receiver,
-        bookingId,
-        amount: Number(amount),
-        refId,
-      });
+      recordPayment();
       setHasCalled(true);
     }
   }, []);
@@ -121,7 +132,11 @@ function PaymentSuccessContent() {
           <div className="flex items-center gap-2 mb-3">
             <div className="h-px w-5 bg-gold" />
             <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-              Transaction Complete
+              {isRecording
+                ? "Confirming"
+                : recordFailed
+                  ? "Not Recorded"
+                  : "Transaction Complete"}
             </span>
             <div className="h-px w-5 bg-gold" />
           </div>
@@ -130,11 +145,27 @@ function PaymentSuccessContent() {
             className="text-3xl font-light tracking-[-0.02em] text-text mb-2"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
-            Payment Successful
+            {isRecording
+              ? "Confirming Payment"
+              : recordFailed
+                ? "Payment Not Recorded"
+                : "Payment Successful"}
           </h1>
           <p className="text-text-muted text-sm leading-relaxed mb-5 max-w-xs">
-            Your booking payment has been securely processed and confirmed.
+            {isRecording
+              ? "Verifying your payment with the payment provider…"
+              : recordFailed
+                ? "We could not confirm this payment yet. Nothing was recorded on your booking."
+                : "Your booking payment has been securely processed and confirmed."}
           </p>
+          {recordFailed && !sessionMissing && (
+            <button
+              onClick={recordPayment}
+              className="mb-5 w-full bg-surface border border-gold text-gold py-3 px-6 text-[11px] uppercase tracking-[0.2em]"
+            >
+              Try Again
+            </button>
+          )}
 
           <div className="w-full border-t border-border mb-5" />
 

@@ -6,7 +6,8 @@ import {
 } from "../types/accounts.type";
 import { AccountService } from "../services/acccount.service";
 import { ArtistInfoService } from "../services/artistInfo.service";
-import cloudinary from "../utils/cloudinary";
+import cloudinary, { deleteCloudinaryAsset } from "../utils/cloudinary";
+import mongoose from "mongoose";
 import { ArtistVerificationServices } from "../services/artistVerification.service";
 import fs from "fs";
 import { BookingService } from "../services/booking.service";
@@ -23,7 +24,7 @@ import {
 } from "../utils/customFunction";
 import { EmployeeInfoService } from "../services/employeeInfo.service";
 import { ExpencesService } from "../services/expences.service";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { AttendanceService } from "../services/attendance.service";
 import { PayrollService } from "../services/payroll.service";
 import { DocumentService } from "../services/document.service";
@@ -46,7 +47,10 @@ export class AccountController {
     response.send("sucdess");
   };
 
-  static checkEmailExists = async (request: AuthRequest, response: Response) => {
+  static checkEmailExists = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
     const email = ((request.query.email as string) || "").trim().toLowerCase();
     if (!email) {
       response.status(400).send("email required");
@@ -209,7 +213,6 @@ export class AccountController {
       return itemMonth === Number(month);
     });
 
-    // Filter transactions by month
     const filteredTrans = transactions.filter((item) => {
       const itemMonth = new Date(item.date).getMonth() + 1;
       return itemMonth === Number(month);
@@ -532,6 +535,12 @@ export class AccountController {
     response: Response,
   ) => {
     const { id } = request.params;
+    if (request.account?._id !== id) {
+      response
+        .status(403)
+        .send("you are not authorized to view these transactions");
+      return;
+    }
     const transactions = await TransactionService.getBySender(id);
     response.send(transactions);
   };
@@ -541,7 +550,14 @@ export class AccountController {
     response: Response,
   ) => {
     const { id } = request.params;
-    const transactions = await TransactionService.getByReceiver(id);
+    if (request.account?._id !== id) {
+      response
+        .status(403)
+        .send("you are not authorized to view these transactions");
+      return;
+    }
+    const transactions =
+      await TransactionService.getByReceiverOrBookingArtist(id);
     response.send(transactions);
   };
 
@@ -568,7 +584,7 @@ export class AccountController {
       response.send(transaction);
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -1076,6 +1092,45 @@ export class AccountController {
     }
   };
 
+  static deleteGalleryImage = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const account = request.account;
+      const imageId = String(request.params.imageId);
+
+      if (account?.type !== "artist") {
+        response.status(403).send("only artists can manage a gallery");
+        return;
+      }
+
+      if (!mongoose.isValidObjectId(imageId)) {
+        response.status(400).send("invalid image id");
+        return;
+      }
+
+      // Looked up under the authenticated artist's own profile, so an image
+      // that belongs to anyone else is simply "not found".
+      const image = await ArtistInfoService.getImg(account._id, imageId);
+      if (!image) {
+        response.status(404).send("image not found");
+        return;
+      }
+
+      // Storage first: if it fails the DB record is kept and the delete can be retried.
+      if (image.fileUrl) {
+        await deleteCloudinaryAsset(image.fileUrl, image.fileType ?? "image");
+      }
+      await ArtistInfoService.removeImg(account._id, imageId);
+
+      response.send(await ArtistInfoService.getByArtist(account._id));
+    } catch (error) {
+      console.error(error);
+      response.status(500).send("failed to delete image");
+    }
+  };
+
   static changePofilePicture = async (
     request: AuthRequest,
     response: Response,
@@ -1279,11 +1334,11 @@ export class AccountController {
 
         response.send(updatedAccount);
       } else {
-        response.status(500).send("error accour");
+        response.status(500).send("error occur");
       }
     } catch (e) {
       console.log(e);
-      response.status(500).send("error accour");
+      response.status(500).send("error occur");
     }
   };
 
@@ -1316,7 +1371,6 @@ export class AccountController {
       const { bussinessName, expirationDate, clearanceExpiration } =
         request.body;
 
-      // Delete local temp files
       fs.unlinkSync(files.BarangayClearance[0].path);
       fs.unlinkSync(files.businessPermit[0].path);
 
@@ -1337,95 +1391,125 @@ export class AccountController {
       response.status(500).json({ error: "Upload failed" });
     }
   };
-
   static AiAutoFill = async (request: AuthRequest, response: Response) => {
     if (!request.file) {
       response.status(400).json({ error: "No file uploaded" });
       return;
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
-
-    // Use the exact model name from the list
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    let fileName = request.file.filename;
-    const imagePath = path.resolve("uploads/" + fileName);
+    const imagePath = path.resolve("uploads/" + request.file.filename);
     const imageData = fs.readFileSync(imagePath).toString("base64");
 
     try {
+      const genAI = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+      });
+
+      const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+
       const prompt = `
-                You are analyzing a tattoo image.
+You are analyzing a tattoo image.
 
-                TASK:
-                1. Identify the tattoo art style (category) based ONLY on the visual art style.
-                2. Determine the tattoo complexity based on the level of detail WITHIN its own art style.
-                3. Determine whether the tattoo is colored or black-only.
+TASK:
 
-                COMPLEXITY RULES (IMPORTANT):
-                - Complexity is NOT determined by category alone.
-                - Even if the category is Realism, Portrait, or Japanese, the complexity can still be 1, 2, or 3.
-                - Judge complexity ONLY by visible detail, line work, shading, and visual effort.
+1. Identify the tattoo art style (category) based ONLY on the visual art style.
+2. Determine the tattoo complexity based on the level of detail WITHIN its own art style.
+3. Determine whether the tattoo is colored or black-only.
 
-                Complexity scale:
-                1 = Very simple execution
-                    Minimal detail, very basic shapes, little to no shading, clean lines only
-                2 = Simple execution
-                    Basic design with slight detail, minimal shading, limited elements 
-                3 = Average execution
-                    Moderate detail and shading, balanced composition, noticeable design effort
-                4 = Complex execution
-                    High level of detail, multiple elements, refined shading, texture present 
-                5 = Very highly detailed execution
-                    Extremely intricate, dense detail, advanced realism, heavy shading, complex textures 
+COMPLEXITY RULES (IMPORTANT):
 
-                CATEGORY RULES:
-                - Choose ONLY ONE category from this list:
-                Traditional, Realism, Blackwork, Dotwork, Fine Line, Minimalist, Tribal, Japanese, Geometric, Illustrative, Portrait, Anime
-                - Category must be based on art style, NOT on complexity.
+- Complexity is NOT determined by category alone.
+- Even if the category is Realism, Portrait, or Japanese, the complexity can still be 1, 2, 3, 4, or 5.
+- Judge complexity ONLY by visible detail, line work, shading, and visual effort.
 
-                COLOR RULES:
-                - isColored = true if any visible color other than black or gray is present.
-                - isColored = false if the tattoo is only black or black & gray.
+Complexity scale:
 
-                OUTPUT RULES:
-                - Do NOT explain your reasoning.
-                - Do NOT include markdown.
-                - Do NOT include extra text.
+1 = Very simple execution
+Minimal detail, very basic shapes, little to no shading, clean lines only
 
-                RESPONSE FORMAT (STRICT JSON STRING ONLY):
-                {
-                "complexity": 1 | 2 | 3 | 4 | 5,
-                "isColored": true | false,
-                "category": "Traditional | Realism | Blackwork | Dotwork | Fine Line | Minimalist | Tribal | Japanese | Geometric | Illustrative | Portrait | Anime"
-                }
-            `;
+2 = Simple execution
+Basic design with slight detail, minimal shading, limited elements
 
-      const imgChecker = await model.generateContent([
-        {
-          inlineData: {
-            data: imageData,
-            mimeType: "image/png",
+3 = Average execution
+Moderate detail and shading, balanced composition, noticeable design effort
+
+4 = Complex execution
+High level of detail, multiple elements, refined shading, texture present
+
+5 = Very highly detailed execution
+Extremely intricate, dense detail, advanced realism, heavy shading, complex textures
+
+CATEGORY RULES:
+
+Choose ONLY ONE category from this list:
+
+Traditional, Realism, Blackwork, Dotwork, Fine Line, Minimalist, Tribal, Japanese, Geometric, Illustrative, Portrait, Anime
+
+Category must be based on art style, NOT on complexity.
+
+COLOR RULES:
+
+- isColored = true if any visible color other than black or gray is present.
+- isColored = false if the tattoo is only black or black & gray.
+
+OUTPUT RULES:
+
+- Do NOT explain your reasoning.
+- Do NOT include markdown.
+- Do NOT include extra text.
+- Return valid JSON only.
+
+RESPONSE FORMAT:
+
+{
+  "complexity": 1,
+  "isColored": true,
+  "category": "Realism"
+}
+`;
+
+      const imgChecker = await genAI.models.generateContent({
+        model,
+        contents: [
+          {
+            inlineData: {
+              data: imageData,
+              mimeType: request.file.mimetype?.startsWith("image/")
+                ? request.file.mimetype
+                : "image/png",
+            },
           },
-        },
-        prompt,
-      ]);
+          {
+            text: prompt,
+          },
+        ],
+      });
 
-      let aiResponse = imgChecker.response.text();
+      const aiResponse = imgChecker.text;
+
+      if (!aiResponse) {
+        throw new Error("Gemini returned an empty response");
+      }
 
       const parsedResponse = JSON.parse(aiResponse);
-      console.log(parsedResponse);
-      response.send(parsedResponse);
+
+      console.log("Gemini AI response:", parsedResponse);
+
+      response.json(parsedResponse);
     } catch (error) {
-      console.error(error);
-      response.status(500).json({ error: "Upload failed" });
+      console.error("Gemini AI analysis failed:", error);
+
+      response.status(500).json({
+        error: "Failed to analyze tattoo image",
+      });
     } finally {
       fs.unlink(imagePath, (err) => {
-        if (err) console.error("Failed to delete image:", err);
+        if (err) {
+          console.error("Failed to delete image:", err);
+        }
       });
     }
   };
-
   static submitAdminMessage = async (
     request: AuthRequest,
     response: Response,

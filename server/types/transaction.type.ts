@@ -8,6 +8,7 @@ export interface transactionInterfaceInput {
     refId :string,
     amount : number,
     bookingId? : string,
+    paymentMethod? : "online" | "counter",
 }
 
 
@@ -20,4 +21,5 @@ export interface transactionInterface {
     refId :string,
     amount : number,
     bookingId? : string,
+    paymentMethod? : "online" | "counter",
 }

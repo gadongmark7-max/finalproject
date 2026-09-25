@@ -34,10 +34,15 @@ import {
   Moon,
   Sun,
   Settings,
+  LayoutDashboard,
+  BarChart3,
+  Receipt,
 } from "lucide-react";
 import NotificationsCount from "./notifCount";
+import MessagesCount from "./messagesCount";
 
 const navigationItems = [
+  { title: "Dashboard", url: "/pages/artist/dashboard", icon: LayoutDashboard },
   { title: "Profile", url: "/pages/artist/profile", icon: User },
   { title: "Tattoo Works", url: "/pages/artist/works", icon: Image },
   { title: "My Posts", url: "/pages/artist/myPost", icon: FileText },
@@ -47,6 +52,8 @@ const navigationItems = [
   { title: "Inventory", url: "/pages/artist/inventory", icon: Package },
 
   { title: "Transactions", url: "/pages/artist/transactions", icon: History },
+  { title: "Reports", url: "/pages/artist/reports", icon: BarChart3 },
+  { title: "Expenses", url: "/pages/artist/expenses", icon: Receipt },
   { title: "Notifications", url: "/pages/artist/notifications", icon: Bell },
   { title: "Settings", url: "/pages/artist/settings", icon: Settings },
 ];
@@ -60,7 +67,6 @@ export function SidebarArtist({ className }: AppSidebarProps) {
 
   const { lightMode, setLightMode } = useLightModeStore();
 
-  // Apply class to <html>
   useEffect(() => {
     const root = document.documentElement;
     if (lightMode) {
@@ -175,6 +181,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                     </div>
                     <span className="text-sm tracking-wide">{item.title}</span>{" "}
                     {item.title == "Notifications" && <NotificationsCount />}
+                    {item.title == "Chat" && <MessagesCount />}
                   </Link>
                 ))}
               </nav>
@@ -281,6 +288,7 @@ export function SidebarArtist({ className }: AppSidebarProps) {
                         {item.title == "Notifications" && (
                           <NotificationsCount />
                         )}
+                        {item.title == "Chat" && <MessagesCount />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

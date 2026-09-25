@@ -13,6 +13,7 @@ export interface messageInterface {
     message : string,
     type : string,
     url : string,
+    seen? : boolean,
 }
 
 export interface convoInterfaceInput {

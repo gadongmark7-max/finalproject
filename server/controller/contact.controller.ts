@@ -1,9 +1,7 @@
 import { Request, Response } from "express";
 import { sendEmail } from "../utils/customFunction";
 
-
 export class ContactController {
-
   static sendConsultation = async (request: Request, response: Response) => {
     try {
       const {
@@ -31,10 +29,16 @@ export class ContactController {
         return;
       }
       if (cleanMessage.length < 10) {
-        response.status(400).send("Please tell us a little more about what you're looking for.");
+        response
+          .status(400)
+          .send("Please tell us a little more about what you're looking for.");
         return;
       }
-      if (cleanMessage.length > 5000 || cleanName.length > 120 || cleanSubject.length > 200) {
+      if (
+        cleanMessage.length > 5000 ||
+        cleanName.length > 120 ||
+        cleanSubject.length > 200
+      ) {
         response.status(400).send("One of the fields is too long.");
         return;
       }
@@ -42,7 +46,9 @@ export class ContactController {
       const contactInbox = process.env.CONTACT_EMAIL || "";
       if (!contactInbox) {
         console.log("CONTACT_EMAIL is not configured");
-        response.status(500).send("Contact form is not configured. Please try again later.");
+        response
+          .status(500)
+          .send("Contact form is not configured. Please try again later.");
         return;
       }
 
@@ -50,19 +56,37 @@ export class ContactController {
         v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
       const rows: string[] = [
-        `<strong>Name:</strong> ${esc(cleanName)}`,
-        `<strong>Email:</strong> ${esc(cleanEmail)}`,
+        `<strong style="color:#ffffff;">Name:</strong> ${esc(cleanName)}`,
+        `<strong style="color:#ffffff;">Email:</strong> ${esc(cleanEmail)}`,
       ];
-      if (cleanPhone) rows.push(`<strong>Phone:</strong> ${esc(cleanPhone)}`);
-      if (cleanSubject) rows.push(`<strong>Style / Service:</strong> ${esc(cleanSubject)}`);
-      rows.push(`<strong>Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`);
+
+      if (cleanPhone) {
+        rows.push(
+          `<strong style="color:#ffffff;">Phone:</strong> ${esc(cleanPhone)}`,
+        );
+      }
+
+      if (cleanSubject) {
+        rows.push(
+          `<strong style="color:#ffffff;">Style / Service:</strong> ${esc(cleanSubject)}`,
+        );
+      }
+
+      rows.push(
+        `<strong style="color:#ffffff;">Message:</strong><br/>${esc(cleanMessage).replace(/\n/g, "<br/>")}`,
+      );
 
       const htmlMessage = `
-        <p style="margin:0 0 16px 0;">New inquiry from the <strong>Book a Consultation</strong> form on the website.</p>
-        <div style="text-align:left;line-height:1.9;font-size:14px;">
-          ${rows.map((r) => `<p style="margin:0 0 8px 0;">${r}</p>`).join("")}
-        </div>
-      `;
+  <p style="margin:0 0 16px 0;color:#ffffff;">
+    New inquiry from the <strong style="color:#ffffff;">Book a Consultation</strong> form on the website.
+  </p>
+
+  <div style="text-align:left;line-height:1.9;font-size:14px;color:#ffffff;">
+    ${rows
+      .map((r) => `<p style="margin:0 0 8px 0;color:#ffffff;">${r}</p>`)
+      .join("")}
+  </div>
+`;
 
       const subjectLine = `Book a Consultation — ${cleanName}${
         cleanSubject ? ` (${cleanSubject})` : ""
@@ -74,7 +98,11 @@ export class ContactController {
       });
 
       if (!ok) {
-        response.status(502).send("We couldn't send your message right now. Please try again shortly.");
+        response
+          .status(502)
+          .send(
+            "We couldn't send your message right now. Please try again shortly.",
+          );
         return;
       }
 

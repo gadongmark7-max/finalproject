@@ -1,34 +1,40 @@
-"use client"
-import { Button } from "@/components/ui/button"
+"use client";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { useState } from "react"
-import { bussinessInfoInterface, configInterface } from "@/app/types/accounts.type"
-import { useMutation } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { errorAlert, successAlert } from "@/app/utils/alert"
+} from "@/components/ui/dialog";
+import { useState } from "react";
+import {
+  bussinessInfoInterface,
+  configInterface,
+} from "@/app/types/accounts.type";
+import { useMutation } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { errorAlert, successAlert } from "@/app/utils/alert";
 
-
-
-export function ConfigModal({ bussinessInfo, refetch }: { bussinessInfo: bussinessInfoInterface , refetch : () => void}) {
-
+export function ConfigModal({
+  bussinessInfo,
+  refetch,
+}: {
+  bussinessInfo: bussinessInfoInterface;
+  refetch: () => void;
+}) {
   const [open, setOpen] = useState(false);
 
   const [config, setConfig] = useState(bussinessInfo.config);
 
   const mutation = useMutation({
-    mutationFn : (config : configInterface) => axiosInstance.put(`/account/config/${bussinessInfo._id}`, {config}),
-    onSuccess : () => {
-        refetch()
+    mutationFn: (config: configInterface) =>
+      axiosInstance.put(`/account/config/${bussinessInfo._id}`, { config }),
+    onSuccess: () => {
+      refetch();
     },
-    onError : () => errorAlert("error accour")
-  })
-
+    onError: () => errorAlert("error occur"),
+  });
 
   const handleToggle = (key: keyof typeof config) => {
     const newConfig = {
@@ -37,7 +43,7 @@ export function ConfigModal({ bussinessInfo, refetch }: { bussinessInfo: bussine
     };
 
     setConfig(newConfig);
-    mutation.mutate(newConfig)
+    mutation.mutate(newConfig);
   };
 
   return (
@@ -52,7 +58,6 @@ export function ConfigModal({ bussinessInfo, refetch }: { bussinessInfo: bussine
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-
           {/* Financial */}
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-stone-400"> Settings</h3>
@@ -99,15 +104,11 @@ export function ConfigModal({ bussinessInfo, refetch }: { bussinessInfo: bussine
               onChange={() => handleToggle("artistBookAppointment")}
             />
           </div>
-
-   
-
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
 
 function ToggleItem({
   label,

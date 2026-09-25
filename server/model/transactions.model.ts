@@ -13,11 +13,16 @@ const TransactionSchema = new Schema({
   },
   date: { type: String, required: true },
   time: { type: String, required: true },
-  refId: { type: String, required: true },
+  refId: { type: String, required: true, unique: true },
   amount: { type: Number, required: true },
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Bookings",
+    required: false,
+  },
+  paymentMethod: {
+    type: String,
+    enum: ["online", "counter"],
     required: false,
   },
 });

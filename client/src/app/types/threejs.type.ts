@@ -1,29 +1,28 @@
-
-  
 export interface TattooDataInterface {
-    modelUrl: string
-    meshName: string
-    size : number,
-    position: {
-      x: number
-      y: number
-      z: number
-    }
-  
-    rotation: {
-      x: number
-      y: number
-      z: number
-      order: "XYZ" | "YXZ" | "ZXY" | "ZYX" | "YZX" | "XZY"
-    }
-  
-    scale: number
+  modelUrl: string;
+  meshName: string;
+  size: number;
+  position: {
+    x: number;
+    y: number;
+    z: number;
+  };
 
-    uv?: {
-      u: number
-      v: number
-    }
+  rotation: {
+    x: number;
+    y: number;
+    z: number;
+    order: "XYZ" | "YXZ" | "ZXY" | "ZYX" | "YZX" | "XZY";
+  };
 
-    colorMode?: "original" | "bw"
-  }
-  
+  scale: number;
+
+  uv?: {
+    u: number;
+    v: number;
+  };
+
+  colorMode?: "original" | "bw";
+
+  cmPerUnit?: number;
+}

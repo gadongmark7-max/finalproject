@@ -3,7 +3,8 @@
 import axiosInstance from "@/app/utils/axios";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Receipt, Download } from "lucide-react";
-import { transactionInterface } from "@/app/types/transaction.type";
+import { transactionReceiptInterface } from "@/app/types/transaction.type";
+import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import useUserStore from "@/app/store/useUserStore";
 import Link from "next/link";
 
@@ -11,8 +12,9 @@ export default function Page() {
   const { user } = useUserStore();
 
   const { data: transactionsData } = useQuery({
-    queryKey: ["transactions_sender"],
-    queryFn: async (): Promise<transactionInterface[]> => {
+    queryKey: ["transactions_sender", user?._id],
+    enabled: !!user?._id,
+    queryFn: async (): Promise<transactionReceiptInterface[]> => {
       const response = await axiosInstance.get(
         `/account/transaction/sender/${user?._id}`,
       );
@@ -65,8 +67,8 @@ export default function Page() {
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="relative flex-shrink-0">
                     <img
-                      src={tx.receiver.profile}
-                      alt={tx.receiver.name}
+                      src={tx.receiver?.profile}
+                      alt={tx.receiver?.name ?? "Artist"}
                       width={44}
                       height={44}
                       className="w-11 h-11 object-cover border border-border"
@@ -80,13 +82,17 @@ export default function Page() {
                       style={{ fontFamily: "'Cormorant Garamond', serif" }}
                     >
                       Sent to{" "}
-                      <span className="text-gold">{tx.receiver.name}</span>
+                      <span className="text-gold">{tx.receiver?.name ?? "Unknown"}</span>
                     </p>
                     <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted truncate">
                       Ref: {tx.refId}
                     </p>
                     <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
                       {tx.date} · {tx.time}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                      {PAYMENT_METHOD_LABELS[tx.paymentMethod ?? tx.bookingId?.paymentMethod ?? "online"]}
+                      {tx.bookingId && ` · Session ${tx.bookingId.session ?? 1}`}
                     </p>
                   </div>
                 </div>

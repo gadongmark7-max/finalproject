@@ -111,7 +111,7 @@ export function ArtistBookModal({
         });
       }
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const validateBookings = () => {

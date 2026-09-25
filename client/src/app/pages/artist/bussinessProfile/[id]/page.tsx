@@ -9,11 +9,25 @@ import Link from "next/link";
 import { ChangeProfile } from "./components/changeProfile";
 import MapLocation from "./components/location";
 import { Button } from "@/components/ui/button";
-import { accountInterface, bussinessInfoInterface } from "@/app/types/accounts.type";
+import {
+  accountInterface,
+  bussinessInfoInterface,
+} from "@/app/types/accounts.type";
 import { useParams } from "next/navigation";
 import { errorAlert, successAlert, confirmAlert } from "@/app/utils/alert";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Skull, File, Star, MapPin, Layers, ChevronRight, Users, CalendarDays, BadgeCheck } from "lucide-react";
+import {
+  MessageCircle,
+  Skull,
+  File,
+  Star,
+  MapPin,
+  Layers,
+  ChevronRight,
+  Users,
+  CalendarDays,
+  BadgeCheck,
+} from "lucide-react";
 import { ArtistCalendar } from "./components/artistCalendar";
 import ReviewsComponent from "./components/reviews";
 import { StarReviews } from "@/components/ui/starRating";
@@ -28,7 +42,6 @@ interface selectedArtistinterface {
 }
 
 export default function Page() {
-
   const params = useParams();
   const bussinessId = params.id as string;
   const { user } = useUserStore();
@@ -36,15 +49,19 @@ export default function Page() {
   const { data: artistBussinesses } = useQuery({
     queryKey: ["bussiness_Infos"],
     queryFn: async (): Promise<bussinessInfoInterface[]> => {
-      const response = await axiosInstance.get(`/account/artistBussiness/${user?._id}`);
+      const response = await axiosInstance.get(
+        `/account/artistBussiness/${user?._id}`,
+      );
       return response.data;
     },
   });
 
   const router = useRouter();
 
-  const [selectedArtist, setSelectedArtist] = useState<selectedArtistinterface | null>(null);
-  const [bussinessInfo, setBussinessInfo] = useState<bussinessInfoInterface | null>(null);
+  const [selectedArtist, setSelectedArtist] =
+    useState<selectedArtistinterface | null>(null);
+  const [bussinessInfo, setBussinessInfo] =
+    useState<bussinessInfoInterface | null>(null);
   const [posts, setPosts] = useState<postInterface[]>([]);
   const [imgType, setImgType] = useState("studio");
 
@@ -64,25 +81,33 @@ export default function Page() {
   }, [bussinessInfoData, postsData]);
 
   const messageMutation = useMutation({
-    mutationFn: () => axiosInstance.post(`/convo/convoId/${bussinessInfo?.bussiness._id}`),
+    mutationFn: () =>
+      axiosInstance.post(`/convo/convoId/${bussinessInfo?.bussiness._id}`),
     onSuccess: (response) => {
       router.push(`/pages/artist/convo/${response.data}`);
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const applyMutation = useMutation({
-    mutationFn: () => axiosInstance.post(`/account/artistApplyToBussiness/${bussinessInfo?.bussiness._id}`),
+    mutationFn: () =>
+      axiosInstance.post(
+        `/account/artistApplyToBussiness/${bussinessInfo?.bussiness._id}`,
+      ),
     onSuccess: () => {
       successAlert("application submited");
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const applyToBussinesshandler = () => {
-    confirmAlert("you want to apply as artist to this Bussiness?", "apply", () => {
-      applyMutation.mutate();
-    });
+    confirmAlert(
+      "you want to apply as artist to this Bussiness?",
+      "apply",
+      () => {
+        applyMutation.mutate();
+      },
+    );
   };
 
   if (!bussinessInfo || !artistBussinesses)
@@ -90,43 +115,57 @@ export default function Page() {
       <div className="min-h-dvh bg-primary flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border border-gold-dim border-t-gold animate-spin" />
-          <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">Loading Atelier</p>
+          <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">
+            Loading Atelier
+          </p>
         </div>
       </div>
     );
 
   const galleryTabs = [
-    { key: "studio", label: "Tattoo Studio", shortLabel: "Studio", icon: <Layers size={12} /> },
-    { key: "achievement", label: "Achievement", shortLabel: "Awards", icon: <Star size={12} /> },
-    { key: "client", label: "Client Works", shortLabel: "Clients", icon: <ChevronRight size={12} /> },
+    {
+      key: "studio",
+      label: "Tattoo Studio",
+      shortLabel: "Studio",
+      icon: <Layers size={12} />,
+    },
+    {
+      key: "achievement",
+      label: "Achievement",
+      shortLabel: "Awards",
+      icon: <Star size={12} />,
+    },
+    {
+      key: "client",
+      label: "Client Works",
+      shortLabel: "Clients",
+      icon: <ChevronRight size={12} />,
+    },
   ];
 
   const canApply = isBussinessApproveArtistApply(artistBussinesses);
 
   return (
     <div className="w-full min-h-dvh bg-primary">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient Glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[600px] lg:w-[800px] h-[300px] lg:h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
-
         {/* ── HERO PROFILE ── */}
         <div className="border-b border-border pb-10 mb-10">
           <div className="flex flex-col lg:grid lg:grid-cols-2 gap-8 lg:gap-12">
-
             {/* LEFT — Avatar + Info + Actions */}
             <div className="flex flex-col gap-6">
-
               {/* Avatar + Name row */}
               <div className="flex flex-row gap-5 sm:gap-6 items-start">
-
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   <div className="absolute -inset-[3px] border border-gold opacity-30" />
@@ -145,7 +184,9 @@ export default function Page() {
                 <div className="flex-1 space-y-3 min-w-0">
                   <div className="flex items-center gap-3">
                     <div className="h-px w-6 sm:w-8 bg-gold flex-shrink-0" />
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Ink Studio</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Ink Studio
+                    </span>
                   </div>
                   <h1
                     className="text-3xl sm:text-4xl lg:text-5xl font-light text-text tracking-[-0.02em] leading-tight flex flex-wrap items-center gap-2"
@@ -160,7 +201,8 @@ export default function Page() {
 
               {/* Bio */}
               <p className="text-text-muted text-sm leading-relaxed">
-                {bussinessInfo.bio || "No biography available. This studio's craftsmanship speaks for itself."}
+                {bussinessInfo.bio ||
+                  "No biography available. This studio's craftsmanship speaks for itself."}
               </p>
 
               {/* Apply CTA Banner — only if eligible */}
@@ -172,12 +214,18 @@ export default function Page() {
                     <div className="w-6 h-6 bg-surface-alt border border-border flex items-center justify-center">
                       <BadgeCheck size={11} className="text-gold" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Open Application</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Open Application
+                    </span>
                   </div>
                   <p className="text-text-muted text-xs leading-relaxed mb-4">
-                    This studio is accepting artist applications. Join their roster and expand your reach.
+                    This studio is accepting artist applications. Join their
+                    roster and expand your reach.
                   </p>
-                  <Button onClick={applyToBussinesshandler} disabled={!canApply}>
+                  <Button
+                    onClick={applyToBussinesshandler}
+                    disabled={!canApply}
+                  >
                     <File size={14} />
                     Apply As Artist
                   </Button>
@@ -205,12 +253,13 @@ export default function Page() {
 
             {/* RIGHT — Portfolio Gallery */}
             <div className="flex flex-col gap-0">
-
               {/* Eyebrow + Tabs */}
               <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-4">
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="h-px w-8 bg-gold" />
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Portfolio</span>
+                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                    Portfolio
+                  </span>
                   <div className="h-px w-8 bg-gold" />
                 </div>
 
@@ -235,13 +284,31 @@ export default function Page() {
 
               <div className="mt-2">
                 {imgType === "studio" && (
-                  <ImgCard type="studio" addImg={true} files={bussinessInfo.profileImages.filter((item) => item.type === "studio")} />
+                  <ImgCard
+                    type="studio"
+                    addImg={true}
+                    files={bussinessInfo.profileImages.filter(
+                      (item) => item.type === "studio",
+                    )}
+                  />
                 )}
                 {imgType === "achievement" && (
-                  <ImgCard type="achievement" addImg={true} files={bussinessInfo.profileImages.filter((item) => item.type === "achievement")} />
+                  <ImgCard
+                    type="achievement"
+                    addImg={true}
+                    files={bussinessInfo.profileImages.filter(
+                      (item) => item.type === "achievement",
+                    )}
+                  />
                 )}
                 {imgType === "client" && (
-                  <ImgCard type="client" addImg={true} files={bussinessInfo.profileImages.filter((item) => item.type === "client")} />
+                  <ImgCard
+                    type="client"
+                    addImg={true}
+                    files={bussinessInfo.profileImages.filter(
+                      (item) => item.type === "client",
+                    )}
+                  />
                 )}
               </div>
             </div>
@@ -253,7 +320,9 @@ export default function Page() {
           <div className="mb-12 border-b border-border pb-12">
             <div className="flex items-center gap-3 mb-8">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Studio Artists</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Studio Artists
+              </span>
               <div className="w-6 h-6 bg-surface-alt border border-border flex items-center justify-center ml-1">
                 <Users size={11} className="text-gold" />
               </div>
@@ -271,9 +340,13 @@ export default function Page() {
                   }`}
                 >
                   <div className="relative flex-shrink-0">
-                    <div className={`absolute -inset-[1px] border transition-all duration-300 ${
-                      selectedArtist?.artist._id === artist.artist._id ? "border-gold opacity-60" : "border-transparent"
-                    }`} />
+                    <div
+                      className={`absolute -inset-[1px] border transition-all duration-300 ${
+                        selectedArtist?.artist._id === artist.artist._id
+                          ? "border-gold opacity-60"
+                          : "border-transparent"
+                      }`}
+                    />
                     <img
                       src={artist.artist.profile}
                       alt={artist.artist.name}
@@ -281,7 +354,9 @@ export default function Page() {
                     />
                   </div>
                   <div className="text-left">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">Artist</p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                      Artist
+                    </p>
                     <h3
                       className="text-sm font-light text-text"
                       style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -303,7 +378,9 @@ export default function Page() {
           <div className="mb-12 border-b border-border pb-12">
             <div className="flex items-center gap-3 mb-8">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Artist Schedule</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Artist Schedule
+              </span>
               <div className="w-6 h-6 bg-surface-alt border border-border flex items-center justify-center ml-1">
                 <CalendarDays size={11} className="text-gold" />
               </div>
@@ -319,7 +396,9 @@ export default function Page() {
                 />
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">Viewing Schedule For</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                  Viewing Schedule For
+                </p>
                 <h2
                   className="text-2xl font-light text-text tracking-[-0.02em]"
                   style={{ fontFamily: "'Cormorant Garamond', serif" }}
@@ -340,7 +419,6 @@ export default function Page() {
 
         {/* ── REVIEWS + MAP ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-12 border-b border-border pb-12">
-
           {/* Reviews */}
           <div className="relative group bg-surface border border-border hover:border-border-gold transition-all duration-500 overflow-hidden">
             <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -349,7 +427,9 @@ export default function Page() {
                 <div className="w-7 h-7 bg-surface-alt border border-border flex items-center justify-center flex-shrink-0">
                   <Star size={12} className="text-gold" />
                 </div>
-                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Client Reviews</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  Client Reviews
+                </span>
               </div>
               <div className="h-[240px] sm:h-[260px] overflow-y-auto">
                 <ReviewsComponent bussinessInfo={bussinessInfo} />
@@ -365,7 +445,9 @@ export default function Page() {
                 <div className="w-7 h-7 bg-surface-alt border border-border flex items-center justify-center flex-shrink-0">
                   <MapPin size={12} className="text-gold" />
                 </div>
-                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Studio Location</span>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  Studio Location
+                </span>
               </div>
               <div className="h-[240px] sm:h-[260px] overflow-hidden">
                 <MapLocation bussinessInfo={bussinessInfo} />
@@ -379,7 +461,9 @@ export default function Page() {
           <div>
             <div className="flex items-center gap-3 mb-8 sm:mb-10">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Published Works</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Published Works
+              </span>
               <div className="h-px flex-1 bg-border max-w-[60px] sm:max-w-[80px]" />
             </div>
 
@@ -439,9 +523,7 @@ export default function Page() {
                     </div>
 
                     <Link href={`/pages/artist/post/${post._id}`}>
-                      <Button className="w-full">
-                        View Post
-                      </Button>
+                      <Button className="w-full">View Post</Button>
                     </Link>
                   </div>
                 </div>
@@ -452,11 +534,14 @@ export default function Page() {
 
         {/* Footer Rule */}
         <div className="mt-16 sm:mt-20 pt-8 border-t border-border flex items-center justify-between gap-4">
-          <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">Ink Of Baphomet Atelier</span>
+          <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">
+            Ink Of Baphomet Atelier
+          </span>
           <div className="h-px flex-1 bg-border" />
-          <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">Studio Profile</span>
+          <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">
+            Studio Profile
+          </span>
         </div>
-
       </div>
     </div>
   );

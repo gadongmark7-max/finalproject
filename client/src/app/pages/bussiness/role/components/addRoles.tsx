@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,24 +9,23 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { useState } from "react"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 import {
   Plus,
   ShieldCheck,
   UserCog,
   LayoutDashboard,
   CheckCircle,
-} from "lucide-react"
-import { useMutation } from "@tanstack/react-query"
-import axiosInstance from "@/app/utils/axios"
-import { errorAlert, successAlert } from "@/app/utils/alert"
-import { FieldError } from "@/components/ui/field-error"
-import { firstError, requiredText } from "@/lib/validation/fields"
+} from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import axiosInstance from "@/app/utils/axios";
+import { errorAlert, successAlert } from "@/app/utils/alert";
+import { FieldError } from "@/components/ui/field-error";
+import { firstError, requiredText } from "@/lib/validation/fields";
 
-const roleNameSchema = requiredText("Role name", { min: 2, max: 60 })
-
+const roleNameSchema = requiredText("Role name", { min: 2, max: 60 });
 
 const bussinessFeature = [
   "View Dashboard",
@@ -44,12 +43,17 @@ const bussinessFeature = [
   "View Notifications",
   "Manage Role",
   "Manage Documents",
-]
+];
 
 const templates = [
   {
     role: "Receptionist",
-    permissions: ["Manage Bookings", "Manage Chat", "View Transactions", "Manage Payment"],
+    permissions: [
+      "Manage Bookings",
+      "Manage Chat",
+      "View Transactions",
+      "Manage Payment",
+    ],
   },
   {
     role: "Manager",
@@ -66,50 +70,58 @@ const templates = [
   },
   {
     role: "HR",
-    permissions: ["Manage Artists", "Manage Employee", "View Transactions", "Manage Payroll"],
+    permissions: [
+      "Manage Artists",
+      "Manage Employee",
+      "View Transactions",
+      "Manage Payroll",
+    ],
   },
-]
+];
 
 export function AddRolesModal({ refetch }: { refetch: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [permissions, setPermissions] = useState<string[]>([])
-  const [role, setRole] = useState("")
+  const [open, setOpen] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [role, setRole] = useState("");
 
   const AddMutation = useMutation({
     mutationFn: (data: { role: string; permissions: string[] }) =>
       axiosInstance.post("/account/role", data),
     onSuccess: () => {
-      successAlert(`role successfully added`)
-      setOpen(false)
-      refetch()
+      successAlert(`role successfully added`);
+      setOpen(false);
+      refetch();
     },
-    onError: () => errorAlert("error accour"),
-  })
+    onError: () => errorAlert("error occur"),
+  });
 
   const togglePermission = (feature: string) => {
     setPermissions((prev) =>
-      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature]
-    )
-  }
+      prev.includes(feature)
+        ? prev.filter((f) => f !== feature)
+        : [...prev, feature],
+    );
+  };
 
   const selectTemplate = (index: number) => {
     if (role != templates[index].role) {
-      setRole(templates[index].role)
-      setPermissions(templates[index].permissions)
+      setRole(templates[index].role);
+      setPermissions(templates[index].permissions);
     } else {
-      setRole("")
-      setPermissions([])
+      setRole("");
+      setPermissions([]);
     }
-  }
+  };
 
-  const roleError = firstError(roleNameSchema, role)
-  const permissionsError = permissions.length === 0 ? "Select at least one permission" : undefined
+  const roleError = firstError(roleNameSchema, role);
+  const permissionsError =
+    permissions.length === 0 ? "Select at least one permission" : undefined;
 
   const addRoleHanlder = () => {
-    if (roleError) return errorAlert(roleError)
-    if (permissionsError) return errorAlert(permissionsError)
-    AddMutation.mutate({ role: role.trim(), permissions })
-  }
+    if (roleError) return errorAlert(roleError);
+    if (permissionsError) return errorAlert(permissionsError);
+    AddMutation.mutate({ role: role.trim(), permissions });
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -121,7 +133,6 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-[840px] bg-secondary border border-border rounded-none p-0 max-h-[650px] ">
-
         {/* Grain overlay */}
         <div
           className="pointer-events-none absolute inset-0 z-50 opacity-[0.035] h-full "
@@ -130,23 +141,27 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
           }}
         />
 
-
         <div className="p-8 space-y-8">
-
           {/* Header */}
           <DialogHeader className="space-y-3">
             <div className="flex items-center gap-2 mb-1">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Access Control</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Access Control
+              </span>
             </div>
-            <DialogTitle className="flex items-center gap-3 font-light text-2xl tracking-[-0.02em] text-text" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+            <DialogTitle
+              className="flex items-center gap-3 font-light text-2xl tracking-[-0.02em] text-text"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            >
               <div className="bg-surface-alt border border-border p-2">
                 <ShieldCheck size={18} className="text-gold" />
               </div>
               Create New Role
             </DialogTitle>
             <DialogDescription className="text-text-muted text-sm leading-relaxed">
-              Define a role and control what studio features this member can access.
+              Define a role and control what studio features this member can
+              access.
             </DialogDescription>
           </DialogHeader>
 
@@ -156,7 +171,9 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
               <div className="bg-surface-alt border border-border p-1.5">
                 <LayoutDashboard size={14} className="text-gold" />
               </div>
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Recommended Templates</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Recommended Templates
+              </span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
@@ -166,9 +183,10 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
                   key={index}
                   onClick={() => selectTemplate(index)}
                   className={`relative group bg-surface border p-4 text-left transition-all duration-500 overflow-hidden rounded-none
-                    ${role === item.role
-                      ? "border-gold"
-                      : "border-border hover:border-border-gold"
+                    ${
+                      role === item.role
+                        ? "border-gold"
+                        : "border-border hover:border-border-gold"
                     }`}
                 >
                   {role === item.role && (
@@ -178,7 +196,10 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
                     />
                   )}
                   <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
-                  <p className="text-text text-sm font-light tracking-wide" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                  <p
+                    className="text-text text-sm font-light tracking-wide"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
                     {item.role}
                   </p>
                   <p className="text-text-muted text-[11px] mt-1 tracking-wider">
@@ -195,7 +216,9 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
               <div className="bg-surface-alt border border-border p-1.5">
                 <UserCog size={14} className="text-gold" />
               </div>
-              <label className="text-[10px] uppercase tracking-[0.28em] text-gold">Role Name</label>
+              <label className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Role Name
+              </label>
             </div>
             <Input
               placeholder="e.g. Supervisor"
@@ -215,7 +238,9 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
               <div className="bg-surface-alt border border-border p-1.5">
                 <CheckCircle size={14} className="text-gold" />
               </div>
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Permissions</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Permissions
+              </span>
               <div className="flex-1 h-px bg-border" />
               <span className="text-[10px] tracking-widest uppercase text-text-dim">
                 {permissions.length} / {bussinessFeature.length} selected
@@ -228,9 +253,10 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
                 <label
                   key={feature}
                   className={`relative group flex items-center gap-3 bg-surface border p-3 cursor-pointer transition-all duration-500 rounded-none overflow-hidden
-                    ${permissions.includes(feature)
-                      ? "border-gold"
-                      : "border-border hover:border-border-gold"
+                    ${
+                      permissions.includes(feature)
+                        ? "border-gold"
+                        : "border-border hover:border-border-gold"
                     }`}
                 >
                   {permissions.includes(feature) && (
@@ -258,7 +284,9 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
           <DialogFooter className="pt-2 border-t border-border">
             <Button
               className="w-full"
-              disabled={AddMutation.isPending || !!roleError || !!permissionsError}
+              disabled={
+                AddMutation.isPending || !!roleError || !!permissionsError
+              }
               onClick={addRoleHanlder}
             >
               {AddMutation.isPending ? (
@@ -267,13 +295,14 @@ export function AddRolesModal({ refetch }: { refetch: () => void }) {
                   Saving…
                 </span>
               ) : (
-                <span className="text-[11px] uppercase tracking-[0.2em]">Save Role</span>
+                <span className="text-[11px] uppercase tracking-[0.2em]">
+                  Save Role
+                </span>
               )}
             </Button>
           </DialogFooter>
-
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

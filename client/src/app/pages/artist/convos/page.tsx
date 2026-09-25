@@ -5,28 +5,25 @@ import { useState, useEffect } from "react";
 import { convoInterface } from "@/app/types/convo.type";
 import Link from "next/link";
 import useUserStore from "@/app/store/useUserStore";
-import { getChatIndex } from "@/app/utils/customFunction";
+import { getChatIndex, getUnreadCount } from "@/app/utils/customFunction";
 import { MessageSquare } from "lucide-react";
 
 export default function Page() {
-  
-  const {user} = useUserStore()
-  
-  const [convos, setConvos] = useState<convoInterface[]>([])
+  const { user } = useUserStore();
+
+  const [convos, setConvos] = useState<convoInterface[]>([]);
 
   const { data } = useQuery({
-    queryKey : ['convos'],
-    queryFn : () => axiosInstance.get(`/convo`)
-  })
+    queryKey: ["convos"],
+    queryFn: () => axiosInstance.get(`/convo`),
+  });
 
   useEffect(() => {
-    if(data?.data) setConvos(data?.data)
-  }, [data])
-
+    if (data?.data) setConvos(data?.data);
+  }, [data]);
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -39,7 +36,6 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -62,6 +58,7 @@ export default function Page() {
             {convos.map((convo) => {
               const index = user?._id === convo.accounts[0]._id ? 1 : 0;
               const other = convo.accounts[index];
+              const unread = getUnreadCount(user?._id ?? "", convo);
 
               return (
                 <Link
@@ -70,7 +67,6 @@ export default function Page() {
                   className="block"
                 >
                   <div className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold flex items-center gap-4 px-5 py-4">
-
                     {/* Gold bottom line reveal */}
                     <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
 
@@ -97,13 +93,28 @@ export default function Page() {
                       </p>
                     </div>
 
+                    {unread > 0 && (
+                      <span className="flex-shrink-0 text-[9px] font-bold leading-none px-2 py-1 text-warning-light bg-warning-muted border border-warning-border rounded-full">
+                        {unread}
+                      </span>
+                    )}
+
                     {/* Arrow */}
                     <div className="flex-shrink-0 text-border group-hover:text-gold transition-colors duration-300">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1" strokeLinecap="square"/>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                      >
+                        <path
+                          d="M3 8h10M9 4l4 4-4 4"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="square"
+                        />
                       </svg>
                     </div>
-
                   </div>
                 </Link>
               );
@@ -125,12 +136,12 @@ export default function Page() {
             >
               No conversations yet
             </p>
-            <p className="text-text-muted text-sm">Your messages will appear here</p>
+            <p className="text-text-muted text-sm">
+              Your messages will appear here
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );
-  
 }

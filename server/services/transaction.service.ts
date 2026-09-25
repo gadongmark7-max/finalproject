@@ -1,12 +1,29 @@
 import TransactionModel from "../model/transactions.model";
+import mongoose from "mongoose";
+import BookingModel from "../model/booking.model";
 import {
   transactionInterface,
   transactionInterfaceInput,
 } from "../types/transaction.type";
 
+const BOOKING_LIST_FIELDS =
+  "tattooImg originalPrice balance date time duration status session paymentMethod";
+
 export class TransactionService {
   static async create(data: transactionInterfaceInput) {
-    await TransactionModel.create(data);
+    return await TransactionModel.create(data);
+  }
+
+  static async getTotalByBooking(bookingId: string) {
+    const [result] = await TransactionModel.aggregate([
+      { $match: { bookingId: new mongoose.Types.ObjectId(bookingId) } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+    return result?.total ?? 0;
+  }
+
+  static async deleteById(id: string) {
+    await TransactionModel.findByIdAndDelete(id);
   }
 
   static async getById(id: string) {
@@ -28,6 +45,7 @@ export class TransactionService {
     return await TransactionModel.find({ sender })
       .populate("sender")
       .populate("receiver")
+      .populate("bookingId", BOOKING_LIST_FIELDS)
       .sort({ _id: -1 });
   }
 
@@ -35,6 +53,19 @@ export class TransactionService {
     return await TransactionModel.find({ receiver })
       .populate("sender")
       .populate("receiver")
+      .sort({ _id: -1 });
+  }
+
+  static async getByReceiverOrBookingArtist(accountId: string) {
+    const bookingIds = await BookingModel.find({ artist: accountId }).distinct(
+      "_id",
+    );
+    return await TransactionModel.find({
+      $or: [{ receiver: accountId }, { bookingId: { $in: bookingIds } }],
+    })
+      .populate("sender")
+      .populate("receiver")
+      .populate("bookingId", BOOKING_LIST_FIELDS)
       .sort({ _id: -1 });
   }
 }

@@ -6,6 +6,7 @@ import cloudinary from "../utils/cloudinary";
 import fs from "fs";
 import { NotificationService } from "../services/notifications.service";
 import { hashFile, hashRemoteImage } from "../utils/imageHash";
+import { aiEstimateSnapshotSchema } from "../validation/aiAnalysis.schema";
 
 const DUPLICATE_IMAGE_RESPONSE = {
   error: "This tattoo image already exists.",
@@ -25,6 +26,10 @@ export class PostController {
         itemUsed,
         downPercentage,
         size,
+        bodyPart,
+        sizeWidthCm,
+        sizeHeightCm,
+        aiEstimate,
       } = request.body;
 
       let url: string;
@@ -72,6 +77,19 @@ export class PostController {
       const parsedTags = JSON.parse(tags);
       const parsedSesion = JSON.parse(sessions);
       const parsedItemUsed = JSON.parse(itemUsed);
+      let parsedAiEstimate = null;
+      if (aiEstimate) {
+        try {
+          const snapshot = aiEstimateSnapshotSchema.safeParse(
+            JSON.parse(aiEstimate),
+          );
+          if (snapshot.success) parsedAiEstimate = snapshot.data;
+          else
+            console.warn("Ignoring invalid aiEstimate:", snapshot.error.issues);
+        } catch {
+          console.warn("Ignoring unparseable aiEstimate");
+        }
+      }
 
       await PostService.create({
         account: account?._id!,
@@ -83,6 +101,10 @@ export class PostController {
         itemUsed: parsedItemUsed,
         downPercentage: Number(downPercentage),
         size: size,
+        bodyPart: bodyPart || undefined,
+        sizeWidthCm: sizeWidthCm ? Number(sizeWidthCm) : undefined,
+        sizeHeightCm: sizeHeightCm ? Number(sizeHeightCm) : undefined,
+        aiEstimate: parsedAiEstimate,
         imageHash,
       });
 

@@ -12,26 +12,54 @@ import useCurrentLocation from "@/app/hooks/locationHooks";
 import { mapIcon } from "@/app/utils/customFunction";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import "leaflet/dist/leaflet.css";
 import TimerText from "@/components/ui/timer";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import OtAction from "@/components/ui/otAction";
 import {
-  Clock, LogIn, LogOut, MapPin, Calendar as CalendarIcon,
-  CheckCircle2, XCircle, Timer, Navigation, AlertCircle
+  Clock,
+  LogIn,
+  LogOut,
+  MapPin,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  XCircle,
+  Timer,
+  Navigation,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { calculateDistance } from "@/app/utils/customFunction";
 import { attendanceInterface } from "@/app/types/attendance.type";
-import { getTodayAttendance, convertToAmPm, isDayAvailable, getTimeInStatus, getTimeOutStatus } from "@/app/utils/customFunction";
+import {
+  getTodayAttendance,
+  convertToAmPm,
+  isDayAvailable,
+  getTimeInStatus,
+  getTimeOutStatus,
+} from "@/app/utils/customFunction";
 import { useParams } from "next/navigation";
 import { LeaveModal } from "./components/leave";
 
 const ATTENDANCE_RADIUS = 25000;
 
-const getArtistIndexInBussiness = (artistId: string, bussiness: bussinessInfoInterface) => {
+const getArtistIndexInBussiness = (
+  artistId: string,
+  bussiness: bussinessInfoInterface,
+) => {
   let artistIndex = 0;
   bussiness.artists.forEach((item, index) => {
     if (artistId == item.artist._id) artistIndex = index;
@@ -45,12 +73,16 @@ export default function Page() {
 
   const { user } = useUserStore();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedTime, setSelectedTime] = useState<string>(format(new Date(), "HH:mm"));
+  const [selectedTime, setSelectedTime] = useState<string>(
+    format(new Date(), "HH:mm"),
+  );
 
   const { data: attendances, refetch } = useQuery({
     queryKey: ["employee_attendance"],
     queryFn: async (): Promise<attendanceInterface[]> => {
-      const response = await axiosInstance.get(`/account/attendance/${user?.email}`);
+      const response = await axiosInstance.get(
+        `/account/attendance/${user?.email}`,
+      );
       return response.data;
     },
   });
@@ -58,19 +90,26 @@ export default function Page() {
   const { data: bussinessInfo } = useQuery({
     queryKey: ["info_bussiness"],
     queryFn: async (): Promise<bussinessInfoInterface> => {
-      const response = await axiosInstance.get(`/account/bussinessInfo/${paramsId}`);
+      const response = await axiosInstance.get(
+        `/account/bussinessInfo/${paramsId}`,
+      );
       return response.data;
     },
   });
 
-  const todayAttendance = getTodayAttendance(format(selectedDate, "yyyy-MM-dd"), attendances || []);
+  const todayAttendance = getTodayAttendance(
+    format(selectedDate, "yyyy-MM-dd"),
+    attendances || [],
+  );
   const currentLocation = useCurrentLocation();
 
   const isWithinRange = useMemo(() => {
     if (!currentLocation || !bussinessInfo?.bussiness?.location) return false;
     const distance = calculateDistance(
-      currentLocation.lat, currentLocation.lng,
-      bussinessInfo.bussiness.location.lat!, bussinessInfo.bussiness.location.long!
+      currentLocation.lat,
+      currentLocation.lng,
+      bussinessInfo.bussiness.location.lat!,
+      bussinessInfo.bussiness.location.long!,
     );
     return distance <= ATTENDANCE_RADIUS;
   }, [currentLocation, bussinessInfo]);
@@ -78,24 +117,39 @@ export default function Page() {
   const distanceToOffice = useMemo(() => {
     if (!currentLocation || !bussinessInfo?.bussiness?.location) return null;
     const distance = calculateDistance(
-      currentLocation.lat, currentLocation.lng,
-      bussinessInfo.bussiness.location.lat!, bussinessInfo.bussiness.location.long!
+      currentLocation.lat,
+      currentLocation.lng,
+      bussinessInfo.bussiness.location.lat!,
+      bussinessInfo.bussiness.location.long!,
     );
     return Math.round(distance);
   }, [currentLocation, bussinessInfo]);
 
   const mutationTimeIn = useMutation({
-    mutationFn: (data: { email: string; timeIn: string; date: string; bussiness: string }) =>
-      axiosInstance.post("/account/attendance/timeIn", data),
-    onSuccess: () => { successAlert("time in recorded"); refetch(); },
-    onError: () => errorAlert("error accour"),
+    mutationFn: (data: {
+      email: string;
+      timeIn: string;
+      date: string;
+      bussiness: string;
+    }) => axiosInstance.post("/account/attendance/timeIn", data),
+    onSuccess: () => {
+      successAlert("time in recorded");
+      refetch();
+    },
+    onError: () => errorAlert("error occur"),
   });
 
   const mutationTimeOut = useMutation({
-    mutationFn: (data: { timeOut: string; attendanceId: string; bussinessId: string }) =>
-      axiosInstance.post("/account/attendance/timeOut", data),
-    onSuccess: () => { successAlert("time out recoreded"); refetch(); },
-    onError: () => errorAlert("error accour"),
+    mutationFn: (data: {
+      timeOut: string;
+      attendanceId: string;
+      bussinessId: string;
+    }) => axiosInstance.post("/account/attendance/timeOut", data),
+    onSuccess: () => {
+      successAlert("time out recoreded");
+      refetch();
+    },
+    onError: () => errorAlert("error occur"),
   });
 
   const isValidTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(selectedTime);
@@ -131,11 +185,12 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-primary">
-
       {/* Grain overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient gold glow */}
@@ -147,7 +202,9 @@ export default function Page() {
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Studio Portal</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Studio Portal
+              </span>
             </div>
             <h1
               className="text-4xl font-light text-text tracking-[-0.02em]"
@@ -177,10 +234,8 @@ export default function Page() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
         <div className="grid lg:grid-cols-2 gap-6">
-
           {/* Left Column */}
           <div className="space-y-6">
-
             {/* Clock In/Out Card */}
             <div className="bg-surface border border-border relative group">
               <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -191,21 +246,28 @@ export default function Page() {
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="h-px w-4 bg-gold opacity-50" />
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Clock In / Out</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Clock In / Out
+                    </span>
                   </div>
-                  <p className="text-xs text-text-muted">Record your attendance for today</p>
+                  <p className="text-xs text-text-muted">
+                    Record your attendance for today
+                  </p>
                 </div>
               </div>
 
               <div className="p-6 space-y-5">
-
                 {/* Dev mode picker */}
                 <div className="border border-warning-border bg-warning-muted p-4 space-y-3">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-warning-light mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-medium text-warning-light uppercase tracking-[0.1em]">Development Mode</p>
-                      <p className="text-xs text-text-muted mt-0.5">Date picker for testing — will be removed later</p>
+                      <p className="text-xs font-medium text-warning-light uppercase tracking-[0.1em]">
+                        Development Mode
+                      </p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        Date picker for testing — will be removed later
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-3 flex-wrap">
@@ -213,11 +275,18 @@ export default function Page() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className={cn("justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !selectedDate && "text-muted-foreground",
+                          )}
                           size="sm"
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                          {selectedDate ? (
+                            format(selectedDate, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -243,7 +312,15 @@ export default function Page() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={handleTimeIn}
-                    disabled={!isWithinRange || mutationTimeIn.isPending || !!todayAttendance || isDayAvailable(selectedDate, bussinessInfo.artists[artistIndex].schedDay)}
+                    disabled={
+                      !isWithinRange ||
+                      mutationTimeIn.isPending ||
+                      !!todayAttendance ||
+                      isDayAvailable(
+                        selectedDate,
+                        bussinessInfo.artists[artistIndex].schedDay,
+                      )
+                    }
                     size="lg"
                   >
                     <LogIn className="h-5 w-5" />
@@ -252,7 +329,15 @@ export default function Page() {
 
                   <Button
                     onClick={handleTimeOut}
-                    disabled={!isWithinRange || mutationTimeOut.isPending || !todayAttendance || isDayAvailable(selectedDate, bussinessInfo.artists[artistIndex].schedDay)}
+                    disabled={
+                      !isWithinRange ||
+                      mutationTimeOut.isPending ||
+                      !todayAttendance ||
+                      isDayAvailable(
+                        selectedDate,
+                        bussinessInfo.artists[artistIndex].schedDay,
+                      )
+                    }
                     size="lg"
                   >
                     <LogOut className="h-5 w-5" />
@@ -264,8 +349,15 @@ export default function Page() {
                   <div className="flex items-start gap-3 p-4 bg-danger-muted border border-danger-border">
                     <AlertCircle className="w-4 h-4 text-danger-light mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-text-muted leading-relaxed">
-                      You must be within <span className="text-danger-light font-medium">{ATTENDANCE_RADIUS}m</span> of the office to clock in or out.
-                      Currently <span className="text-danger-light font-medium">{distanceToOffice}m</span> away.
+                      You must be within{" "}
+                      <span className="text-danger-light font-medium">
+                        {ATTENDANCE_RADIUS}m
+                      </span>{" "}
+                      of the office to clock in or out. Currently{" "}
+                      <span className="text-danger-light font-medium">
+                        {distanceToOffice}m
+                      </span>{" "}
+                      away.
                     </p>
                   </div>
                 )}
@@ -282,9 +374,13 @@ export default function Page() {
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <div className="h-px w-4 bg-gold opacity-50" />
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Location Tracking</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Location Tracking
+                    </span>
                   </div>
-                  <p className="text-xs text-text-muted">Your current location and office geofence boundary</p>
+                  <p className="text-xs text-text-muted">
+                    Your current location and office geofence boundary
+                  </p>
                 </div>
               </div>
               <div className="h-[400px] w-full">
@@ -296,18 +392,26 @@ export default function Page() {
                 >
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <Marker
-                    position={[bussinessInfo.bussiness?.location?.lat!, bussinessInfo.bussiness?.location?.long!]}
+                    position={[
+                      bussinessInfo.bussiness?.location?.lat!,
+                      bussinessInfo.bussiness?.location?.long!,
+                    ]}
                     icon={mapIcon("/shop-logo.jpg")}
                   >
                     <Popup>
                       <div className="text-center">
                         <h3 className="font-semibold">Office Location</h3>
-                        <p className="text-sm">{bussinessInfo.bussiness?.name || "Business Location"}</p>
+                        <p className="text-sm">
+                          {bussinessInfo.bussiness?.name || "Business Location"}
+                        </p>
                       </div>
                     </Popup>
                   </Marker>
                   <Circle
-                    center={[bussinessInfo.bussiness?.location?.lat!, bussinessInfo.bussiness?.location?.long!]}
+                    center={[
+                      bussinessInfo.bussiness?.location?.lat!,
+                      bussinessInfo.bussiness?.location?.long!,
+                    ]}
                     radius={ATTENDANCE_RADIUS}
                     pathOptions={{
                       color: isWithinRange ? "#4E7C59" : "#C9A84C",
@@ -324,7 +428,11 @@ export default function Page() {
                     <Popup>
                       <div className="text-center">
                         <h3 className="font-semibold">Your Location</h3>
-                        <p className="text-sm">{isWithinRange ? "Within attendance radius" : "Outside attendance radius"}</p>
+                        <p className="text-sm">
+                          {isWithinRange
+                            ? "Within attendance radius"
+                            : "Outside attendance radius"}
+                        </p>
                       </div>
                     </Popup>
                   </Marker>
@@ -335,7 +443,6 @@ export default function Page() {
 
           {/* Right Column */}
           <div className="space-y-6">
-
             {/* Live Clock Card */}
             <div className="bg-surface border border-border relative group">
               <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -347,7 +454,9 @@ export default function Page() {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <div className="h-px w-4 bg-gold opacity-50" />
-                      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Current Time</span>
+                      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                        Current Time
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -367,9 +476,15 @@ export default function Page() {
                   <Navigation className="w-4 h-4 text-gold" />
                   <span>
                     Distance to office:{" "}
-                    <span className="text-text font-medium">{distanceToOffice}m</span>
+                    <span className="text-text font-medium">
+                      {distanceToOffice}m
+                    </span>
                     {distanceToOffice && (
-                      <span className="text-text-muted"> ({isWithinRange ? "within" : "outside"} {ATTENDANCE_RADIUS}m radius)</span>
+                      <span className="text-text-muted">
+                        {" "}
+                        ({isWithinRange ? "within" : "outside"}{" "}
+                        {ATTENDANCE_RADIUS}m radius)
+                      </span>
                     )}
                   </span>
                 </div>
@@ -377,9 +492,9 @@ export default function Page() {
             </div>
 
             {/* Schedule Info */}
-            {(bussinessInfo.artists[artistIndex].schedTime.length !== 0 && bussinessInfo.artists[artistIndex].schedDay.length !== 0) ? (
+            {bussinessInfo.artists[artistIndex].schedTime.length !== 0 &&
+            bussinessInfo.artists[artistIndex].schedDay.length !== 0 ? (
               <div className="grid grid-cols-2 gap-4">
-
                 {/* Working Days */}
                 <div className="bg-surface border border-border relative group p-5 space-y-3">
                   <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -387,17 +502,21 @@ export default function Page() {
                     <div className="bg-surface-alt border border-border p-1.5">
                       <CalendarIcon className="w-3.5 h-3.5 text-gold" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Working Days</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Working Days
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {bussinessInfo.artists[artistIndex].schedDay.map((item, index) => (
-                      <span
-                        key={index}
-                        className="px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] bg-surface-alt border border-border text-text-muted"
-                      >
-                        {item}
-                      </span>
-                    ))}
+                    {bussinessInfo.artists[artistIndex].schedDay.map(
+                      (item, index) => (
+                        <span
+                          key={index}
+                          className="px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] bg-surface-alt border border-border text-text-muted"
+                        >
+                          {item}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </div>
 
@@ -408,25 +527,33 @@ export default function Page() {
                     <div className="bg-surface-alt border border-border p-1.5">
                       <Clock className="w-3.5 h-3.5 text-gold" />
                     </div>
-                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Shift Hours</span>
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                      Shift Hours
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span
                       className="text-2xl font-light text-text"
                       style={{ fontFamily: "'Cormorant Garamond', serif" }}
                     >
-                      {convertToAmPm(bussinessInfo.artists[artistIndex].schedTime[0])}
+                      {convertToAmPm(
+                        bussinessInfo.artists[artistIndex].schedTime[0],
+                      )}
                     </span>
                     <div className="h-px w-4 bg-gold opacity-40" />
                     <span
                       className="text-2xl font-light text-text"
                       style={{ fontFamily: "'Cormorant Garamond', serif" }}
                     >
-                      {convertToAmPm(bussinessInfo.artists[artistIndex].schedTime[bussinessInfo.artists[artistIndex].schedTime.length - 1])}
+                      {convertToAmPm(
+                        bussinessInfo.artists[artistIndex].schedTime[
+                          bussinessInfo.artists[artistIndex].schedTime.length -
+                            1
+                        ],
+                      )}
                     </span>
                   </div>
                 </div>
-
               </div>
             ) : (
               <div className="bg-surface border border-dashed border-border p-8 flex flex-col items-center justify-center text-center gap-3">
@@ -434,15 +561,18 @@ export default function Page() {
                   <CalendarIcon className="w-6 h-6 text-text-dim" />
                 </div>
                 <div>
-                  <p className="text-sm text-text-muted">No schedule assigned yet</p>
-                  <p className="text-xs text-text-dim mt-1 tracking-wide">Schedule will appear here once assigned</p>
+                  <p className="text-sm text-text-muted">
+                    No schedule assigned yet
+                  </p>
+                  <p className="text-xs text-text-dim mt-1 tracking-wide">
+                    Schedule will appear here once assigned
+                  </p>
                 </div>
               </div>
             )}
 
             {/* Attendance History */}
             <div className="bg-surface border border-border relative ">
-
               <div className="flex justify-between">
                 <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
                 <div className="p-6 border-b border-border flex items-center gap-3">
@@ -452,32 +582,66 @@ export default function Page() {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <div className="h-px w-4 bg-gold opacity-50" />
-                      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Attendance History</span>
+                      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                        Attendance History
+                      </span>
                     </div>
-                    <p className="text-xs text-text-muted">Your recent attendance records and work hours</p>
+                    <p className="text-xs text-text-muted">
+                      Your recent attendance records and work hours
+                    </p>
                   </div>
                 </div>
-                <LeaveModal  employeeEmail={bussinessInfo.artists[artistIndex].artist.email} businessId={bussinessInfo.bussiness._id} times={bussinessInfo.artists[artistIndex].schedTime} days={bussinessInfo.artists[artistIndex].schedDay}/>
+                <LeaveModal
+                  employeeEmail={
+                    bussinessInfo.artists[artistIndex].artist.email
+                  }
+                  businessId={bussinessInfo.bussiness._id}
+                  times={bussinessInfo.artists[artistIndex].schedTime}
+                  days={bussinessInfo.artists[artistIndex].schedDay}
+                />
               </div>
-           
 
               <div className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Date</span></TableHead>
-                      <TableHead><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Time In</span></TableHead>
-                      <TableHead><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Time Out</span></TableHead>
-                      <TableHead className="text-right"><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Duration</span></TableHead>
-                      <TableHead className="text-right"><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">OT</span></TableHead>
-                      <TableHead className="text-right"><span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Action</span></TableHead>
+                      <TableHead>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          Date
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          Time In
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          Time Out
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          Duration
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          OT
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                          Action
+                        </span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {attendances?.map((record, index) => (
                       <TableRow
                         key={index}
-                        className={`transition-colors ${(todayAttendance && todayAttendance._id == record._id) ? "bg-surface-alt" : ""}`}
+                        className={`transition-colors ${todayAttendance && todayAttendance._id == record._id ? "bg-surface-alt" : ""}`}
                       >
                         <TableCell>
                           <span className="text-sm text-text font-light">
@@ -487,8 +651,13 @@ export default function Page() {
 
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono text-text">{convertToAmPm(record.timeIn)}</span>
-                            {getTimeInStatus(record.timeIn, bussinessInfo.artists[artistIndex].schedTime[0]) === "ontime" ? (
+                            <span className="text-sm font-mono text-text">
+                              {convertToAmPm(record.timeIn)}
+                            </span>
+                            {getTimeInStatus(
+                              record.timeIn,
+                              bussinessInfo.artists[artistIndex].schedTime[0],
+                            ) === "ontime" ? (
                               <span className="text-[10px] uppercase tracking-[0.1em] px-1.5 py-0.5 bg-success-muted text-success-light border border-success-border">
                                 On Time
                               </span>
@@ -503,8 +672,16 @@ export default function Page() {
                         <TableCell>
                           {record.timeOut ? (
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-mono text-text">{convertToAmPm(record.timeOut)}</span>
-                              {getTimeOutStatus(record.timeOut, bussinessInfo.artists[artistIndex].schedTime[bussinessInfo.artists[artistIndex].schedTime.length - 1]) === "earlyout" ? (
+                              <span className="text-sm font-mono text-text">
+                                {convertToAmPm(record.timeOut)}
+                              </span>
+                              {getTimeOutStatus(
+                                record.timeOut,
+                                bussinessInfo.artists[artistIndex].schedTime[
+                                  bussinessInfo.artists[artistIndex].schedTime
+                                    .length - 1
+                                ],
+                              ) === "earlyout" ? (
                                 <span className="text-[10px] uppercase tracking-[0.1em] px-1.5 py-0.5 bg-danger-muted text-danger-light border border-danger-border">
                                   Early
                                 </span>
@@ -515,7 +692,9 @@ export default function Page() {
                               )}
                             </div>
                           ) : (
-                            <span className="text-text-dim italic text-sm">—</span>
+                            <span className="text-text-dim italic text-sm">
+                              —
+                            </span>
                           )}
                         </TableCell>
 
@@ -523,23 +702,31 @@ export default function Page() {
                           {record.duration > 0 ? (
                             <span
                               className="text-lg font-light text-text"
-                              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                              style={{
+                                fontFamily: "'Cormorant Garamond', serif",
+                              }}
                             >
-                              {record.duration.toFixed(1)}<span className="text-xs text-text-muted ml-1">hrs</span>
+                              {record.duration.toFixed(1)}
+                              <span className="text-xs text-text-muted ml-1">
+                                hrs
+                              </span>
                             </span>
                           ) : (
-                            <span className="text-[10px] uppercase tracking-[0.15em] text-gold">Active</span>
+                            <span className="text-[10px] uppercase tracking-[0.15em] text-gold">
+                              Active
+                            </span>
                           )}
                         </TableCell>
 
                         <TableCell className="text-right">
-                          <span className="text-sm text-text-muted">{record?.ot.toFixed(1)}</span>
+                          <span className="text-sm text-text-muted">
+                            {record?.ot.toFixed(1)}
+                          </span>
                         </TableCell>
 
                         <TableCell className="text-right">
-                            <OtAction attendance={record} refetch={refetch}/>
+                          <OtAction attendance={record} refetch={refetch} />
                         </TableCell>
-
                       </TableRow>
                     ))}
                   </TableBody>
@@ -549,20 +736,23 @@ export default function Page() {
               {/* Footer */}
               {attendances && attendances.length > 0 && (
                 <div className="px-6 py-4 border-t border-border flex justify-between items-center">
-                  <p className="text-[10px] uppercase tracking-widest text-text-dim">{attendances.length} record{attendances.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-text-dim">
+                    {attendances.length} record
+                    {attendances.length !== 1 ? "s" : ""}
+                  </p>
                   <div className="flex items-center gap-1.5">
                     <div className="h-px w-4 bg-border" />
-                    <span className="text-[10px] uppercase tracking-widest text-text-dim">Ink Of Baphomet Studio</span>
+                    <span className="text-[10px] uppercase tracking-widest text-text-dim">
+                      Ink Of Baphomet Studio
+                    </span>
                     <div className="h-px w-4 bg-border" />
                   </div>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
     </div>
   );
 }
-

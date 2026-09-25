@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DatabaseBackup,
@@ -16,6 +17,15 @@ import axiosInstance from "@/app/utils/axios";
 import { errorAlert, successAlert, confirmAlert } from "@/app/utils/alert";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import useUserStore from "@/app/store/useUserStore";
 
 const MAX_RESTORE_MB = 50;
 
@@ -26,8 +36,23 @@ interface LastBackupInfo {
   createdBy?: { name?: string; email?: string } | null;
 }
 
+interface BackupFile {
+  filename: string;
+  size: number;
+  createdAt: string;
+}
+
+const formatSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export default function Page() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const { clearUser } = useUserStore();
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | undefined>(undefined);
@@ -41,23 +66,54 @@ export default function Page() {
     },
   });
 
+  const { data: backups = [], isLoading: isLoadingBackups } = useQuery({
+    queryKey: ["backup-list"],
+    queryFn: async (): Promise<BackupFile[]> => {
+      const res = await axiosInstance.get("/backup");
+      return res.data;
+    },
+  });
+
   const backupMutation = useMutation({
-    mutationFn: () => axiosInstance.get("/backup", { responseType: "blob" }),
-    onSuccess: (res) => {
-      const blob = new Blob([res.data], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
+    mutationFn: async (): Promise<BackupFile> =>
+      (await axiosInstance.post("/backup")).data,
+    onSuccess: (created) => {
+      successAlert("Backup created");
+      queryClient.setQueryData<BackupFile[]>(["backup-list"], (old = []) => [
+        created,
+        ...old.filter((file) => file.filename !== created.filename),
+      ]);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["backup-last"] }),
+        queryClient.invalidateQueries({ queryKey: ["backup-list"] }),
+      ]);
+    },
+    onError: () => errorAlert("Failed to create backup"),
+  });
+
+  const handleDownload = async (filename: string) => {
+    setDownloadingFile(filename);
+    try {
+      const res = await axiosInstance.get(
+        `/backup/download/${encodeURIComponent(filename)}`,
+        { responseType: "blob" },
+      );
+      const url = URL.createObjectURL(
+        new Blob([res.data], { type: "application/json" }),
+      );
       const link = document.createElement("a");
       link.href = url;
-      link.download = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      successAlert("Backup created and downloaded");
-      queryClient.invalidateQueries({ queryKey: ["backup-last"] });
-    },
-    onError: () => errorAlert("Failed to create backup"),
-  });
+    } catch {
+      errorAlert("Failed to download backup");
+    } finally {
+      setDownloadingFile(null);
+    }
+  };
 
   const restoreMutation = useMutation({
     mutationFn: (file: File) => {
@@ -65,11 +121,20 @@ export default function Page() {
       formData.append("file", file);
       return axiosInstance.post("/backup/restore", formData);
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       successAlert("Restore completed successfully");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      queryClient.invalidateQueries({ queryKey: ["backup-last"] });
+
+      if (res.data?.sessionValid === false) {
+        queryClient.clear();
+        clearUser();
+        localStorage.clear();
+        sessionStorage.clear();
+        router.push("/login");
+        return;
+      }
+      return queryClient.invalidateQueries();
     },
     onError: (err: any) => {
       errorAlert(
@@ -77,6 +142,8 @@ export default function Page() {
           ? err.response.data
           : "Restore failed. Please check the backup file.",
       );
+      queryClient.invalidateQueries({ queryKey: ["backup-list"] });
+      queryClient.invalidateQueries({ queryKey: ["backup-last"] });
     },
   });
 
@@ -160,9 +227,10 @@ export default function Page() {
             </div>
 
             <p className="text-sm text-text-muted leading-relaxed">
-              Create a full snapshot of the system's data and download it as a
-              single JSON file. Keep it somewhere safe — anyone holding this
-              file can see everything it contains.
+              Create a full snapshot of the system's data, saved as a single
+              JSON file. Download a backup from the list below and keep it
+              somewhere safe — anyone holding this file can see everything it
+              contains.
             </p>
 
             <div className="text-[11px] text-text-dim">
@@ -175,7 +243,13 @@ export default function Page() {
                     {new Date(lastBackup.createdAt).toLocaleString()}
                   </span>
                   {lastBackup.createdBy?.name && (
-                    <> by <span className="text-text-muted">{lastBackup.createdBy.name}</span></>
+                    <>
+                      {" "}
+                      by{" "}
+                      <span className="text-text-muted">
+                        {lastBackup.createdBy.name}
+                      </span>
+                    </>
                   )}
                   {" · "}
                   {lastBackup.collections.length} collections
@@ -192,14 +266,64 @@ export default function Page() {
             >
               {backupMutation.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Creating Backup...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Creating
+                  Backup...
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" /> Create &amp; Download Backup
+                  <DatabaseBackup className="w-4 h-4" /> Create Backup
                 </>
               )}
             </Button>
+
+            {isLoadingBackups ? (
+              <p className="text-[11px] text-text-dim">Loading backups…</p>
+            ) : backups.length === 0 ? (
+              <p className="text-[11px] text-text-dim">
+                No backup files available.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>File</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {backups.map((backup) => (
+                    <TableRow key={backup.filename}>
+                      <TableCell className="text-text max-w-[180px] truncate">
+                        {backup.filename}
+                      </TableCell>
+                      <TableCell className="text-text-muted whitespace-nowrap">
+                        {new Date(backup.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-text-muted whitespace-nowrap">
+                        {formatSize(backup.size)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownload(backup.filename)}
+                          disabled={downloadingFile === backup.filename}
+                        >
+                          {downloadingFile === backup.filename ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
+                          Download
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
 
           {/* ── RESTORE ── */}

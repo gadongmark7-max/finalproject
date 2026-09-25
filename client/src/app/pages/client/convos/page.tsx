@@ -1,11 +1,19 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { useState, useEffect } from "react";
 import { convoInterface } from "@/app/types/convo.type";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { errorAlert } from "@/app/utils/alert";
 import useUserStore from "@/app/store/useUserStore";
+import { apiErrorMessage, getUnreadCount } from "@/app/utils/customFunction";
 import { MessageSquare } from "lucide-react";
+
+interface artistConvoInterface {
+  artist: { _id: string; name: string; profile: string };
+  convoId: string | null;
+}
 
 export default function Page() {
   const { user } = useUserStore();
@@ -20,9 +28,34 @@ export default function Page() {
     if (data?.data) setConvos(data?.data);
   }, [data]);
 
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: artistConvo } = useQuery({
+    queryKey: ["artist-convo"],
+    queryFn: async (): Promise<artistConvoInterface> =>
+      (await axiosInstance.get(`/convo/artist`)).data,
+  });
+
+  const openArtistConvo = useMutation({
+    mutationFn: () => axiosInstance.post<string>(`/convo/artist`),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["artist-convo"] });
+      queryClient.invalidateQueries({ queryKey: ["convos"] });
+      router.push(`/pages/client/convo/${response.data}`);
+    },
+    onError: (error) =>
+      errorAlert(
+        apiErrorMessage(
+          error,
+          "Could not open the conversation. Please try again.",
+        ),
+      ),
+  });
+
+  const showArtistEntry = !!artistConvo && !artistConvo.convoId;
+
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -35,7 +68,6 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
@@ -52,12 +84,54 @@ export default function Page() {
           </h1>
         </div>
 
+        {showArtistEntry && (
+          <button
+            type="button"
+            onClick={() => openArtistConvo.mutate()}
+            disabled={openArtistConvo.isPending}
+            className="block w-full text-left disabled:opacity-60"
+          >
+            <div className="relative bg-surface border border-border-gold group transition-all duration-500 hover:border-gold flex items-center gap-4 px-5 py-4">
+              <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
+
+              <div className="relative flex-shrink-0">
+                <img
+                  src={artistConvo.artist.profile}
+                  alt="profile"
+                  className="w-11 h-11 object-cover border border-border"
+                />
+                <div className="absolute -bottom-px -right-px w-2.5 h-2.5 bg-gold" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
+                  Artist
+                </p>
+                <p
+                  className="text-text text-sm font-light mb-0.5 truncate"
+                  style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                >
+                  {artistConvo.artist.name}
+                </p>
+                <p className="text-[11px] text-text-muted truncate tracking-wide">
+                  {openArtistConvo.isPending
+                    ? "Opening conversation…"
+                    : "Start a conversation"}
+                </p>
+              </div>
+
+              <MessageSquare className="w-4 h-4 flex-shrink-0 text-gold" />
+            </div>
+          </button>
+        )}
+
         {/* Convo List */}
         {convos.length > 0 && (
           <div className="space-y-3">
             {convos.map((convo) => {
               const index = user?._id === convo.accounts[0]._id ? 1 : 0;
               const other = convo.accounts[index];
+              const unread = getUnreadCount(user?._id ?? "", convo);
 
               return (
                 <Link
@@ -66,7 +140,6 @@ export default function Page() {
                   className="block"
                 >
                   <div className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold flex items-center gap-4 px-5 py-4">
-
                     {/* Gold bottom line reveal */}
                     <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
 
@@ -93,13 +166,28 @@ export default function Page() {
                       </p>
                     </div>
 
+                    {unread > 0 && (
+                      <span className="flex-shrink-0 text-[9px] font-bold leading-none px-2 py-1 text-warning-light bg-warning-muted border border-warning-border rounded-full">
+                        {unread}
+                      </span>
+                    )}
+
                     {/* Arrow */}
                     <div className="flex-shrink-0 text-border group-hover:text-gold transition-colors duration-300">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1" strokeLinecap="square"/>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                      >
+                        <path
+                          d="M3 8h10M9 4l4 4-4 4"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="square"
+                        />
                       </svg>
                     </div>
-
                   </div>
                 </Link>
               );
@@ -108,7 +196,7 @@ export default function Page() {
         )}
 
         {/* Empty State */}
-        {convos.length === 0 && (
+        {convos.length === 0 && !showArtistEntry && (
           <div className="relative border border-border bg-surface p-16 text-center">
             <div className="pointer-events-none absolute top-0 left-0 w-12 h-12 border-t border-l border-gold opacity-40" />
             <div className="pointer-events-none absolute top-0 right-0 w-12 h-12 border-t border-r border-gold opacity-40" />
@@ -121,10 +209,11 @@ export default function Page() {
             >
               No conversations yet
             </p>
-            <p className="text-text-muted text-sm">Your messages will appear here</p>
+            <p className="text-text-muted text-sm">
+              Your messages will appear here
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );

@@ -9,16 +9,23 @@ import { FieldError } from "@/components/ui/field-error";
 import { priceField } from "@/lib/validation/schemas/booking";
 import {
   firstError,
-  moneyField,
   percentField,
   countField,
   selectField,
 } from "@/lib/validation/fields";
+import {
+  useArtistAiAnalysis,
+  aiRateSchema,
+  aiSizeWidthSchema,
+  aiSizeHeightSchema,
+} from "./components/useArtistAiAnalysis";
 
-const rateSchema = moneyField({ label: "Rate" });
 const downPaymentSchema = percentField("Down payment");
 const qtySchema = countField("Quantity", { min: 1 });
 const categorySchema = selectField("an art style", [""]);
+const rateSchema = aiRateSchema;
+const sizeWidthSchema = aiSizeWidthSchema;
+const sizeHeightSchema = aiSizeHeightSchema;
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -38,7 +45,6 @@ import {
   DollarSign,
   Replace,
   Brush,
-  Cpu,
   Brain,
   Zap,
   UserCheck,
@@ -46,7 +52,7 @@ import {
   Check,
   CheckCircle,
 } from "lucide-react";
-import { errorAlert, successAlert } from "@/app/utils/alert";
+import { errorAlert } from "@/app/utils/alert";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { useParams } from "next/navigation";
@@ -70,8 +76,11 @@ import { SetTattoo3DModal } from "@/app/3d/3dTattooModal";
 import { smartPricing } from "@/app/utils/smartPricing";
 import { ArtStyleSelect } from "@/components/ui/artStyleSelect";
 import { tattooAreaCm2 } from "@/app/utils/customFunction";
+import { tattooSizeCmFromScene } from "@/app/utils/tattooScale";
 import { BodyPartSelect } from "@/components/ui/bodyPartSelect";
 import { BackButton } from "@/components/ui/back-button";
+import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
+import { AiAnalysisCard } from "./components/AiAnalysisCard";
 
 export default function Page() {
   const [type, setType] = useState("newPost");
@@ -82,17 +91,60 @@ export default function Page() {
   const paramsId = params.id as string;
 
   const { data } = useQuery({
-    queryKey: ["work_post"],
+    queryKey: ["work_post", paramsId],
     queryFn: () => axiosInstance.get(`/works/${paramsId}`),
     enabled: paramsId !== "new",
   });
 
+  const workScreenShot: string | null =
+    typeof data?.data?.screenShot === "string" && data.data.screenShot
+      ? data.data.screenShot
+      : null;
+
+  const [isLoadingWorkImage, setIsLoadingWorkImage] = useState(false);
+
   useEffect(() => {
-    if (paramsId != "new" && data?.data) {
-      setType("workPost");
-      setPreview(data.data.screenShot);
-    }
-  }, [data]);
+    if (!workScreenShot) return;
+
+    let cancelled = false;
+    setType("workPost");
+    setPreview(workScreenShot);
+    setPostImg(null);
+    setIsLoadingWorkImage(true);
+
+    const loadExistingImage = async () => {
+      try {
+        const response = await fetch(workScreenShot);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch existing image (${response.status})`,
+          );
+        }
+
+        const blob = await response.blob();
+        if (cancelled) return;
+
+        const fileName =
+          workScreenShot.split("/").pop()?.split("?")[0] ||
+          "existing-tattoo-image.png";
+
+        setPostImg(
+          new File([blob], fileName, { type: blob.type || "image/png" }),
+        );
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Failed to load existing image:", error);
+        setPostImg(null);
+      } finally {
+        if (!cancelled) setIsLoadingWorkImage(false);
+      }
+    };
+
+    loadExistingImage();
+    return () => {
+      cancelled = true;
+    };
+  }, [workScreenShot]);
 
   const [step, setStep] = useState(1);
 
@@ -174,12 +226,30 @@ export default function Page() {
   const perHourNum = Number(perHour) || 0;
   const [isColored, setIsColored] = useState(false);
   const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "");
+  const [sizeWidthCm, setSizeWidthCm] = useState("");
+  const [sizeHeightCm, setSizeHeightCm] = useState("");
+  // True while width/height mirror the 3D placement; false once edited by hand.
+  const [sizeFromScene, setSizeFromScene] = useState(false);
 
   const [editField, setEditField] = useState(false);
 
+  // The 3D body model is the trusted source for body part and size: each
+  // time the artist saves a placement, mirror it into the form (the artist
+  // can still override the fields by hand).
   useEffect(() => {
-    if (tattooData) setBodyPart(tattooData.meshName);
+    if (!tattooData) return;
+    setBodyPart(tattooData.meshName);
+    const { widthCm, heightCm } = tattooSizeCmFromScene(tattooData);
+    setSizeWidthCm(String(widthCm));
+    setSizeHeightCm(String(heightCm));
+    setSizeFromScene(true);
   }, [tattooData]);
+
+  const formAreaCm2 = () => {
+    const w = sizeWidthSchema.safeParse(sizeWidthCm);
+    const h = sizeHeightSchema.safeParse(sizeHeightCm);
+    return w.success && h.success ? w.data * h.data : null;
+  };
 
   const EstimatedPrice = () => {
     if (!tattooData || !category || !perHourNum || !complexity) return false;
@@ -189,7 +259,7 @@ export default function Page() {
       (total, item) => total + item.price * item.qty,
       0,
     );
-    const sizeCm2 = tattooAreaCm2(tattooData.size);
+    const sizeCm2 = formAreaCm2() ?? tattooAreaCm2(tattooData.size);
 
     const estimatedPrice = smartPricing({
       category: category,
@@ -226,21 +296,54 @@ export default function Page() {
         );
         return;
       }
-      errorAlert("error accour");
+      errorAlert("error occur");
     },
   });
 
-  const aiMutation = useMutation({
-    mutationFn: (data: FormData) =>
-      axiosInstance.post("/account/aiAutoFill", data),
-    onSuccess: (response) => {
-      setCategory(response.data.category);
-      setComplexity(response.data.complexity);
-      setIsColored(response.data.isColored);
-      successAlert("Ai Responded");
+  const distributeSessionHours = (totalHours: number, sessionCount: number) => {
+    const count = Math.max(1, Math.round(sessionCount));
+    const perSession = Math.max(0.5, Math.round((totalHours / count) * 10) / 10);
+    return Array(count).fill(perSession);
+  };
+
+  const applyAiEstimate = (result: aiAnalysisResultInterface) => {
+    setSessions(
+      distributeSessionHours(
+        result.analysis.estimatedHours,
+        result.analysis.estimatedSessions,
+      ),
+    );
+    setItemUsed(
+      result.materials.map((m) => ({
+        itemId: m.inventoryItemId,
+        item: m.name,
+        qty: m.estimatedQuantity,
+        price: m.unitCost,
+      })),
+    );
+    setPrice(String(Math.round(result.pricing.suggestedPrice)));
+  };
+
+  const ai = useArtistAiAnalysis(
+    {
+      postImg,
+      bodyPart,
+      perHour,
+      sizeWidthCm,
+      sizeHeightCm,
+      category,
+      complexity,
+      isColored,
     },
-    onError: () => errorAlert("error accour"),
-  });
+    {
+      onAnalyzed: (result) => {
+        setCategory(result.analysis.category);
+        setComplexity(result.analysis.complexity);
+        setIsColored(result.analysis.isColored);
+        applyAiEstimate(result);
+      },
+    },
+  );
 
   const addTag = () => {
     if (tags.length >= 5) return errorAlert("the maximum tags is 5");
@@ -281,42 +384,104 @@ export default function Page() {
       setComplexity(0);
       setIsColored(false);
       setBodyPart("");
+      setSizeWidthCm("");
+      setSizeHeightCm("");
+      setSizeFromScene(false);
+      ai.reset();
     }
   };
 
-  const AiAutoFillHanlder = () => {
-    if (!postImg) return errorAlert("Feature Not Available");
+  const analyzeDisabledReason = isLoadingWorkImage
+    ? "Loading the work image…"
+    : !postImg
+      ? type === "workPost"
+        ? "Could not load this work's image for AI analysis."
+        : "Select a tattoo image first."
+      : !bodyPart
+        ? "Place the tattoo on the 3D body or select a body part."
+        : !rateSchema.safeParse(perHour).success
+          ? "Enter a valid hourly rate."
+          : !sizeWidthSchema.safeParse(sizeWidthCm).success ||
+              !sizeHeightSchema.safeParse(sizeHeightCm).success
+            ? "Enter the tattoo width and height (cm)."
+            : undefined;
 
-    const formData = new FormData();
-
-    formData.append("file", postImg || "none");
-
-    aiMutation.mutate(formData);
-  };
+  const aiSizeLabel =
+    sizeWidthSchema.safeParse(sizeWidthCm).success &&
+    sizeHeightSchema.safeParse(sizeHeightCm).success
+      ? `${Number(sizeWidthCm)} × ${Number(sizeHeightCm)} cm`
+      : null;
 
   // Field errors are hidden on a pristine, never-submitted form; once the
   // artist tries to upload, every invalid/empty required field lights up at
   // once and clears itself the moment it's fixed — no toast needed for these.
   const [triedSubmit, setTriedSubmit] = useState(false);
 
-  const priceError = firstError(priceField, price, { showWhenEmpty: triedSubmit });
-  const rateError = firstError(rateSchema, perHour, { showWhenEmpty: triedSubmit });
+  const priceError = firstError(priceField, price, {
+    showWhenEmpty: triedSubmit,
+  });
+  const rateError = firstError(rateSchema, perHour, {
+    showWhenEmpty: triedSubmit,
+  });
   const downPaymentError = firstError(downPaymentSchema, downPercentage, {
     showWhenEmpty: triedSubmit,
   });
-  const categoryError = firstError(categorySchema, category, { showWhenEmpty: triedSubmit });
+  const categoryError = firstError(categorySchema, category, {
+    showWhenEmpty: triedSubmit,
+  });
+  const sizeWidthError = firstError(sizeWidthSchema, sizeWidthCm, {
+    showWhenEmpty: triedSubmit,
+  });
+  const sizeHeightError = firstError(sizeHeightSchema, sizeHeightCm, {
+    showWhenEmpty: triedSubmit,
+  });
   const tagsError =
-    triedSubmit && tags.length === 0 ? "Please enter at least one tag." : undefined;
+    triedSubmit && tags.length === 0
+      ? "Please enter at least one tag."
+      : undefined;
   const imageError =
     triedSubmit && !postImg && type === "newPost"
       ? "Please select an image."
       : undefined;
+
+  // Reference snapshot of the latest AI estimate, saved alongside the post.
+  // The post's real price is always the artist-entered `price`.
+  const buildAiEstimatePayload = () => {
+    const result = ai.result;
+    if (!result) return null;
+    return {
+      category: result.analysis.category,
+      complexity: result.analysis.complexity,
+      isColored: result.analysis.isColored,
+      bodyPart: result.analysis.bodyPart,
+      sizeWidthCm: result.size.widthCm,
+      sizeHeightCm: result.size.heightCm,
+      hourlyRate: result.pricing.hourlyRate,
+      estimatedHours: result.analysis.estimatedHours,
+      estimatedSessions: result.analysis.estimatedSessions,
+      materials: result.materials.map((m) => ({
+        inventoryItemId: m.inventoryItemId,
+        name: m.name,
+        estimatedQuantity: m.estimatedQuantity,
+        unitCost: m.unitCost,
+        estimatedCost: m.estimatedCost,
+      })),
+      laborCost: result.pricing.laborCost,
+      materialCost: result.pricing.materialCost,
+      totalCost: result.pricing.totalCost,
+      suggestedPrice: result.pricing.suggestedPrice,
+      estimatedProfit: result.pricing.estimatedProfit,
+      generatedAt: new Date().toISOString(),
+    };
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     setDuplicateImageError(undefined);
     const parsedPrice = priceField.safeParse(price);
     const parsedDown = downPaymentSchema.safeParse(downPercentage);
     const parsedCategory = categorySchema.safeParse(category);
+    const parsedWidth = sizeWidthSchema.safeParse(sizeWidthCm);
+    const parsedHeight = sizeHeightSchema.safeParse(sizeHeightCm);
     const hasTags = tags.length > 0;
     const hasImage = !!postImg || type !== "newPost";
 
@@ -324,6 +489,8 @@ export default function Page() {
       !parsedPrice.success ||
       !parsedDown.success ||
       !parsedCategory.success ||
+      !parsedWidth.success ||
+      !parsedHeight.success ||
       !hasTags ||
       !hasImage
     ) {
@@ -342,6 +509,14 @@ export default function Page() {
     formData.append("downPercentage", String(parsedDown.data));
 
     formData.append("size", tattooData?.size.toString() || (0.3).toString());
+    formData.append("sizeWidthCm", String(parsedWidth.data));
+    formData.append("sizeHeightCm", String(parsedHeight.data));
+    formData.append("bodyPart", bodyPart || "");
+
+    const aiEstimatePayload = buildAiEstimatePayload();
+    if (aiEstimatePayload) {
+      formData.append("aiEstimate", JSON.stringify(aiEstimatePayload));
+    }
 
     formData.append("type", type);
     formData.append("link", preview || "none");
@@ -351,7 +526,7 @@ export default function Page() {
 
   return (
     <div className="w-full px-4 sm:px-6 py-10 lg:py-16 min-h-dvh bg-primary">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl lg:max-w-6xl mx-auto">
         {/* Grain Overlay */}
         <div
           className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -379,7 +554,10 @@ export default function Page() {
           </div>
           <BackButton />
         </div>
-        <div className="w-full space-y-5 mb-8">
+        {/* Main form (left) + AI Tattoo Analysis (right, sticky on desktop).
+            On mobile the AI card stacks after the form, before Upload. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-5 mb-8 items-start">
+        <div className="w-full space-y-5 min-w-0 lg:col-start-1">
           {/* ── TWO-COLUMN: Image + Pricing ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* LEFT — Tattoo Image */}
@@ -450,6 +628,49 @@ export default function Page() {
                 <ArtStyleSelect onChange={setCategory} value={category} />
                 <FieldError>{categoryError}</FieldError>
               </div>
+
+              {/* Tattoo Size */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Tattoo Size (cm)</Label>
+                  <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">
+                    Required
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Input
+                      placeholder="Width"
+                      inputMode="decimal"
+                      value={sizeWidthCm}
+                      aria-invalid={!!sizeWidthError}
+                      onChange={(e) => {
+                        setSizeWidthCm(e.target.value.replace(/[^0-9.]/g, ""));
+                        setSizeFromScene(false);
+                      }}
+                    />
+                    <FieldError>{sizeWidthError}</FieldError>
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      placeholder="Height"
+                      inputMode="decimal"
+                      value={sizeHeightCm}
+                      aria-invalid={!!sizeHeightError}
+                      onChange={(e) => {
+                        setSizeHeightCm(e.target.value.replace(/[^0-9.]/g, ""));
+                        setSizeFromScene(false);
+                      }}
+                    />
+                    <FieldError>{sizeHeightError}</FieldError>
+                  </div>
+                </div>
+                <p className="text-[11px] text-text-dim">
+                  {sizeFromScene
+                    ? "Estimated from the 3D placement — resize the tattoo on the body or edit here."
+                    : "Tip: placing the tattoo on the 3D body fills this in automatically."}
+                </p>
+              </div>
             </div>
 
             {/* RIGHT — Smart Pricing + Price Fields */}
@@ -471,29 +692,16 @@ export default function Page() {
                     <div className="flex items-center gap-3">
                       <div className="h-px w-6 bg-gold" />
                       <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                        AI Pricing
+                        Smart Pricing
                       </span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={AiAutoFillHanlder}
-                        disabled={aiMutation.isPending}
-                        size="sm"
-                      >
-                        <Cpu className="w-4 h-4" />
-                        {aiMutation.isPending && (
-                          <LoaderCircle className="h-3 w-3 animate-spin" />
-                        )}
-                        {aiMutation.isPending ? "Analyzing…" : "Auto-Fill"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setEditField(false)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setEditField(false)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -790,8 +998,32 @@ export default function Page() {
             </div>
           </div>
 
+        </div>
+
+          {/* ── AI TATTOO ANALYSIS ── */}
+          <aside className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
+            <AiAnalysisCard
+              result={ai.result}
+              isAnalyzing={ai.isAnalyzing}
+              isRecalculating={ai.isRecalculating}
+              staleReason={ai.staleReason}
+              recalcError={ai.recalcError}
+              missingMaterialNames={ai.missingMaterialNames}
+              bodyPart={bodyPart}
+              onBodyPartChange={setBodyPart}
+              hourlyRate={perHour}
+              onHourlyRateChange={setPerHour}
+              hourlyRateError={rateError}
+              sizeLabel={aiSizeLabel}
+              sizeFromScene={sizeFromScene}
+              analyzeDisabledReason={analyzeDisabledReason}
+              onAnalyze={ai.analyze}
+              onApply={() => ai.result && applyAiEstimate(ai.result)}
+            />
+          </aside>
+
           {/* ── SUBMIT ── */}
-          <div className="pt-2">
+          <div className="pt-2 lg:col-start-1">
             <Button
               className="w-full"
               disabled={postMutation.isPending}

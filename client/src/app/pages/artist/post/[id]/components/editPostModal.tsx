@@ -95,7 +95,7 @@ export function EditPostmodal({
       successAlert("saved Changes");
       setOpen(false);
     },
-    onError: () => errorAlert("ERROR ACCOUR"),
+    onError: () => errorAlert("error occur"),
   });
 
   const priceError = firstError(priceField, price);

@@ -36,6 +36,15 @@ export class ArtistInfoService {
     await info.save()
   }
 
+  static async getImg(artist : string, imageId : string) {
+    const info = await ArtistInfoModel.findOne({ artist })
+    return info?.profileImages.id(imageId) ?? null
+  }
+
+  static async removeImg(artist : string, imageId : string) {
+    await ArtistInfoModel.updateOne({ artist }, { $pull: { profileImages: { _id: imageId } } })
+  }
+
   static async pushReviewToArtist(artist : string, img : string, comment : string, rating : number, client : string) {
     const info =  await ArtistInfoModel.findOne({ artist })
     if(!info) return

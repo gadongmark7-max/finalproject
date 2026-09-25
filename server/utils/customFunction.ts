@@ -1,11 +1,11 @@
-import nodemailer from "nodemailer"
+import nodemailer from "nodemailer";
 import { transactionInterface } from "../types/transaction.type";
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 
 dotenv.config();
 
-
-const MAIL_SENDER_EMAIL = process.env.MAIL_SENDER_EMAIL || "inkofbaphomet@gmail.com";
+const MAIL_SENDER_EMAIL =
+  process.env.MAIL_SENDER_EMAIL || "inkofbaphomet@gmail.com";
 const MAIL_SENDER_NAME = process.env.MAIL_SENDER_NAME || "Ink Of Baphomet";
 
 export const sendPin = async (email: string, pin: string) => {
@@ -66,44 +66,46 @@ export const sendPin = async (email: string, pin: string) => {
   }
 };
 
-
-
-
 export const sendEmail = async (
-  email : string, title : string,  message : string,
-  replyTo? : { email : string, name? : string }
-) : Promise<boolean> => {
-
-  const apiKey =  process.env.BREVO_API_KEY || ""
-  const senderEmail = MAIL_SENDER_EMAIL
-  const senderName = MAIL_SENDER_NAME
-
+  email: string,
+  title: string,
+  message: string,
+  replyTo?: { email: string; name?: string },
+): Promise<boolean> => {
+  const apiKey = process.env.BREVO_API_KEY || "";
+  const senderEmail = MAIL_SENDER_EMAIL;
+  const senderName = MAIL_SENDER_NAME;
 
   try {
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "api-key": apiKey,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         sender: {
           name: senderName,
-          email: senderEmail
+          email: senderEmail,
         },
         // When set, a "Reply" in the recipient's inbox goes here instead of the
         // shared sender address. Existing callers omit this — behaviour unchanged.
         ...(replyTo?.email
-          ? { replyTo: { email: replyTo.email, name: replyTo.name || replyTo.email } }
+          ? {
+              replyTo: {
+                email: replyTo.email,
+                name: replyTo.name || replyTo.email,
+              },
+            }
           : {}),
         to: [
           {
-            email: email
-          }
+            email: email,
+          },
         ],
         subject: title,
         textContent: message,
-htmlContent: `
+        htmlContent: `
   <div style="margin:0;padding:0;background-color:#080808;font-family:Arial,Helvetica,sans-serif;min-height:100vh;">
     <table width="100%" cellpadding="0" cellspacing="0" style="min-height:100vh;padding:60px 20px;">
       <tr>
@@ -200,48 +202,74 @@ htmlContent: `
       </tr>
     </table>
   </div>
-`
-      })
+`,
+      }),
     });
 
     const data = await res.json();
     console.log("Email sent:", data);
 
     return res.ok;
-
   } catch (error) {
     console.log("Error:", error);
     return false;
   }
 };
 
-export const sendNewClientAccountEmail = (email : string, name : string, tempPassword : string) => {
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+export const sendNewClientAccountEmail = (
+  email: string,
+  name: string,
+  tempPassword: string,
+) => {
+  const label =
+    "display:block;margin:0 0 4px 0;font-size:10px;letter-spacing:3px;color:#7A7570;text-transform:uppercase;";
+  const value =
+    "display:block;margin:0 0 18px 0;font-size:15px;color:#F2EDE4;word-break:break-all;";
+
   return sendEmail(
     email,
     "Your Ink Of Baphomet Account",
-    `Hi ${name}, your artist has created an account for you so you can manage this booking online.<br/><br/>` +
-    `Temporary password: <strong style="color:#C9A84C;">${tempPassword}</strong><br/><br/>` +
-    `Please log in and change this password as soon as possible.`
-  )
-}
+    `Hi ${escapeHtml(name)}, your account has been created successfully so you can manage your booking online.<br/><br/>` +
+      `<span style="display:block;text-align:left;background:#121212;border:1px solid #242424;border-left:2px solid #C9A84C;padding:20px 22px;">` +
+      `<span style="display:block;margin:0 0 16px 0;font-size:11px;letter-spacing:4px;color:#C9A84C;text-transform:uppercase;">Login Credentials</span>` +
+      `<span style="${label}">Login Email</span>` +
+      `<span style="${value}">${escapeHtml(email)}</span>` +
+      `<span style="${label}">Temporary Password</span>` +
+      `<span style="display:block;margin:0;font-size:15px;color:#C9A84C;font-weight:bold;word-break:break-all;">${escapeHtml(tempPassword)}</span>` +
+      `</span><br/>` +
+      `<span style="display:block;text-align:left;background:#2A1A1A;border:1px solid #7A2E2E;padding:14px 18px;color:#F2EDE4;font-size:13px;line-height:1.6;">` +
+      `<strong style="color:#E07A7A;">Please change the password immediately</strong> after logging in for security purposes.` +
+      `</span>`,
+  );
+};
 
-export const sendEmail_old = (email : string, title : string,  message : string) => {
-        const transporter = nodemailer.createTransport({
-                service: 'gmail', 
-                auth: {
-                user: 'inkofbaphomet@gmail.com',
-                pass: 'sxib fmmt uxfz itkj',
-                },
-        });
+export const sendEmail_old = (
+  email: string,
+  title: string,
+  message: string,
+) => {
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "inkofbaphomet@gmail.com",
+      pass: "sxib fmmt uxfz itkj",
+    },
+  });
 
-    
-
-      const mailOptions = {
-        from: '"Tattoo App" <inkofbaphomet@gmail.com>',
-        to: email,
-        subject: title,
-        text: message,
-        html: `
+  const mailOptions = {
+    from: '"Tattoo App" <inkofbaphomet@gmail.com>',
+    to: email,
+    subject: title,
+    text: message,
+    html: `
         <div style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
             <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 0;">
             <tr>
@@ -288,35 +316,33 @@ export const sendEmail_old = (email : string, title : string,  message : string)
             </tr>
             </table>
         </div>
-        `
-        };
+        `,
+  };
 
-
-      transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.log('Error:', error);
-          } else {
-            console.log('Email sent:', info.response);
-          }
-      });
-      
-}   
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.log("Error:", error);
+    } else {
+      console.log("Email sent:", info.response);
+    }
+  });
+};
 
 export const getTime = () => {
-    const now = new Date();
-    const time = now.toLocaleTimeString("en-US", {
+  const now = new Date();
+  const time = now.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
-    }); 
-    return time 
-}
+  });
+  return time;
+};
 
 export const getDate = () => {
-    const now = new Date();
-    const date = now.toLocaleDateString("en-US"); 
-    return date 
-}
+  const now = new Date();
+  const date = now.toLocaleDateString("en-US");
+  return date;
+};
 
 export const getDuration = (timeIn: string, timeOut: string) => {
   if (!timeIn || !timeOut) return 0;
@@ -335,20 +361,19 @@ export const getDuration = (timeIn: string, timeOut: string) => {
   return diffMs / (1000 * 60 * 60); // hours
 };
 
-
-export const convertMDYtoYMD = (date : string) => {
-  const [month, day, year] = date.split("/")
-  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
-}
-
+export const convertMDYtoYMD = (date: string) => {
+  const [month, day, year] = date.split("/");
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
 
 const convertMonthToJS = (month: string): number => {
   return Number(month) - 1;
 };
 
-
-
-export const getThisMonthSales = ( selectedMonth : string ,transaction: transactionInterface[]) => {
+export const getThisMonthSales = (
+  selectedMonth: string,
+  transaction: transactionInterface[],
+) => {
   interface dailySalesInterface {
     date: string;
     sales: number;
@@ -356,7 +381,7 @@ export const getThisMonthSales = ( selectedMonth : string ,transaction: transact
 
   const now = new Date();
   const year = now.getFullYear();
-  const month = convertMonthToJS(selectedMonth)
+  const month = convertMonthToJS(selectedMonth);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const dailySales: dailySalesInterface[] = [];
@@ -376,34 +401,31 @@ export const getThisMonthSales = ( selectedMonth : string ,transaction: transact
   return dailySales;
 };
 
+export const getYearlySales = (transactions: transactionInterface[]) => {
+  const yearlySales = [
+    { month: "01", sales: 0 },
+    { month: "02", sales: 0 },
+    { month: "03", sales: 0 },
+    { month: "04", sales: 0 },
+    { month: "05", sales: 0 },
+    { month: "06", sales: 0 },
+    { month: "07", sales: 0 },
+    { month: "08", sales: 0 },
+    { month: "09", sales: 0 },
+    { month: "10", sales: 0 },
+    { month: "11", sales: 0 },
+    { month: "12", sales: 0 },
+  ];
 
-export const getYearlySales = ( transactions : transactionInterface[]) => {
- 
-    const yearlySales = [
-        { month : "01" , sales : 0},
-        { month : "02" , sales : 0},
-        { month : "03" , sales : 0},
-        { month : "04" , sales : 0},
-        { month : "05" , sales : 0},
-        { month : "06" , sales : 0},
-        { month : "07" , sales : 0},
-        { month : "08" , sales : 0},
-        { month : "09" , sales : 0},
-        { month : "10" , sales : 0},
-        { month : "11" , sales : 0},
-        { month : "12" , sales : 0},
-    ]
+  transactions.forEach((transaction) => {
+    const transactionDate = convertMDYtoYMD(transaction.date).split("-");
+    const month = transactionDate[1];
+    yearlySales.forEach((item, index) => {
+      if (item.month == month) {
+        yearlySales[index].sales += transaction.amount;
+      }
+    });
+  });
 
-    transactions.forEach((transaction) => {
-        const transactionDate = convertMDYtoYMD(transaction.date).split("-")
-        const month = transactionDate[1] 
-        yearlySales.forEach((item, index) => {
-            if(item.month == month)
-            {
-                yearlySales[index].sales += transaction.amount
-            }
-        })
-    })
-
-    return yearlySales
-}
+  return yearlySales;
+};

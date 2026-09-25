@@ -1,25 +1,26 @@
 "use client";
 import React, { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import {
   accountInterface,
   artistInfoInterface,
 } from "@/app/types/accounts.type";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
-import { mapIcon } from "@/app/utils/customFunction";
 import axiosInstance from "@/app/utils/axios";
 import useCurrentLocation from "@/app/hooks/locationHooks";
 import useUserStore from "@/app/store/useUserStore";
 import { ProfileOverview } from "./components/profileOverview";
 import { useState } from "react";
-import RoutingControl from "./components/routingMap";
 import { MapPin, Star, User, Users, X } from "lucide-react";
 import { ProfileDisplay } from "./components/profileDisplay";
 import { isNear, getDistance } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
+
+const ClientMapView = dynamic(() => import("./components/mapLibreView"), {
+  ssr: false,
+  loading: () => <LoadingScreen />,
+});
 
 const App: React.FC = () => {
   const { user } = useUserStore();
@@ -189,91 +190,14 @@ const App: React.FC = () => {
         />
       )}
 
-      <MapContainer
-        center={[currentLocation?.lat, currentLocation?.lng]}
-        zoom={13}
-        style={{ height: "100%", width: "100%" }}
-      >
-        {currentLocation && pointB && (
-          <RoutingControl
-            waypoints={[
-              L.latLng(currentLocation.lat, currentLocation.lng),
-              L.latLng(pointB.lat, pointB.lng),
-            ]}
-          />
-        )}
-
-        <Marker
-          position={[currentLocation?.lat, currentLocation?.lng]}
-          icon={mapIcon(user?.profile)}
-        >
-          <Popup>
-            {" "}
-            <h1> your current location </h1>
-          </Popup>
-        </Marker>
-        {"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png "}
-        <TileLayer
-          key={account?._id}
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {/* {
-            artistInfo?.map((artist) => {
-
-                if(!artist.artist.location) return null
-                
-                return(
-                    <Marker 
-                      position={[artist.artist.location.lat!, artist.artist.location.long!]}  
-                      icon={mapIcon(artist.artist.profile)} 
-                      key={artist._id} 
-                      eventHandlers={{
-                        click: () => selectProfile(artist, artist.artist),
-                      }}
-                    >
-                    </Marker>
-                )
-            
-            })
-                
-        } */}
-
-        {artistInfo?.map((artist) => {
-          if (!artist.artist?.location) return null;
-
-          return (
-            <Marker
-              position={[
-                artist.artist.location.lat!,
-                artist.artist.location.long!,
-              ]}
-              icon={mapIcon(artist.artist.profile)}
-              key={artist._id}
-              eventHandlers={{
-                click: () => selectProfile(artist, artist.artist),
-              }}
-            ></Marker>
-          );
-        })}
-
-        {bussinessInfo?.map((bussiness) => {
-          if (!bussiness.bussiness?.location) return null;
-
-          return (
-            <Marker
-              key={bussiness._id}
-              position={[
-                bussiness.bussiness.location.lat!,
-                bussiness.bussiness.location.long!,
-              ]}
-              icon={mapIcon("/shop-logo.jpg")}
-              eventHandlers={{
-                click: () => selectProfile(bussiness, bussiness.bussiness),
-              }}
-            ></Marker>
-          );
-        })}
-      </MapContainer>
+      <ClientMapView
+        currentLocation={currentLocation}
+        userProfile={user.profile}
+        artistInfo={artistInfo}
+        bussinessInfo={bussinessInfo}
+        pointB={pointB}
+        onSelectProfile={selectProfile}
+      />
     </div>
   );
 };

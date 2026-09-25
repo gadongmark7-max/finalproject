@@ -141,6 +141,28 @@ export function optionalMoneyField(opts: MoneyOpts = {}) {
     .transform((v) => (v === "" ? undefined : (v as number)))
 }
 
+type PositiveDecimalOpts = {
+  label?: string
+  max?: number
+  decimals?: number
+}
+
+export function positiveDecimalField(opts: PositiveDecimalOpts = {}) {
+  const { label = "Value", max = 1000, decimals = 2 } = opts
+  const pattern =
+    decimals > 0 ? new RegExp(`^\\d+(\\.\\d{1,${decimals}})?$`) : /^\d+$/
+
+  return z
+    .string({ required_error: `Please enter ${label.toLowerCase()}` })
+    .trim()
+    .min(1, `Please enter ${label.toLowerCase()}`)
+    .refine((v) => pattern.test(v), `Please enter a valid ${label.toLowerCase()}`)
+    .transform((v) => Number(v))
+    .refine((n) => Number.isFinite(n), `Please enter a valid ${label.toLowerCase()}`)
+    .refine((n) => n > 0, `${label} must be greater than 0`)
+    .refine((n) => n <= max, `${label} is too large`)
+}
+
 export function countField(label = "Quantity", { min = 0, max = 1_000_000 } = {}) {
   return z
     .string({ required_error: `Please enter a ${label.toLowerCase()}` })

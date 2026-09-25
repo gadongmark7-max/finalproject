@@ -31,15 +31,22 @@ import {
   Moon,
   House,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import useLightModeStore from "@/app/store/displayModeStore";
 import NotificationsCount from "./notifCount";
+import MessagesCount from "./messagesCount";
 
 const navigationItems = [
   { title: "Profile", url: "/pages/client/profile", icon: User },
   { title: "Posts", url: "/pages/client/posts", icon: Image },
   { title: "Map", url: "/pages/client/map", icon: MapPin },
   { title: "Booking", url: "/pages/client/bookings", icon: CalendarCheck },
+  {
+    title: "AI Price Estimator",
+    url: "/pages/client/estimator",
+    icon: Sparkles,
+  },
   { title: "Chat", url: "/pages/client/convos", icon: MessageCircle },
   { title: "Transactions", url: "/pages/client/transactions", icon: History },
   { title: "Notifications", url: "/pages/client/notifications", icon: Bell },
@@ -82,7 +89,7 @@ function MobileBottomNav() {
               className="group flex flex-col items-center gap-1 px-3 py-1 min-w-[52px]"
             >
               <div
-                className={`p-2 border transition-all duration-300 ${
+                className={`relative p-2 border transition-all duration-300 ${
                   isActive
                     ? "bg-surface border-border-gold"
                     : "bg-surface border-border group-hover:border-border-gold"
@@ -96,6 +103,7 @@ function MobileBottomNav() {
                       : "text-text-dim group-hover:text-gold"
                   }`}
                 />
+                {item.title == "Chat" && <MessagesCount floating />}
               </div>
               <span
                 className={`text-[9px] uppercase tracking-[0.2em] transition-colors duration-300 ${
@@ -134,10 +142,6 @@ export function SidebarClient({ className }: AppSidebarProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // Clear the sidebar's unread badge the instant Notifications is clicked —
-  // the notifications page itself marks them seen server-side on load, this
-  // just makes the badge reflect that immediately instead of waiting on a
-  // refetch. invalidateQueries on the notifications page reconciles it.
   const handleNotificationsClick = () => {
     queryClient.setQueryData(["unseen-notif"], []);
   };
@@ -249,6 +253,7 @@ export function SidebarClient({ className }: AppSidebarProps) {
                     </div>
                     <span className="text-sm tracking-wide">{item.title}</span>{" "}
                     {item.title == "Notifications" && <NotificationsCount />}
+                    {item.title == "Chat" && <MessagesCount />}
                   </Link>
                 ))}
               </nav>
@@ -355,6 +360,7 @@ export function SidebarClient({ className }: AppSidebarProps) {
                         {item.title == "Notifications" && (
                           <NotificationsCount />
                         )}
+                        {item.title == "Chat" && <MessagesCount />}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

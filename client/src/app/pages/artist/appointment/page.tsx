@@ -134,7 +134,7 @@ export default function Page() {
         router.push("/pages/artist/booking");
       });
     },
-    onError: () => errorAlert("error accour"),
+    onError: () => errorAlert("error occur"),
   });
 
   const bookHandler = (data: { date: string; time: string[] }) => {

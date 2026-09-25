@@ -28,6 +28,7 @@ export interface artistInfoInterfaceInput {
     schedTime : string[],
     schedDay : string[],
     profileImages : {
+        _id? : string,
         type : string,
         fileUrl : string,
         fileType : string,
@@ -47,6 +48,7 @@ export interface artistInfoInterface {
     schedTime : string[],
     schedDay : string[],
     profileImages : {
+        _id? : string,
         type : string,
         fileUrl : string,
         fileType : string,

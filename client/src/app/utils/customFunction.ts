@@ -30,13 +30,11 @@ export const checkIfSubsExpired = (date: string) => {
   return diffDays < 0; // expired if negative
 };
 
-
-
-export const isDayAvailable = (date : Date ,days : string[]) => {
-  if(days.length == 0) return !false
-  const dayName = date.toLocaleDateString("en-US", { weekday: "long" })
-  return  !days.includes(dayName)    
-}
+export const isDayAvailable = (date: Date, days: string[]) => {
+  if (days.length == 0) return !false;
+  const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+  return !days.includes(dayName);
+};
 
 export const getTimeInStatus = (timeIn: string, timeInSched: string) => {
   if (!timeIn || !timeInSched) return "unknown";
@@ -49,7 +47,6 @@ export const getTimeInStatus = (timeIn: string, timeInSched: string) => {
 
   return timeInTotal > schedTotal ? "late" : "ontime";
 };
-
 
 export const getTimeOutStatus = (timeOut: string, timeOutSched: string) => {
   if (!timeOut || !timeOutSched) return "unknown";
@@ -72,32 +69,38 @@ export const getTimeOutStatus = (timeOut: string, timeOutSched: string) => {
   return "earlyout";
 };
 
-
-export const getInventoryName = (id : string, inventory : inventoryInterface[]) => {
-    let name = ""
-    inventory.forEach((item) => {
-        if(item._id == id) name = item.item
-    })
-    return name
-}
-
-export const getInventoryPrice = (id : string, inventory : inventoryInterface[]) => {
-  let price = 0
+export const getInventoryName = (
+  id: string,
+  inventory: inventoryInterface[],
+) => {
+  let name = "";
   inventory.forEach((item) => {
-      if(item._id == id) price = item.price
-  })
-  return price
-}
+    if (item._id == id) name = item.item;
+  });
+  return name;
+};
 
-export const getInventoryType = (id : string, inventory : inventoryInterface[]) => {
-  let type = ""
+export const getInventoryPrice = (
+  id: string,
+  inventory: inventoryInterface[],
+) => {
+  let price = 0;
   inventory.forEach((item) => {
-      if(item._id == id) type = item.type
-  })
-  return type
-}
+    if (item._id == id) price = item.price;
+  });
+  return price;
+};
 
-
+export const getInventoryType = (
+  id: string,
+  inventory: inventoryInterface[],
+) => {
+  let type = "";
+  inventory.forEach((item) => {
+    if (item._id == id) type = item.type;
+  });
+  return type;
+};
 
 export const mapIcon = (url: string) => {
   return L.divIcon({
@@ -116,37 +119,38 @@ export const mapIcon = (url: string) => {
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
-    className: ""
+    className: "",
   });
-}
+};
 
 export const convertToAmPm = (time: string) => {
-    const [hour, minute] = time.split(":").map(Number)
-    const isPM = hour >= 12
-    const displayHour = hour % 12 || 12
-  
-    return `${displayHour}${minute ? `:${minute}` : ""} ${isPM ? "PM" : "AM"}`
-}
-  
+  const [hour, minute] = time.split(":").map(Number);
+  const isPM = hour >= 12;
+  const displayHour = hour % 12 || 12;
 
-export const getChatIndex = ( userId : string ,convo : convoInterface) => {
-  return (userId == convo.accounts[0]._id) ? 1 : 0
-}
+  return `${displayHour}${minute ? `:${minute}` : ""} ${isPM ? "PM" : "AM"}`;
+};
 
+export const getChatIndex = (userId: string, convo: convoInterface) => {
+  return userId == convo.accounts[0]._id ? 1 : 0;
+};
 
-
+export const getUnreadCount = (userId: string, convo: convoInterface) =>
+  convo.chats.filter((chat) => {
+    const sender = chat.sender as string | { _id: string };
+    const senderId = typeof sender === "string" ? sender : sender?._id;
+    return chat.seen === false && senderId !== userId;
+  }).length;
 
 export const isNear = (
   currentLocation: { lat: number; lng: number },
   targetLocation: { lat: number; lng: number },
-  radius: number // in KM
+  radius: number, // in KM
 ): boolean => {
   const R = 6371; // Earth radius in KM
 
-  const dLat =
-    ((targetLocation.lat - currentLocation.lat) * Math.PI) / 180;
-  const dLng =
-    ((targetLocation.lng - currentLocation.lng) * Math.PI) / 180;
+  const dLat = ((targetLocation.lat - currentLocation.lat) * Math.PI) / 180;
+  const dLng = ((targetLocation.lng - currentLocation.lng) * Math.PI) / 180;
 
   const a =
     Math.sin(dLat / 2) ** 2 +
@@ -161,7 +165,7 @@ export const isNear = (
 
 export const getDistance = (
   currentLocation: { lat: number; lng: number },
-  targetLocation: { lat: number; lng: number }
+  targetLocation: { lat: number; lng: number },
 ): number => {
   const toRad = (value: number) => (value * Math.PI) / 180;
 
@@ -175,23 +179,24 @@ export const getDistance = (
 
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) *
-    Math.sin(dLng / 2) ** 2;
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // distance in KM
 };
 
-
 export const tattooAreaCm2 = (tattooSize: number) => {
   const cm = tattooSize * 100;
   return cm * cm;
 };
 
-
-
-export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
   const R = 6371e3; // Earth's radius in meters
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
@@ -206,40 +211,56 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
   return R * c; // Distance in meters
 }
 
+export const getTodayAttendance = (
+  date: string,
+  attendances: attendanceInterface[],
+) => {
+  return attendances.find((item) => item.date === date) ?? null;
+};
 
-export const getTodayAttendance = (date : string, attendances : attendanceInterface[]) => {
-  return attendances.find(item => item.date === date) ?? null;
-}
-
-
-export const isBussinessApproveArtistPayment = (bussinessId : string | undefined, bussinesses : bussinessInfoInterface[]) => {
-  if(!bussinessId || bussinesses.length == 0) return true
-  for(let bussiness of bussinesses){
-    if(bussiness.bussiness._id == bussinessId){
-      return bussiness.config.artistPayment
+export const isBussinessApproveArtistPayment = (
+  bussinessId: string | undefined,
+  bussinesses: bussinessInfoInterface[],
+) => {
+  if (!bussinessId || bussinesses.length == 0) return true;
+  for (let bussiness of bussinesses) {
+    if (bussiness.bussiness._id == bussinessId) {
+      return bussiness.config.artistPayment;
     }
   }
-  return false
-}
+  return false;
+};
 
-
-export const isBussinessApproveArtistApply = ( bussinesses : bussinessInfoInterface[]) => {
-  if(bussinesses.length == 0) return true
-  for(let bussiness of bussinesses){
-    return bussiness.config.artistToOtherBussiness
+export const isBussinessApproveArtistApply = (
+  bussinesses: bussinessInfoInterface[],
+) => {
+  if (bussinesses.length == 0) return true;
+  for (let bussiness of bussinesses) {
+    return bussiness.config.artistToOtherBussiness;
   }
-}
+};
 
-export const isBussinessApproveArtistPost = ( bussinesses : bussinessInfoInterface[]) => {
-  if(bussinesses.length == 0) return true
-  for(let bussiness of bussinesses){
-    return bussiness.config.artistPost
+export const isBussinessApproveArtistPost = (
+  bussinesses: bussinessInfoInterface[],
+) => {
+  if (bussinesses.length == 0) return true;
+  for (let bussiness of bussinesses) {
+    return bussiness.config.artistPost;
   }
-}
+};
 
-export const isBussinessApproveArtistAppoitnment = ( bussinesses : bussinessInfoInterface[]) => {
-  if(bussinesses.length == 0) return true
-  for(let bussiness of bussinesses){
-    return bussiness.config.artistBookAppointment
+export const isBussinessApproveArtistAppoitnment = (
+  bussinesses: bussinessInfoInterface[],
+) => {
+  if (bussinesses.length == 0) return true;
+  for (let bussiness of bussinesses) {
+    return bussiness.config.artistBookAppointment;
   }
-}
+};
+export const formatPeso = (n: number) => `₱${Math.round(n).toLocaleString()}`;
+
+export const apiErrorMessage = (error: unknown, fallback: string): string => {
+  const data = (error as { response?: { data?: { error?: unknown } } })
+    ?.response?.data;
+  return typeof data?.error === "string" && data.error ? data.error : fallback;
+};
