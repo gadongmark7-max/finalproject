@@ -1,5 +1,6 @@
 import PostModel from "../model/posts.model";
 import { postInterface, postInterfaceInput } from "../types/post.type";
+import { UpdatePostInput } from "../validation/post.schema";
 
 export class PostService {
   static async create(data: postInterfaceInput) {
@@ -52,19 +53,11 @@ export class PostService {
     );
   }
 
-  static async update(
-    id: string,
-    tags: string[],
-    category: string,
-    estimatedTime: string,
-    sessions: string,
-    price: Number,
-    downPercentage: number,
-  ) {
+  static async update(id: string, data: UpdatePostInput) {
     return await PostModel.findByIdAndUpdate(
       id,
-      { tags, category, estimatedTime, sessions, price, downPercentage },
-      { new: true },
-    );
+      { $set: data },
+      { new: true, runValidators: true },
+    ).populate("account");
   }
 }

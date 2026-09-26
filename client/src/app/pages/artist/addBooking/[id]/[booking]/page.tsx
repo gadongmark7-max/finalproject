@@ -56,9 +56,15 @@ import {
 } from "@/lib/validation/schemas/booking";
 import { countField } from "@/lib/validation/fields";
 import { BackButton } from "@/components/ui/back-button";
+import {
+  sessionHoursFromInput,
+  sessionHoursSchema,
+  sessionsSchema,
+} from "@/lib/validation/schemas/post";
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 import {
   useArtistAiAnalysis,
+  distributeSessionHours,
   aiSizeWidthSchema,
   aiSizeHeightSchema,
 } from "@/app/hooks/artistAiAnalysisHooks";
@@ -310,12 +316,6 @@ export default function Page() {
   const settings = useArtistSettings();
   const hourlyRate = settings.data?.hourlyRate ?? null;
 
-  const distributeSessionHours = (totalHours: number, sessionCount: number) => {
-    const count = Math.max(1, Math.round(sessionCount));
-    const perSession = Math.max(1, Math.round(totalHours / count));
-    return Array(count).fill(perSession);
-  };
-
   // AI materials come from the artist's own inventory, so they're only
   // applied when the booking uses that inventory (no business selected).
   const usesOwnInventory = bussiness === "none";
@@ -419,6 +419,9 @@ export default function Page() {
     triedSubmit && !appointment && !isNoClientAccount && !client
       ? "Please select a client."
       : undefined;
+  const sessionsError = triedSubmit
+    ? firstError(sessionsSchema, sessions)
+    : undefined;
   const imageError =
     triedSubmit && !preview ? "Please select an image." : undefined;
   const sizeWidthError = firstError(aiSizeWidthSchema, sizeWidthCm);
@@ -481,7 +484,12 @@ export default function Page() {
     const parsedPrice = priceField.safeParse(price);
     const hasImage = type === "newPost" ? !!postImg : !!preview;
 
-    if (!clientIsValid() || !hasImage || !parsedPrice.success) {
+    if (
+      !clientIsValid() ||
+      !hasImage ||
+      !parsedPrice.success ||
+      !sessionsSchema.safeParse(sessions).success
+    ) {
       setTriedSubmit(true);
       if (isNoClientAccount && accountFieldsBlocking)
         return errorAlert("Please finish the client account details");
@@ -965,15 +973,15 @@ export default function Page() {
 
                     <div className="flex items-center gap-2 w-full">
                       <Input
-                        type="number"
-                        min={1}
-                        value={session}
+                        inputMode="numeric"
+                        value={session || ""}
+                        aria-invalid={!!firstError(sessionHoursSchema, session) && session !== 0}
                         onChange={(e) =>
-                          updateSession(index, Number(e.target.value))
+                          updateSession(index, sessionHoursFromInput(e.target.value))
                         }
                         className="flex-1"
-                        placeholder="0"
-                      />
+                        placeholder="Hours"
+                        />
                       <div className="h-10 px-4 flex items-center justify-center border border-border bg-surface min-w-[64px]">
                         <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
                           {session === 1 ? "Hour" : "Hours"}
@@ -994,6 +1002,7 @@ export default function Page() {
                   </div>
                 ))}
               </div>
+              <FieldError>{sessionsError}</FieldError>
             </div>
           </div>
 

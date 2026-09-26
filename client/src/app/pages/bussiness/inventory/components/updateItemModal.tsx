@@ -155,7 +155,7 @@ export function UpdateItemModal({
             <h1 className="font-bold text-stone-600"> Stocks </h1>
             <Input
               {...register("stocks")}
-              inputMode="numeric"
+              inputMode="decimal"
               aria-invalid={!!errors.stocks}
               placeholder="stock on hand"
               className="w-full"
@@ -167,7 +167,7 @@ export function UpdateItemModal({
             <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
             <Input
               {...register("safeStock")}
-              inputMode="numeric"
+              inputMode="decimal"
               aria-invalid={!!errors.safeStock}
               placeholder="safe stock level"
               className="w-full"

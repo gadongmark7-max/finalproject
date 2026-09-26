@@ -182,7 +182,7 @@ export function AddItemModal({
               <h1 className="font-bold text-stone-600"> Stocks </h1>
               <Input
                 {...register("stocks")}
-                inputMode="numeric"
+                inputMode="decimal"
                 aria-invalid={!!errors.stocks}
                 placeholder="initial stocks"
                 className="w-full"
@@ -194,7 +194,7 @@ export function AddItemModal({
               <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
               <Input
                 {...register("safeStock")}
-                inputMode="numeric"
+                inputMode="decimal"
                 aria-invalid={!!errors.safeStock}
                 placeholder="safe stock level"
                 className="w-full"

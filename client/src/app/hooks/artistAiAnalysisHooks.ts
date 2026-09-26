@@ -20,6 +20,15 @@ export const aiSizeHeightSchema = positiveDecimalField({
   max: 100,
 });
 
+export const distributeSessionHours = (
+  totalHours: number,
+  sessionCount: number,
+) => {
+  const count = Math.max(1, Math.round(sessionCount));
+  const perSession = Math.max(1, Math.floor(totalHours / count));
+  return Array<number>(count).fill(perSession);
+};
+
 interface Inputs {
   postImg: File | null;
   bodyPart: string;

@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import {
-  countField,
   moneyField,
   requiredText,
   selectField,
@@ -22,6 +21,9 @@ const unitField = selectField("a unit").pipe(
   }),
 );
 
+const quantityField = (label: string, { allowZero = false } = {}) =>
+  moneyField({ label, allowZero, max: 1_000_000 });
+
 export const inventoryPriceSchema = moneyField({
   label: "Price",
   allowZero: true,
@@ -32,8 +34,8 @@ export const addItemSchema = z.object({
   item: requiredText("Item name", { min: 2, max: 80 }),
   category: categoryField,
   type: unitField,
-  stocks: countField("Stock", { min: 1 }),
-  safeStock: countField("Safe stock", { min: 0 }),
+  stocks: quantityField("Quantity"),
+  safeStock: quantityField("Safe stock", { allowZero: true }),
   expences: moneyField({ label: "Expense", allowZero: true }),
 });
 export type AddItemValues = z.infer<typeof addItemSchema>;
@@ -41,18 +43,22 @@ export type AddItemValues = z.infer<typeof addItemSchema>;
 export const updateItemSchema = z.object({
   item: requiredText("Item name", { min: 2, max: 80 }),
   category: selectField("a category"),
-  stocks: countField("Stock", { min: 0 }),
-  safeStock: countField("Safe stock", { min: 0 }),
+  stocks: quantityField("Quantity", { allowZero: true }),
+  safeStock: quantityField("Safe stock", { allowZero: true }),
 });
 export type UpdateItemValues = z.infer<typeof updateItemSchema>;
 
+export const updateItemWithPriceSchema = updateItemSchema.extend({
+  price: inventoryPriceSchema,
+});
+
 export const addStocksSchema = z.object({
-  stocks: countField("Stock", { min: 1 }),
+  stocks: quantityField("Quantity"),
 });
 export type AddStocksValues = z.infer<typeof addStocksSchema>;
 
 export const addStocksWithExpenseSchema = z.object({
-  stocks: countField("Stock", { min: 1 }),
+  stocks: quantityField("Quantity"),
   expences: moneyField({ label: "Expense", allowZero: true }),
 });
 export type AddStocksWithExpenseValues = z.infer<

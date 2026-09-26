@@ -15,6 +15,7 @@ import {
 } from "@/lib/validation/fields";
 import {
   useArtistAiAnalysis,
+  distributeSessionHours,
   aiSizeWidthSchema,
   aiSizeHeightSchema,
 } from "@/app/hooks/artistAiAnalysisHooks";
@@ -75,6 +76,11 @@ import { ArtStyleSelect } from "@/components/ui/artStyleSelect";
 import { formatPeso } from "@/app/utils/customFunction";
 import { tattooSizeCmFromScene } from "@/app/utils/tattooScale";
 import { BackButton } from "@/components/ui/back-button";
+import {
+  sessionHoursFromInput,
+  sessionHoursSchema,
+  sessionsSchema,
+} from "@/lib/validation/schemas/post";
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 import { AiAnalysisCard, profitAtPrice } from "@/components/ui/ai-analysis-card";
 import { useArtistSettings } from "@/app/hooks/artistSettingsHooks";
@@ -270,15 +276,6 @@ export default function Page() {
     },
   });
 
-  const distributeSessionHours = (totalHours: number, sessionCount: number) => {
-    const count = Math.max(1, Math.round(sessionCount));
-    const perSession = Math.max(
-      0.5,
-      Math.round((totalHours / count) * 10) / 10,
-    );
-    return Array(count).fill(perSession);
-  };
-
   const applyAiEstimate = (result: aiAnalysisResultInterface) => {
     setSessions(
       distributeSessionHours(
@@ -406,6 +403,9 @@ export default function Page() {
   const sizeHeightError = firstError(sizeHeightSchema, sizeHeightCm, {
     showWhenEmpty: triedSubmit,
   });
+  const sessionsError = triedSubmit
+    ? firstError(sessionsSchema, sessions)
+    : undefined;
   const tagsError =
     triedSubmit && tags.length === 0
       ? "Please enter at least one tag."
@@ -462,6 +462,7 @@ export default function Page() {
       !parsedCategory.success ||
       !parsedWidth.success ||
       !parsedHeight.success ||
+      !sessionsSchema.safeParse(sessions).success ||
       !hasTags ||
       !hasImage
     ) {
@@ -871,15 +872,15 @@ export default function Page() {
                     </div>
                     <div className="flex items-center gap-2 w-full">
                       <Input
-                        type="number"
-                        min={1}
-                        value={session}
+                        inputMode="numeric"
+                        value={session || ""}
+                        aria-invalid={!!firstError(sessionHoursSchema, session) && session !== 0}
                         onChange={(e) =>
-                          updateSession(index, Number(e.target.value))
+                          updateSession(index, sessionHoursFromInput(e.target.value))
                         }
                         className="flex-1"
-                        placeholder="0"
-                      />
+                        placeholder="Hours"
+                        />
                       <div className="h-10 px-4 flex items-center justify-center border border-border bg-surface min-w-[64px]">
                         <span className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
                           {session === 1 ? "Hour" : "Hours"}
@@ -899,6 +900,7 @@ export default function Page() {
                   </div>
                 ))}
               </div>
+              <FieldError>{sessionsError}</FieldError>
             </div>
           </div>
 

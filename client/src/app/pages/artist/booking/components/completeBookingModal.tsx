@@ -18,6 +18,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+export const isBookingFullyPaid = (booking: bookingInterface) =>
+  Number(booking.balance) < 0.005;
+
 export function CompleteBookingModal({
   booking,
   setBookings,
@@ -88,6 +91,8 @@ export function CompleteBookingModal({
           <DialogDescription>
             {booking.client.name} · the items used below will be deducted from{" "}
             {isBusinessInventory ? `${owner.name}'s` : "your"} inventory.
+            {booking.session < booking.sessions.length &&
+              ` Session ${booking.session} of ${booking.sessions.length} — completing now ends the booking without the remaining planned sessions.`}
           </DialogDescription>
         </DialogHeader>
 

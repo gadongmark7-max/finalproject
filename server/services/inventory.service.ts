@@ -47,7 +47,7 @@ export class InventoryService {
   ) {
     return await InventoryModel.findOneAndUpdate(
       { _id: id, account },
-      { $inc: { stocks: newStocks } },
+      [{ $set: { stocks: { $round: [{ $add: ["$stocks", newStocks] }, 2] } } }],
       { new: true },
     );
   }
@@ -60,7 +60,7 @@ export class InventoryService {
   ) {
     const before = await InventoryModel.findOneAndUpdate(
       { _id: id, account },
-      [{ $set: { stocks: { $max: [0, { $subtract: ["$stocks", qty] }] } } }],
+      [{ $set: { stocks: { $round: [{ $max: [0, { $subtract: ["$stocks", qty] }] }, 2] } } }],
       { new: false, session },
     );
     if (!before) return null;
@@ -69,7 +69,7 @@ export class InventoryService {
       unit: before.type,
       unitCost: before.price,
       stockBefore: before.stocks,
-      deducted: Math.min(qty, Math.max(0, before.stocks)),
+      deducted: Math.round(Math.min(qty, Math.max(0, before.stocks)) * 100) / 100,
     };
   }
 }

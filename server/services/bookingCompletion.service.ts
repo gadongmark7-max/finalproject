@@ -30,6 +30,11 @@ export interface ConsumedItem {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+const PAID_TOLERANCE = 0.005;
+
+export const isFullyPaid = (balance: unknown) =>
+  Number(balance) < PAID_TOLERANCE;
+
 const todayIso = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -95,6 +100,13 @@ export class BookingCompletionService {
       );
     }
 
+    if (!isFullyPaid(booking.balance)) {
+      throw new BookingCompletionError(
+        409,
+        `This booking still has an unpaid balance of ₱${Number(booking.balance).toLocaleString()}`,
+      );
+    }
+
     const inventoryOwner = businessId ?? artistId;
     const recordExpense = !businessId;
     const itemsUsed = mergeItemsUsed(booking.itemUsed);
@@ -106,6 +118,7 @@ export class BookingCompletionService {
           _id: booking._id,
           status: { $in: COMPLETABLE_STATUSES },
           inventoryConsumption: null,
+          balance: { $lt: PAID_TOLERANCE },
         },
         { $set: { status: "completed" } },
         { new: true, session },

@@ -27,7 +27,10 @@ import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import { isBussinessApproveArtistPayment } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
 import { ReschedModal } from "./reschedModal";
-import { CompleteBookingModal } from "./completeBookingModal";
+import {
+  CompleteBookingModal,
+  isBookingFullyPaid,
+} from "./completeBookingModal";
 import { payMongoRefund } from "@/app/utils/payMongo";
 
 const statusStyle: Record<string, string> = {
@@ -244,15 +247,14 @@ export default function ActiveBookings({
 
           {/* Card Footer — Actions */}
           <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-border mt-auto">
-            {booking.session !== booking.sessions.length ? (
+            {booking.session < booking.sessions.length && (
               <BookNextSession booking={booking} setBookings={setBookings} />
-            ) : (
-              booking.balance === 0 && (
-                <CompleteBookingModal
-                  booking={booking}
-                  setBookings={setBookings}
-                />
-              )
+            )}
+            {isBookingFullyPaid(booking) && (
+              <CompleteBookingModal
+                booking={booking}
+                setBookings={setBookings}
+              />
             )}
 
             {booking.balance !== 0 &&

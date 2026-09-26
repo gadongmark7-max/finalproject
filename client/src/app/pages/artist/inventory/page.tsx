@@ -269,7 +269,7 @@ export default function Page() {
                       onClick={cycleSort}
                       className="flex items-center gap-1.5 group transition-colors duration-200 hover:text-gold"
                     >
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted group-hover:text-gold transition-colors duration-200">Stocks</span>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted group-hover:text-gold transition-colors duration-200">Quantity</span>
                       <SortIcon className={`w-3 h-3 transition-colors duration-200 ${sortDir !== null ? "text-gold" : "text-text-dim group-hover:text-gold"}`} />
                     </button>
                   </TableHead>
@@ -342,8 +342,9 @@ export default function Page() {
                         className="text-xl font-light text-text"
                         style={{ fontFamily: "'Cormorant Garamond', serif" }}
                       >
-                        {item.stocks}
+                        {item.stocks.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                       </span>
+                      <span className="ml-1.5 text-sm text-text-muted">{item.type}</span>
                     </TableCell>
 
                     <TableCell>

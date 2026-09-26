@@ -48,7 +48,17 @@ const PostSchema = new Schema({
   sizeHeightCm: { type: Number, required: false },
   tags: [{ type: String, required: true }],
   category: { type: String, required: true },
-  sessions: [{ type: Number, required: true }],
+  sessions: [
+    {
+      type: Number,
+      required: true,
+      min: 1,
+      validate: {
+        validator: Number.isInteger,
+        message: "Session hours must be whole numbers",
+      },
+    },
+  ],
   itemUsed: [
     {
       itemId: { type: String, required: true },

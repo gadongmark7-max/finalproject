@@ -12,6 +12,7 @@ import {
 } from "../model/inventory.model";
 import {
   addInventoryItemSchema,
+  addStocksQuantityField,
   updateInventoryItemSchema,
 } from "../validation/inventory.schema";
 
@@ -73,13 +74,12 @@ export class InventoryController {
 
     const { inventoryId, stocks, expences, recordedBy } = request.body;
 
-    const qty = Number(stocks);
-    if (!Number.isInteger(qty) || qty < 1) {
-      response
-        .status(400)
-        .json({ error: "Stock must be a whole number of at least 1" });
+    const parsedQty = addStocksQuantityField.safeParse(stocks);
+    if (!parsedQty.success) {
+      response.status(400).json({ error: firstIssue(parsedQty.error) });
       return;
     }
+    const qty = parsedQty.data;
     if (typeof inventoryId !== "string" || !isValidObjectId(inventoryId)) {
       response.status(400).json({ error: "Invalid inventory item" });
       return;
