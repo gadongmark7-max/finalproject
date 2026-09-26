@@ -1,26 +1,27 @@
 "use client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { UNREAD_MESSAGES_KEY } from "@/components/ui/messagesCount";
 import axiosInstance from "@/app/utils/axios";
 import { useState, useEffect, useRef } from "react";
 import { convoInterface } from "@/app/types/convo.type";
 import { useParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
 import { errorAlert } from "@/app/utils/alert";
 import useUserStore from "@/app/store/useUserStore";
-import { Send } from "lucide-react";
+import { Send, ArrowLeft } from "lucide-react";
 import { UploadImageModal } from "./components/uploadImageModal";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
 
 export default function Page() {
   const { user } = useUserStore();
 
   const [p2Profile, setP2Profile] = useState("");
   const [p2Name, setP2name] = useState("");
+  const [p2Id, setP2Id] = useState("");
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
   const params = useParams();
   const paramsId = params.id as string;
 
@@ -36,18 +37,30 @@ export default function Page() {
 
   useEffect(() => {
     if (data?.data) {
-      // Loading the convo marks the other side's messages read on the server.
-      queryClient.invalidateQueries({ queryKey: UNREAD_MESSAGES_KEY });
-      const convoData: convoInterface = data?.data;
+      queryClient.invalidateQueries({
+        queryKey: UNREAD_MESSAGES_KEY,
+      });
+
+      const convoData: convoInterface = data.data;
+
       setConvo(convoData);
-      const index = user?._id === convoData.accounts[0]._id ? 1 : 0;
-      setP2Profile(convoData.accounts[index].profile);
-      setP2name(convoData.accounts[index].name);
+
+      const otherAccount = convoData.accounts.find(
+        (account) => account._id !== user?._id,
+      );
+
+      if (otherAccount) {
+        setP2Id(otherAccount._id);
+        setP2Profile(otherAccount.profile);
+        setP2name(otherAccount.name);
+      }
     }
-  }, [data]);
+  }, [data, user?._id, queryClient]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
   }, [convo?.chats]);
 
   const [message, setMessage] = useState("");
@@ -55,31 +68,40 @@ export default function Page() {
   const messageMutation = useMutation({
     mutationFn: (data: { convoId: string; message: string }) =>
       axiosInstance.post(`/convo/message`, data),
+
     onSuccess: (response) => {
       setConvo(response.data);
       setMessage("");
     },
+
     onError: () => errorAlert("error occured"),
   });
 
   const handleMessageSend = () => {
-    if (!message.trim()) return errorAlert("empty field");
-    messageMutation.mutate({ message, convoId: convo!._id });
+    if (!message.trim()) {
+      return errorAlert("empty field");
+    }
+
+    messageMutation.mutate({
+      message,
+      convoId: convo!._id,
+    });
   };
 
-  if (!convo)
+  if (!convo) {
     return (
       <div className="w-full h-dvh bg-primary flex items-center justify-center">
         <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
+
         <p className="text-text-muted text-[10px] uppercase tracking-[0.28em]">
           Loading...
         </p>
       </div>
     );
+  }
 
   return (
     <div className="flex flex-col h-dvh w-full bg-primary overflow-hidden">
-      {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
         style={{
@@ -87,30 +109,49 @@ export default function Page() {
         }}
       />
 
-      {/* Ambient Gold Glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.06] blur-[120px] bg-gold" />
 
-      {/* Header */}
       <div className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-border bg-surface z-10">
-        {/* Gold accent line */}
         <div className="absolute bottom-0 left-0 h-[1px] w-full bg-gradient-to-r from-gold/40 via-gold/10 to-transparent" />
+
         <div className="flex items-center gap-2">
-          <div className="relative flex-shrink-0">
-            <img
-              src={p2Profile}
-              alt="profile"
-              className="w-10 h-10 object-cover border border-border"
-            />
-            <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
-          </div>
+          {p2Id ? (
+            <Link
+              href={`/pages/client/artistProfile/${p2Id}`}
+              className="relative flex-shrink-0 group"
+            >
+              <div className="relative">
+                <img
+                  src={p2Profile}
+                  alt={`${p2Name}'s profile`}
+                  className="w-10 h-10 object-cover border border-border group-hover:border-gold transition-colors duration-200"
+                />
+
+                <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+              </div>
+            </Link>
+          ) : (
+            <div className="relative flex-shrink-0">
+              <img
+                src={p2Profile}
+                alt={`${p2Name}'s profile`}
+                className="w-10 h-10 object-cover border border-border"
+              />
+
+              <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+            </div>
+          )}
 
           <div>
             <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
               Conversation
             </p>
+
             <h1
               className="text-lg font-light text-text leading-none"
-              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+              }}
             >
               {p2Name}
             </h1>
@@ -127,7 +168,6 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-3">
         {convo.chats.map((chat) => {
           const isMe = chat.sender === user?._id;
@@ -146,7 +186,6 @@ export default function Page() {
                     : "bg-surface border border-border text-text"
                 }`}
               >
-                {/* Corner accents for received messages */}
                 {!isMe && chat.type === "text" && (
                   <>
                     <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-gold opacity-40" />
@@ -179,6 +218,7 @@ export default function Page() {
             </div>
           );
         })}
+
         <div ref={bottomRef} />
       </div>
 

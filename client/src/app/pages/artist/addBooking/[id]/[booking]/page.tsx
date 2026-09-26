@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -17,25 +17,14 @@ import {
   Plus,
   X,
   Clock,
-  Layers,
-  Tag,
-  LoaderCircle,
-  DollarSign,
-  Replace,
-  Brush,
-  Cpu,
-  Brain,
-  Zap,
   UserCheck,
   UserX,
-  Check,
-  CheckCircle,
+  Settings,
 } from "lucide-react";
-import { errorAlert, successAlert } from "@/app/utils/alert";
+import { errorAlert } from "@/app/utils/alert";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
-import { useParams } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import { BookModal } from "./components/bookModal";
 import useUserStore from "@/app/store/useUserStore";
@@ -47,16 +36,16 @@ import {
 } from "@/app/types/accounts.type";
 import { inventoryInterface } from "@/app/types/inventory.type";
 import {
+  apiErrorMessage,
+  formatPeso,
   getInventoryName,
   getInventoryPrice,
   getInventoryType,
 } from "@/app/utils/customFunction";
 import { TattooDataInterface } from "@/app/types/threejs.type";
 import { SetTattoo3DModal } from "@/app/3d/3dTattooModal";
-import { smartPricing } from "@/app/utils/smartPricing";
 import { ArtStyleSelect } from "@/components/ui/artStyleSelect";
-import { tattooAreaCm2 } from "@/app/utils/customFunction";
-import { BodyPartSelect } from "@/components/ui/bodyPartSelect";
+import { tattooSizeCmFromScene } from "@/app/utils/tattooScale";
 import { bookingInterface } from "@/app/types/booking.type";
 import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
@@ -65,39 +54,104 @@ import {
   bookingClientSchema,
   firstError,
 } from "@/lib/validation/schemas/booking";
-import { moneyField, countField } from "@/lib/validation/fields";
+import { countField } from "@/lib/validation/fields";
 import { BackButton } from "@/components/ui/back-button";
+import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
+import {
+  useArtistAiAnalysis,
+  aiSizeWidthSchema,
+  aiSizeHeightSchema,
+} from "@/app/hooks/artistAiAnalysisHooks";
+import { useArtistSettings } from "@/app/hooks/artistSettingsHooks";
+import {
+  AiAnalysisCard,
+  profitAtPrice,
+} from "@/components/ui/ai-analysis-card";
 
-const rateSchema = moneyField({ label: "Rate" });
 const qtySchema = countField("Quantity", { min: 1 });
 
-const wizardInfo = ["Session Info", "Tattoo Info", "Booking Schedule"];
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-px w-6 bg-gold" />
+      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function RequiredBadge() {
+  return (
+    <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">
+      Required
+    </span>
+  );
+}
 
 export default function Page() {
   const [type, setType] = useState("newPost");
   const [appointment, setAppointment] = useState<bookingInterface | null>(null);
 
   const { user } = useUserStore();
+  const router = useRouter();
 
   const params = useParams();
   const paramsId = params.id as string;
   const paramsBooking = params.booking as string;
 
+  const [postImg, setPostImg] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [isLoadingWorkImage, setIsLoadingWorkImage] = useState(false);
+
   const { data } = useQuery({
-    queryKey: ["work_post"],
+    queryKey: ["work_post", paramsId],
     queryFn: () => axiosInstance.get(`/works/${paramsId}`),
     enabled: paramsId !== "new",
   });
 
+  const workScreenShot: string | null =
+    typeof data?.data?.screenShot === "string" && data.data.screenShot
+      ? data.data.screenShot
+      : null;
+
   useEffect(() => {
-    if (paramsId != "new" && data?.data) {
-      setType("workPost");
-      setPreview(data.data.screenShot);
-    }
-  }, [data]);
+    if (!workScreenShot) return;
+
+    let cancelled = false;
+    setType("workPost");
+    setPreview(workScreenShot);
+    setPostImg(null);
+    setIsLoadingWorkImage(true);
+
+    (async () => {
+      try {
+        const response = await fetch(workScreenShot);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch work image (${response.status})`);
+        }
+        const blob = await response.blob();
+        if (cancelled) return;
+        const fileName =
+          workScreenShot.split("/").pop()?.split("?")[0] ||
+          "work-tattoo-image.png";
+        setPostImg(
+          new File([blob], fileName, { type: blob.type || "image/png" }),
+        );
+      } catch (error) {
+        if (!cancelled) console.error("Failed to load work image:", error);
+      } finally {
+        if (!cancelled) setIsLoadingWorkImage(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workScreenShot]);
 
   const { data: appointmentData } = useQuery({
-    queryKey: ["appointmenttt"],
+    queryKey: ["appointment_booking", paramsBooking],
     queryFn: () => axiosInstance.get(`/booking/${paramsBooking}`),
     enabled: paramsBooking !== "none",
   });
@@ -124,8 +178,6 @@ export default function Page() {
     },
   });
 
-  const [step, setStep] = useState(1);
-
   const [bussiness, setBussiness] = useState("none");
 
   useEffect(() => setItemUsed([]), [bussiness]);
@@ -140,6 +192,28 @@ export default function Page() {
     },
   });
 
+  const [artistTime, setArtistTime] = useState<string[]>([]);
+  const [artistDay, setArtistDay] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (bussiness == "none" && artistInfoData) {
+      setArtistTime(artistInfoData.schedTime);
+      setArtistDay(artistInfoData.schedDay);
+    } else {
+      bussinessInfoData?.forEach((item) => {
+        if (bussiness == item.bussiness._id && user) {
+          item.artists.forEach((artist) => {
+            if (artist.artist._id == user._id) {
+              setArtistTime(artist.schedTime);
+              setArtistDay(artist.schedDay);
+            }
+          });
+        }
+      });
+    }
+  }, [bussiness, artistInfoData, bussinessInfoData]);
+
+  // ── Items used (from the booking's inventory owner) ────────────────────
   const { data: inventoryData } = useQuery({
     queryKey: ["inventoryData", bussiness],
     queryFn: async (): Promise<inventoryInterface[]> => {
@@ -199,34 +273,7 @@ export default function Page() {
     setItemUsed((prev) => prev.filter((item) => item.itemId != id));
   };
 
-  const [artistTime, setArtistTime] = useState<string[]>([]);
-  const [artistDay, setArtistDay] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (bussiness == "none" && artistInfoData) {
-      setArtistTime(artistInfoData.schedTime);
-      setArtistDay(artistInfoData.schedDay);
-    } else {
-      bussinessInfoData?.forEach((item) => {
-        if (bussiness == item.bussiness._id && user) {
-          item.artists.forEach((artist) => {
-            if (artist.artist._id == user._id) {
-              setArtistTime(artist.schedTime);
-              setArtistDay(artist.schedDay);
-            }
-          });
-        }
-      });
-    }
-  }, [bussiness, artistInfoData, bussinessInfoData]);
-
-  const router = useRouter();
-
-  const [postImg, setPostImg] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-
-  const [price, setPrice] = useState("");
-
+  // ── Client ─────────────────────────────────────────────────────────────
   const [client, setClient] = useState("");
   const [clientName, setClientName] = useState("");
   const [clientContact, setClientContact] = useState("");
@@ -237,71 +284,82 @@ export default function Page() {
   );
   const [accountFieldsBlocking, setAccountFieldsBlocking] = useState(false);
 
+  // ── Tattoo details, pricing, sessions ──────────────────────────────────
+  const [price, setPrice] = useState("");
   const [sessions, setSessions] = useState<number[]>([1]);
-
   const [tattooData, setTatooData] = useState<TattooDataInterface | null>(null);
-
   const [category, setCategory] = useState("");
   const [complexity, setComplexity] = useState(0);
-  const [perHour, setPerHour] = useState("50");
-  const perHourNum = Number(perHour) || 0;
   const [isColored, setIsColored] = useState(false);
-  const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "");
+  const [bodyPart, setBodyPart] = useState("");
+  const [sizeWidthCm, setSizeWidthCm] = useState("");
+  const [sizeHeightCm, setSizeHeightCm] = useState("");
+  const [sizeFromScene, setSizeFromScene] = useState(false);
 
-  const [editField, setEditField] = useState(false);
-
+  // The 3D placement is the trusted source for body part and size.
   useEffect(() => {
-    if (tattooData) setBodyPart(tattooData.meshName);
+    if (!tattooData) return;
+    setBodyPart(tattooData.meshName);
+    const { widthCm, heightCm } = tattooSizeCmFromScene(tattooData);
+    setSizeWidthCm(String(widthCm));
+    setSizeHeightCm(String(heightCm));
+    setSizeFromScene(true);
   }, [tattooData]);
 
-  const EstimatedPrice = () => {
-    if (!tattooData || !category || !perHourNum || !complexity) return false;
-    const totalSessionHrs = sessions.reduce((total, item) => total + item, 0);
-    const artistRate = totalSessionHrs * perHourNum - perHourNum;
-    const itemUsedPrice = itemUsed.reduce(
-      (total, item) => total + item.price * item.qty,
-      0,
-    );
-    const sizeCm2 = tattooAreaCm2(tattooData.size);
+  // Read-only here; managed in Settings and applied by the server.
+  const settings = useArtistSettings();
+  const hourlyRate = settings.data?.hourlyRate ?? null;
 
-    const estimatedPrice = smartPricing({
-      category: category,
-      artistRate: artistRate,
-      size: sizeCm2,
-      itemUsed: itemUsedPrice,
-      designComplexity: complexity,
-      isColored: isColored,
-      bodyPart: bodyPart,
-    });
-
-    return estimatedPrice;
+  const distributeSessionHours = (totalHours: number, sessionCount: number) => {
+    const count = Math.max(1, Math.round(sessionCount));
+    const perSession = Math.max(1, Math.round(totalHours / count));
+    return Array(count).fill(perSession);
   };
 
-  const bookMutation = useMutation({
-    mutationFn: (data: FormData) => axiosInstance.post("/booking/custom", data),
-    onSuccess: () => {
-      Swal.fire({
-        icon: "success",
-        title: "Booking created",
-        text: "Your Custom Booking was added successfully",
-      }).then(() => {
-        router.push("/pages/artist/booking");
-      });
-    },
-    onError: () => errorAlert("error occur"),
-  });
+  // AI materials come from the artist's own inventory, so they're only
+  // applied when the booking uses that inventory (no business selected).
+  const usesOwnInventory = bussiness === "none";
 
-  const aiMutation = useMutation({
-    mutationFn: (data: FormData) =>
-      axiosInstance.post("/account/aiAutoFill", data),
-    onSuccess: (response) => {
-      setCategory(response.data.category);
-      setComplexity(response.data.complexity);
-      setIsColored(response.data.isColored);
-      successAlert("Ai Responded");
+  const applyAiEstimate = (result: aiAnalysisResultInterface) => {
+    setSessions(
+      distributeSessionHours(
+        result.analysis.estimatedHours,
+        result.analysis.estimatedSessions,
+      ),
+    );
+    if (usesOwnInventory) {
+      setItemUsed(
+        result.materials.map((m) => ({
+          itemId: m.inventoryItemId,
+          item: m.name,
+          qty: m.estimatedQuantity,
+          price: m.unitCost,
+        })),
+      );
+    }
+    setPrice(String(Math.round(result.pricing.suggestedPrice)));
+  };
+
+  const ai = useArtistAiAnalysis(
+    {
+      postImg,
+      bodyPart,
+      hourlyRate,
+      sizeWidthCm,
+      sizeHeightCm,
+      category,
+      complexity,
+      isColored,
     },
-    onError: () => errorAlert("error occur"),
-  });
+    {
+      onAnalyzed: (result) => {
+        setCategory(result.analysis.category);
+        setComplexity(result.analysis.complexity);
+        setIsColored(result.analysis.isColored);
+        applyAiEstimate(result);
+      },
+    },
+  );
 
   const updateSession = (index: number, value: number) => {
     const updated = [...sessions];
@@ -313,7 +371,6 @@ export default function Page() {
     setSessions([...sessions, 1]);
   };
 
-  // Remove a session
   const removeSession = (index: number) => {
     if (sessions.length === 1) return;
     setSessions(sessions.filter((_, i) => i !== index));
@@ -324,62 +381,116 @@ export default function Page() {
     if (file) {
       setPreview(URL.createObjectURL(file));
       setTatooData(null);
-      setEditField(false);
       setCategory("");
       setComplexity(0);
       setIsColored(false);
       setBodyPart("");
+      setSizeWidthCm("");
+      setSizeHeightCm("");
+      setSizeFromScene(false);
+      ai.reset();
     }
   };
 
-  const priceError = firstError(priceField, price);
+  // ── Validation ─────────────────────────────────────────────────────────
+  // Errors stay hidden until the artist tries to book, then every missing
+  // field lights up at once and clears as it's fixed.
+  const [triedSubmit, setTriedSubmit] = useState(false);
+
+  const priceError = firstError(priceField, price, {
+    showWhenEmpty: triedSubmit,
+  });
   const clientNameError = firstError(
     bookingClientSchema.shape.clientName,
     clientName,
+    { showWhenEmpty: triedSubmit },
   );
   const clientEmailError = firstError(
     bookingClientSchema.shape.clientEmail,
     clientEmail,
+    { showWhenEmpty: triedSubmit },
   );
   const clientContactError = firstError(
     bookingClientSchema.shape.clientContact,
     clientContact,
+    { showWhenEmpty: triedSubmit },
   );
+  const clientSelectError =
+    triedSubmit && !appointment && !isNoClientAccount && !client
+      ? "Please select a client."
+      : undefined;
+  const imageError =
+    triedSubmit && !preview ? "Please select an image." : undefined;
+  const sizeWidthError = firstError(aiSizeWidthSchema, sizeWidthCm);
+  const sizeHeightError = firstError(aiSizeHeightSchema, sizeHeightCm);
 
-  const NextButttonValidation = () => {
-    if (step == 1) {
-      if (isNoClientAccount) {
-        return (
-          !bookingClientSchema.safeParse({
-            clientName,
-            clientEmail,
-            clientContact,
-          }).success || accountFieldsBlocking
-        );
-      } else {
-        return !client;
-      }
-    } else if (step == 2) {
-      return !preview || !priceField.safeParse(price).success;
-    } else {
-      return true;
+  const clientIsValid = () => {
+    if (appointment) return !!client;
+    if (isNoClientAccount) {
+      return (
+        bookingClientSchema.safeParse({
+          clientName,
+          clientEmail,
+          clientContact,
+        }).success && !accountFieldsBlocking
+      );
     }
+    return !!client;
   };
 
+  const analyzeDisabledReason = isLoadingWorkImage
+    ? "Loading the work image…"
+    : !postImg
+      ? type === "workPost"
+        ? "Could not load this work's image for AI analysis."
+        : "Select a tattoo image first."
+      : !bodyPart
+        ? "Place the tattoo on the 3D body or select a body part."
+        : settings.isLoading
+          ? "Loading your hourly rate…"
+          : hourlyRate === null
+            ? "Set your hourly rate in Settings first."
+            : !aiSizeWidthSchema.safeParse(sizeWidthCm).success ||
+                !aiSizeHeightSchema.safeParse(sizeHeightCm).success
+              ? "Enter the tattoo width and height (cm)."
+              : undefined;
+
+  const aiSizeLabel =
+    aiSizeWidthSchema.safeParse(sizeWidthCm).success &&
+    aiSizeHeightSchema.safeParse(sizeHeightCm).success
+      ? `${Number(sizeWidthCm)} × ${Number(sizeHeightCm)} cm`
+      : null;
+
+  // ── Submit ─────────────────────────────────────────────────────────────
+  const bookMutation = useMutation({
+    mutationFn: (data: FormData) => axiosInstance.post("/booking/custom", data),
+    onSuccess: () => {
+      Swal.fire({
+        icon: "success",
+        title: "Booking created",
+        text: "Your Custom Booking was added successfully",
+      }).then(() => {
+        router.push("/pages/artist/booking");
+      });
+    },
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
+  });
+
   const bookHandler = (data: { date: string; time: string[] }) => {
-    if (!sessions || !user) return errorAlert("empty field");
-    if (!postImg && type == "newPost") return errorAlert("empty field");
-    if (isNoClientAccount && accountFieldsBlocking)
-      return errorAlert("Please finish the client account details");
+    if (!user) return errorAlert("empty field");
     const parsedPrice = priceField.safeParse(price);
-    if (!parsedPrice.success)
-      return errorAlert(
-        parsedPrice.error.issues[0]?.message ?? "Please enter a valid price",
-      );
+    const hasImage = type === "newPost" ? !!postImg : !!preview;
+
+    if (!clientIsValid() || !hasImage || !parsedPrice.success) {
+      setTriedSubmit(true);
+      if (isNoClientAccount && accountFieldsBlocking)
+        return errorAlert("Please finish the client account details");
+      return errorAlert("Please complete the required fields");
+    }
 
     const formData = new FormData();
 
-    formData.append("file", postImg || "none");
+    formData.append("file", postImg && type === "newPost" ? postImg : "none");
     formData.append("price", String(parsedPrice.data));
     formData.append("sessions", JSON.stringify(sessions));
 
@@ -389,21 +500,23 @@ export default function Page() {
     formData.append("itemUsed", JSON.stringify(itemUsed));
 
     formData.append("clientId", client);
-    formData.append("artistId", user?._id);
+    formData.append("artistId", user._id);
 
     formData.append("type", type);
     formData.append("link", preview || "none");
 
     formData.append(
       "isNoAccount",
-      isNoClientAccount ? "no account" : "has account",
+      !appointment && isNoClientAccount ? "no account" : "has account",
     );
     formData.append("clientName", clientName || "none");
     formData.append("clientContact", clientContact || "none");
     formData.append("clientEmail", clientEmail || "none");
     formData.append(
       "clientPassword",
-      isNoClientAccount && clientPassword ? clientPassword : "none",
+      !appointment && isNoClientAccount && clientPassword
+        ? clientPassword
+        : "none",
     );
 
     formData.append("appointmentId", appointment ? appointment._id : "none");
@@ -418,19 +531,11 @@ export default function Page() {
     bookMutation.mutate(formData);
   };
 
-  const AiAutoFillHanlder = () => {
-    if (!postImg) return errorAlert("Feature Not Available");
-
-    const formData = new FormData();
-
-    formData.append("file", postImg || "none");
-
-    aiMutation.mutate(formData);
-  };
+  const profit = ai.result ? profitAtPrice(price, ai.result.pricing) : null;
 
   return (
-    <div className="w-full  px-4 sm:px-6 py-10 lg:py-16 min-h-dvh bg-primary">
-      <div className="max-w-3xl mx-auto">
+    <div className="w-full px-4 sm:px-6 py-10 lg:py-16 min-h-dvh bg-primary">
+      <div className="max-w-3xl lg:max-w-6xl mx-auto">
         {/* Grain Overlay */}
         <div
           className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
@@ -442,11 +547,11 @@ export default function Page() {
 
         {/* Page Title */}
         <div className="flex items-center justify-between gap-2">
-          <div className="mb-12">
+          <div className="mb-10">
             <div className="flex items-center gap-3 mb-3">
               <div className="h-px w-8 bg-gold" />
               <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                New Entry
+                {appointment ? "From Appointment" : "New Entry"}
               </span>
             </div>
             <h1
@@ -456,89 +561,52 @@ export default function Page() {
               Add Booking
             </h1>
           </div>
-
           <BackButton />
         </div>
 
-        {/* ── WIZARD STEPS ── */}
-        <div className="flex  mb-12">
-          {wizardInfo.map((label, i) => {
-            const stepNumber = i + 1;
-            return (
-              <div key={label} className="flex items-center">
-                <div className="relative flex flex-col items-center">
-                  {/* Label */}
-                  <span
-                    className={`absolute -top-6 text-[10px] uppercase tracking-[0.18em] whitespace-nowrap font-light ${
-                      step >= stepNumber ? "text-gold" : "text-text-dim"
-                    }`}
-                  >
-                    {label}
-                  </span>
-                  {/* Circle */}
-                  <div
-                    className={`w-8 h-8 flex items-center justify-center text-xs font-light transition-all duration-300 ${
-                      step >= stepNumber
-                        ? "bg-gold text-primary border border-gold"
-                        : "bg-surface border border-border text-text-dim"
-                    }`}
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {stepNumber}
-                  </div>
-                </div>
-                {/* Connector */}
-                {i !== wizardInfo.length - 1 && (
-                  <div
-                    className={`w-20 sm:w-32 h-px mx-2 transition-all duration-500 ${
-                      step > stepNumber ? "bg-gold" : "bg-border"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* ── STEP CONTENT ── */}
-
-        {/* STEP 1 */}
-        {step === 1 && (
-          <div className="w-full space-y-6 mb-8">
-            {/* Client — prefilled */}
-            {appointment && (
+        {/* Main form (left) + AI Tattoo Analysis (right, sticky on desktop).
+            On mobile the AI card stacks after the form, before Schedule. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-5 mb-8 items-start">
+          <div className="w-full space-y-5 min-w-0 lg:col-start-1">
+            {/* ── CLIENT ── */}
+            {appointment ? (
               <div className="bg-surface border border-border p-5 space-y-3">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
-                  Client
-                </span>
-                <div className="flex gap-3 items-center mt-2">
+                <SectionLabel>Client</SectionLabel>
+                <div className="flex gap-3 items-center">
                   <div className="relative flex-shrink-0">
                     <div className="absolute -inset-[2px] border border-gold opacity-30" />
                     <img
                       src={appointment.client.profile}
+                      alt=""
                       className="w-10 h-10 object-cover"
                     />
                   </div>
-                  <h2
-                    className="text-lg font-light text-text"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {appointment.client.name}
-                  </h2>
+                  <div className="min-w-0">
+                    <h2
+                      className="text-lg font-light text-text"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
+                      {appointment.client.name}
+                    </h2>
+                    <p className="text-[11px] text-text-muted truncate">
+                      {appointment.client.email} · appointment on{" "}
+                      {appointment.date}
+                    </p>
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Client — select */}
-            {!appointment && (
+            ) : paramsBooking !== "none" ? (
+              <div className="bg-surface border border-border p-5">
+                <SectionLabel>Client</SectionLabel>
+                <p className="text-sm text-text-muted mt-3">
+                  Loading appointment…
+                </p>
+              </div>
+            ) : (
               <div className="bg-surface border border-border p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
-                    Client
-                  </span>
-                  <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">
-                    Required
-                  </span>
+                  <SectionLabel>Client</SectionLabel>
+                  <RequiredBadge />
                 </div>
 
                 <div className="flex justify-end">
@@ -606,22 +674,23 @@ export default function Page() {
                     )}
                   </div>
                 ) : (
-                  <ClientPicker
-                    endpoint="/booking/custom/clients"
-                    value={client}
-                    onSelect={(id) => setClient(id)}
-                    noRecordsLabel="No clients found."
-                  />
+                  <>
+                    <ClientPicker
+                      endpoint="/booking/custom/clients"
+                      value={client}
+                      onSelect={(id) => setClient(id)}
+                      noRecordsLabel="No clients found."
+                    />
+                    <FieldError>{clientSelectError}</FieldError>
+                  </>
                 )}
               </div>
             )}
 
-            {/* Business */}
-            {bussinessInfoData?.length !== 0 && paramsBooking == "none" && (
+            {/* ── BUSINESS (new bookings only) ── */}
+            {!!bussinessInfoData?.length && paramsBooking == "none" && (
               <div className="bg-surface border border-border p-5 space-y-3">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
-                  Business
-                </span>
+                <SectionLabel>Business</SectionLabel>
                 <Select onValueChange={setBussiness} value={bussiness}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select business" />
@@ -635,6 +704,7 @@ export default function Page() {
                       >
                         <img
                           src={item.bussiness.profile}
+                          alt=""
                           className="w-5 h-5 object-cover rounded-full"
                         />
                         {item.bussiness.name}
@@ -645,21 +715,173 @@ export default function Page() {
               </div>
             )}
 
-            {/* Items Used */}
+            {/* ── TWO-COLUMN: Image + Pricing ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* LEFT — Tattoo Image */}
+              <div className="bg-surface border border-border p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <SectionLabel>Tattoo Image</SectionLabel>
+                  <RequiredBadge />
+                </div>
+
+                <div className="relative border border-border bg-primary w-full h-[260px] overflow-hidden">
+                  {preview ? (
+                    <img
+                      src={preview}
+                      alt="preview"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-text-dim">
+                      <ImageIcon className="w-8 h-8" />
+                      <span className="text-[10px] uppercase tracking-[0.18em]">
+                        No image selected
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {type === "newPost" && (
+                  <Input
+                    type="file"
+                    className="w-full"
+                    accept="image/*"
+                    aria-invalid={!!imageError}
+                    onChange={(e) =>
+                      handleImageChange(e.target.files?.[0] || null)
+                    }
+                  />
+                )}
+                <FieldError>{imageError}</FieldError>
+
+                {preview && (
+                  <SetTattoo3DModal
+                    key={preview}
+                    tattooData={tattooData}
+                    setTatooData={setTatooData}
+                    img={preview}
+                    fixSize={null}
+                  />
+                )}
+
+                <div className="space-y-2">
+                  <Label>Art Style</Label>
+                  <ArtStyleSelect onChange={setCategory} value={category} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tattoo Size (cm)</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Input
+                        placeholder="Width"
+                        inputMode="decimal"
+                        value={sizeWidthCm}
+                        aria-invalid={!!sizeWidthError}
+                        onChange={(e) => {
+                          setSizeWidthCm(
+                            e.target.value.replace(/[^0-9.]/g, ""),
+                          );
+                          setSizeFromScene(false);
+                        }}
+                      />
+                      <FieldError>{sizeWidthError}</FieldError>
+                    </div>
+                    <div className="space-y-1">
+                      <Input
+                        placeholder="Height"
+                        inputMode="decimal"
+                        value={sizeHeightCm}
+                        aria-invalid={!!sizeHeightError}
+                        onChange={(e) => {
+                          setSizeHeightCm(
+                            e.target.value.replace(/[^0-9.]/g, ""),
+                          );
+                          setSizeFromScene(false);
+                        }}
+                      />
+                      <FieldError>{sizeHeightError}</FieldError>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-text-dim">
+                    {sizeFromScene
+                      ? "Estimated from the 3D placement — resize the tattoo on the body or edit here."
+                      : "Used by the AI Tattoo Analysis. Placing the tattoo on the 3D body fills this in."}
+                  </p>
+                </div>
+              </div>
+
+              {/* RIGHT — Pricing */}
+              <div className="bg-surface border border-border p-4 space-y-4 self-start">
+                <SectionLabel>Pricing</SectionLabel>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>Price</Label>
+                    <RequiredBadge />
+                  </div>
+                  <MoneyInput
+                    placeholder="Final price"
+                    value={price}
+                    onChange={setPrice}
+                    aria-invalid={!!priceError}
+                  />
+                  <FieldError>{priceError}</FieldError>
+                  {profit && ai.result && (
+                    <p className="text-[11px] text-text-dim" aria-live="polite">
+                      Estimated profit{" "}
+                      <span
+                        className={
+                          profit.profit < 0 ? "text-danger-light" : "text-text"
+                        }
+                      >
+                        {formatPeso(profit.profit)}
+                      </span>{" "}
+                      · cost {formatPeso(ai.result.pricing.totalCost)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="booking-hourly-rate">Hourly Rate</Label>
+                  <MoneyInput
+                    id="booking-hourly-rate"
+                    value={
+                      hourlyRate !== null
+                        ? `${hourlyRate.toLocaleString()} / hour`
+                        : ""
+                    }
+                    placeholder={settings.isLoading ? "Loading…" : "Not set"}
+                    onChange={() => {}}
+                    readOnly
+                    disabled
+                  />
+                  <p className="flex items-center gap-1.5 text-[11px] text-text-dim">
+                    <Settings className="w-3 h-3 shrink-0" />
+                    To change it, go to{" "}
+                    <Link
+                      href="/pages/artist/settings"
+                      className="text-gold hover:underline"
+                    >
+                      Settings
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── ITEMS USED ── */}
             <div className="bg-surface border border-border p-5 space-y-5">
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="h-px w-6 bg-gold" />
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    Items Used
-                  </span>
-                </div>
-                <p className="text-text-muted text-xs leading-relaxed mt-1">
-                  Items will automatically deduct from{" "}
+                <SectionLabel>Items Used</SectionLabel>
+                <p className="text-text-muted text-xs leading-relaxed mt-2">
+                  Deducted from{" "}
                   <span className="text-text font-medium">
-                    {bussiness === "none" ? "your" : "the selected business'"}
+                    {usesOwnInventory ? "your" : "the selected business'"}
                   </span>{" "}
-                  inventory.
+                  inventory when the booking is completed.
+                  {!usesOwnInventory &&
+                    " AI material suggestions use your own inventory, so add the business items here yourself."}
                 </p>
               </div>
 
@@ -719,15 +941,10 @@ export default function Page() {
               )}
             </div>
 
-            {/* Sessions */}
+            {/* ── SESSIONS ── */}
             <div className="bg-surface border border-border p-5 space-y-5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-px w-6 bg-gold" />
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    Sessions
-                  </span>
-                </div>
+                <SectionLabel>Sessions</SectionLabel>
                 <Button type="button" onClick={addSession} size="sm">
                   <Plus className="w-4 h-4" /> Add Session
                 </Button>
@@ -779,260 +996,60 @@ export default function Page() {
               </div>
             </div>
           </div>
-        )}
 
-        {/* STEP 2 */}
-        {step === 2 && (
-          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
-            {/* Left — Image */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-px w-6 bg-gold" />
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    Tattoo Image
-                  </span>
-                </div>
-                <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">
-                  Required
-                </span>
-              </div>
+          {/* ── AI TATTOO ANALYSIS ── */}
+          <aside className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto">
+            <AiAnalysisCard
+              result={ai.result}
+              isAnalyzing={ai.isAnalyzing}
+              isRecalculating={ai.isRecalculating}
+              staleReason={ai.staleReason}
+              recalcError={ai.recalcError}
+              missingMaterialNames={ai.missingMaterialNames}
+              bodyPart={bodyPart}
+              onBodyPartChange={setBodyPart}
+              hourlyRate={hourlyRate}
+              hourlyRateLoading={settings.isLoading}
+              price={price}
+              onPriceChange={setPrice}
+              priceError={priceError}
+              sizeLabel={aiSizeLabel}
+              sizeFromScene={sizeFromScene}
+              analyzeDisabledReason={analyzeDisabledReason}
+              onAnalyze={ai.analyze}
+              onApply={() => ai.result && applyAiEstimate(ai.result)}
+              applyTarget="booking"
+            />
+          </aside>
 
-              <div className="relative border border-border bg-surface w-full h-[280px] overflow-hidden">
-                {preview ? (
-                  <img
-                    src={preview}
-                    alt="preview"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-text-dim">
-                    <ImageIcon className="w-8 h-8" />
-                    <span className="text-[10px] uppercase tracking-[0.18em]">
-                      No image selected
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {type === "newPost" && (
-                <Input
-                  type="file"
-                  className="w-full"
-                  accept="image/*"
-                  onChange={(e) =>
-                    handleImageChange(e.target.files?.[0] || null)
-                  }
-                />
-              )}
-            </div>
-
-            {/* Right — Pricing */}
-            <div className="space-y-4">
-              {preview && (
-                <SetTattoo3DModal
-                  key={preview}
-                  tattooData={tattooData}
-                  setTatooData={setTatooData}
-                  img={preview}
-                  fixSize={null}
-                />
-              )}
-
-              {tattooData && !editField && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setEditField(true)}
-                >
-                  <Zap className="w-4 h-4" /> Smart Pricing
-                </Button>
-              )}
-
-              {editField && (
-                <div className="border border-border bg-surface p-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-px w-6 bg-gold" />
-                      <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                        AI Pricing
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={AiAutoFillHanlder}
-                        disabled={aiMutation.isPending}
-                        size="sm"
-                      >
-                        <Cpu className="w-4 h-4" />
-                        {aiMutation.isPending && (
-                          <LoaderCircle className="h-3 w-3 animate-spin" />
-                        )}
-                        {aiMutation.isPending ? "Analyzing…" : "Auto-Fill"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => setEditField(false)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Hour Rate</Label>
-                      <Input
-                        placeholder="Rate"
-                        inputMode="decimal"
-                        value={perHour}
-                        onChange={(e) => setPerHour(e.target.value)}
-                        aria-invalid={!!firstError(rateSchema, perHour)}
-                      />
-                      <FieldError>{firstError(rateSchema, perHour)}</FieldError>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Body Part</Label>
-                      <BodyPartSelect onChange={setBodyPart} value={bodyPart} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Art Style</Label>
-                      <ArtStyleSelect onChange={setCategory} value={category} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Is Colored</Label>
-                      <div className="flex gap-4 pt-2">
-                        {[
-                          { val: true, label: "Yes" },
-                          { val: false, label: "No" },
-                        ].map(({ val, label }) => (
-                          <label
-                            key={label}
-                            className="flex items-center gap-2 cursor-pointer"
-                          >
-                            <input
-                              type="radio"
-                              name="isColored"
-                              checked={isColored === val}
-                              onChange={() => setIsColored(val)}
-                              className="accent-gold"
-                            />
-                            <span className="text-sm text-text">{label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Design Complexity</Label>
-                    <div className="flex gap-2">
-                      {[1, 2, 3, 4, 5].map((item) => (
-                        <button
-                          key={item}
-                          onClick={() => setComplexity(item)}
-                          className={`w-10 h-10 border text-sm font-light transition-all duration-300 ${
-                            complexity === item
-                              ? "bg-gold border-gold text-primary"
-                              : "bg-surface border-border text-text-muted hover:border-border-gold"
-                          }`}
-                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Estimated Price */}
-              {EstimatedPrice() && (
-                <div className="relative border border-gold-dim bg-surface p-4 overflow-hidden">
-                  <div className="absolute top-0 left-0 w-8 h-8 border-t border-l border-gold opacity-40" />
-                  <div className="absolute bottom-0 right-0 w-8 h-8 border-b border-r border-gold opacity-40" />
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-1">
-                    Estimated Price
-                  </p>
-                  <h2
-                    className="text-3xl font-light text-gold"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    {EstimatedPrice()}
-                  </h2>
-                </div>
-              )}
-
-              {/* Price Input */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Price</Label>
-                  <span className="text-[10px] uppercase tracking-[0.18em] px-3 py-1 border border-gold-dim text-gold bg-surface-alt">
-                    Required
-                  </span>
-                </div>
-                <MoneyInput
-                  placeholder="Final price"
-                  value={price}
-                  onChange={setPrice}
-                  aria-invalid={!!priceError}
-                />
-                <FieldError>{priceError}</FieldError>
-              </div>
-            </div>
+          {/* ── SCHEDULE + SUBMIT ── */}
+          <div className="bg-surface border border-border p-5 space-y-4 lg:col-start-1">
+            <SectionLabel>Schedule</SectionLabel>
+            <p className="text-xs text-text-muted">
+              Pick the date and start time of the first session ({sessions[0]}{" "}
+              {sessions[0] === 1 ? "hour" : "hours"}), then create the booking.
+            </p>
+            <BookModal
+              key={(user?._id ?? "") + bussiness}
+              days={artistDay}
+              times={artistTime}
+              artistId={user?._id ?? ""}
+              sessionTime={sessions[0]}
+              callBack={bookHandler}
+              isPending={bookMutation.isPending}
+              submitLabel="Create Booking"
+            />
           </div>
-        )}
-
-        {/* STEP 3 */}
-        {step === 3 && (
-          <div className="w-full mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                Schedule
-              </span>
-            </div>
-            <div className="border border-border bg-surface p-4">
-              <BookModal
-                key={user?._id! + bussiness}
-                days={artistDay}
-                times={artistTime}
-                artistId={user?._id!}
-                sessionTime={sessions[0]}
-                callBack={bookHandler}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ── CONTROLS ── */}
-        <div className="flex justify-between items-center border-t border-border pt-6">
-          <Button
-            disabled={step === 1}
-            variant="outline"
-            onClick={() => setStep(step - 1)}
-          >
-            Back
-          </Button>
-          {step !== 3 && (
-            <Button
-              disabled={NextButttonValidation()}
-              onClick={() => setStep(step + 1)}
-            >
-              Next
-            </Button>
-          )}
         </div>
 
         {/* Footer */}
-        <div className="mt-10 pt-6 border-t border-border flex items-center justify-between gap-4">
+        <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4">
           <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">
             Ink Of Baphomet Atelier
           </span>
           <div className="h-px flex-1 bg-border" />
           <span className="text-[10px] uppercase tracking-widest text-text-dim whitespace-nowrap">
-            Booking Wizard
+            Booking Studio
           </span>
         </div>
       </div>

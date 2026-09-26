@@ -47,9 +47,14 @@ const hourlyRateField = z.coerce
   .positive("Hourly rate must be greater than 0")
   .max(1_000_000, "Hourly rate looks too large, please double-check");
 
+const optionalHourlyRate = z.preprocess(
+  (v) => (v === "" || v === undefined || v === null ? undefined : v),
+  hourlyRateField.optional(),
+);
+
 export const aiAnalysisRequestSchema = z.object({
   bodyPart: bodyPartField,
-  hourlyRate: hourlyRateField,
+  hourlyRate: optionalHourlyRate,
   sizeWidthCm: sizeCm("width"),
   sizeHeightCm: sizeCm("height"),
 });
@@ -71,7 +76,7 @@ export const aiRepriceRequestSchema = z.object({
   complexity: z.number().int().min(1).max(5),
   isColored: z.boolean(),
   bodyPart: bodyPartField,
-  hourlyRate: hourlyRateField,
+  hourlyRate: optionalHourlyRate,
   sizeWidthCm: sizeCm("width"),
   sizeHeightCm: sizeCm("height"),
   calibration: calibrationSchema,

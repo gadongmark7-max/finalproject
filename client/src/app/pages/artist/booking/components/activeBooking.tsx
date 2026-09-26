@@ -12,7 +12,6 @@ import {
   Image as ImageIcon,
   Layers,
   DollarSign,
-  Check,
   PhilippinePeso,
   RotateCw,
   Wallet,
@@ -20,7 +19,7 @@ import {
 import { BookNextSession } from "./nextSessionBooking";
 import { Session } from "inspector/promises";
 import { Button } from "@/components/ui/button";
-import { successAlert, confirmAlert, errorAlert } from "@/app/utils/alert";
+import { confirmAlert, errorAlert } from "@/app/utils/alert";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import { CashPayment } from "./cashPayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
@@ -28,6 +27,7 @@ import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import { isBussinessApproveArtistPayment } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
 import { ReschedModal } from "./reschedModal";
+import { CompleteBookingModal } from "./completeBookingModal";
 import { payMongoRefund } from "@/app/utils/payMongo";
 
 const statusStyle: Record<string, string> = {
@@ -58,22 +58,6 @@ export default function ActiveBookings({
       return response.data;
     },
   });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: (data: { id: string; status: string }) =>
-      axiosInstance.put(`/booking/status`, data),
-    onSuccess: (response) => {
-      setBookings(response.data);
-      successAlert("status updated");
-    },
-    onError: () => errorAlert("error occur"),
-  });
-
-  const handleComplete = (id: string) => {
-    confirmAlert("this session is complete?", "complete", () => {
-      updateStatusMutation.mutate({ id, status: "completed" });
-    });
-  };
 
   const refundMutation = useMutation({
     mutationFn: (data: {
@@ -263,13 +247,12 @@ export default function ActiveBookings({
             {booking.session !== booking.sessions.length ? (
               <BookNextSession booking={booking} setBookings={setBookings} />
             ) : (
-              <Button
-                hidden={booking.balance !== 0}
-                hoverText={"Mark as Complete"}
-                onClick={() => handleComplete(booking._id)}
-              >
-                <Check className="w-3.5 h-3.5" />
-              </Button>
+              booking.balance === 0 && (
+                <CompleteBookingModal
+                  booking={booking}
+                  setBookings={setBookings}
+                />
+              )
             )}
 
             {booking.balance !== 0 &&

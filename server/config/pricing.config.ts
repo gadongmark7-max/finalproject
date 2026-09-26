@@ -52,6 +52,18 @@ export const PRICING_CONFIG = {
   >,
 
   MATERIAL_SCALING_BY_CATEGORY: {
+    "INKS & PIGMENTS": "area",
+    "NEEDLES & CARTRIDGES": "sessions",
+    "TATTOO EQUIPMENT": "fixed",
+    "INK & DISPOSABLE SUPPLIES": "sessions",
+    PPE: "sessions",
+    "SKIN PREPARATION": "sessions",
+    "STENCIL SUPPLIES": "sessions",
+    "BARRIERS & PROTECTION": "sessions",
+    "CLEANING & SANITIZATION": "sessions",
+    "WASTE DISPOSAL": "sessions",
+    AFTERCARE: "fixed",
+    "STUDIO / GENERAL SUPPLIES": "sessions",
     "Inks & Pigments": "area",
     "Needles & Cartridges": "sessions",
     "Hygiene & Safety": "sessions",

@@ -10,9 +10,10 @@ import { errorAlert } from "@/app/utils/alert";
 import useUserStore from "@/app/store/useUserStore";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { ArrowLeft, Send } from "lucide-react";
 import { UploadImageModal } from "./components/uploadImageModal";
 import { getChatIndex } from "@/app/utils/customFunction";
+import Link from "next/link";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -90,29 +91,40 @@ export default function Page() {
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full opacity-[0.06] blur-[120px] bg-gold" />
 
       {/* Header */}
-      <div className="relative flex items-center gap-4 px-6 py-4 border-b border-border bg-surface z-10">
+      <div className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-border bg-surface z-10">
         {/* Gold accent line */}
-        <div className="absolute bottom-0 left-0 h-[1px] w-full bg-gradient-to-r from-gold/40 via-gold/10 to-transparent" />
+        <div className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-border bg-surface z-10">
+          <div className="absolute bottom-0 left-0 h-[1px] w-full bg-gradient-to-r from-gold/40 via-gold/10 to-transparent" />
 
-        <div className="relative flex-shrink-0">
-          <img
-            src={p2Profile}
-            alt="profile"
-            className="w-10 h-10 object-cover border border-border"
-          />
-          <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+          <div className="relative flex-shrink-0">
+            <img
+              src={p2Profile}
+              alt="profile"
+              className="w-10 h-10 object-cover border border-border"
+            />
+            <div className="absolute -bottom-px -right-px w-2 h-2 bg-gold opacity-60" />
+          </div>
+
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
+              Conversation
+            </p>
+            <h1
+              className="text-lg font-light text-text leading-none"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            >
+              {p2Name}
+            </h1>
+          </div>
         </div>
 
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-0.5">
-            Conversation
-          </p>
-          <h1
-            className="text-lg font-light text-text leading-none"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
-          >
-            {p2Name}
-          </h1>
+        <div className="flex items-center justify-end">
+          <Link href="/pages/artist/convos">
+            <Button type="button" variant="ghost">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </Link>
         </div>
       </div>
 

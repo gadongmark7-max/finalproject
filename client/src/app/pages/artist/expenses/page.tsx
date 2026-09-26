@@ -267,6 +267,14 @@ export default function Page() {
                         <span className="text-[10px] uppercase tracking-[0.16em] text-text-muted border border-border px-2 py-1">
                           {e.category}
                         </span>
+                        {e.source === "booking_inventory" && (
+                          <span
+                            title="Recorded automatically when the booking was completed"
+                            className="ml-1.5 text-[10px] uppercase tracking-[0.16em] text-gold border border-gold-dim px-2 py-1"
+                          >
+                            Auto · Booking
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-text">{e.description}</TableCell>
                       <TableCell className="text-text-dim text-sm max-w-[220px] truncate">

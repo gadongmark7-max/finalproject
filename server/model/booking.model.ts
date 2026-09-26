@@ -41,6 +41,34 @@ const TattooDataSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const ConsumedItemSchema = new Schema(
+  {
+    itemId: { type: String, required: true },
+    item: { type: String, required: true },
+    unit: { type: String, required: false },
+    qty: { type: Number, required: true },
+    deducted: { type: Number, required: true },
+    unitCost: { type: Number, required: true },
+    cost: { type: Number, required: true },
+    missing: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const InventoryConsumptionSchema = new Schema(
+  {
+    consumedAt: { type: Date, required: true },
+    items: [ConsumedItemSchema],
+    totalCost: { type: Number, required: true },
+    expense: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Expences",
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
 const BookingSchema = new Schema({
   bussiness: { type: mongoose.Schema.Types.ObjectId, ref: "Accounts" },
   artist: {
@@ -78,6 +106,10 @@ const BookingSchema = new Schema({
     type: String,
     enum: ["online", "counter"],
     default: "online",
+  },
+  inventoryConsumption: {
+    type: InventoryConsumptionSchema,
+    default: null,
   },
 });
 

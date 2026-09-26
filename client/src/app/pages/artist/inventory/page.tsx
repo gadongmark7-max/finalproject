@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AddItemModal } from "./components/addItemModal";
 import { UpdateItemModal } from "./components/updateItemModal";
+import { EditPriceCell } from "./components/editPriceCell";
 import {
   Table,
   TableBody,
@@ -276,6 +277,9 @@ export default function Page() {
                     <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Type</span>
                   </TableHead>
                   <TableHead>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Unit Price</span>
+                  </TableHead>
+                  <TableHead>
                     <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Safe Stocks</span>
                   </TableHead>
                   <TableHead>
@@ -296,7 +300,7 @@ export default function Page() {
               <TableBody>
                 {displayed.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={9}>
                       <div className="flex flex-col items-center justify-center py-20 gap-4">
                         <div className="bg-surface-alt border border-border p-4">
                           <Package className="w-8 h-8 text-text-dim" />
@@ -344,6 +348,10 @@ export default function Page() {
 
                     <TableCell>
                       <span className="text-sm text-text-muted">{item.type}</span>
+                    </TableCell>
+
+                    <TableCell>
+                      <EditPriceCell inventory={item} setInventory={setInventory} />
                     </TableCell>
 
                     <TableCell>

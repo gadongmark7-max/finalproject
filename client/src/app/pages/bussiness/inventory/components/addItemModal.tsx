@@ -22,10 +22,13 @@ import {
 import {
   inventoryInterfaceInput,
   inventoryInterface,
+  INVENTORY_CATEGORIES,
+  INVENTORY_UNITS,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 import useUserStore from "@/app/store/useUserStore";
 import { Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -83,7 +86,7 @@ export function AddItemModal({
       reset();
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const addItemHandler = handleSubmit((values) => {
@@ -138,21 +141,11 @@ export function AddItemModal({
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Tattoo Equipment">
-                        Tattoo Equipment
-                      </SelectItem>
-                      <SelectItem value="Needles & Cartridges">
-                        Needles & Cartridges
-                      </SelectItem>
-                      <SelectItem value="Inks & Pigments">
-                        Inks & Pigments
-                      </SelectItem>
-                      <SelectItem value="kin Prep & Aftercare">
-                        kin Prep & Aftercare
-                      </SelectItem>
-                      <SelectItem value="Hygiene & Safety">
-                        Hygiene & Safety
-                      </SelectItem>
+                      {INVENTORY_CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -171,11 +164,11 @@ export function AddItemModal({
                       <SelectValue placeholder="Select " />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pcs">pcs</SelectItem>
-                      <SelectItem value="kg">kg</SelectItem>
-                      <SelectItem value="g">g</SelectItem>
-                      <SelectItem value="L">L</SelectItem>
-                      <SelectItem value="ml">ml</SelectItem>
+                      {INVENTORY_UNITS.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}

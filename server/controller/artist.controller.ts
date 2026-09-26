@@ -1,16 +1,26 @@
 import { Response } from "express";
 import { AuthRequest } from "../types/request.type";
-import { ArtistAnalyticsService, parseRangeDate } from "../services/artistAnalytics.service";
+import {
+  ArtistAnalyticsService,
+  parseRangeDate,
+} from "../services/artistAnalytics.service";
 import { ExpencesService } from "../services/expences.service";
+import { ArtistInfoService } from "../services/artistInfo.service";
+import { updateHourlyRateSchema } from "../validation/artistSettings.schema";
 
-const requireArtist = (request: AuthRequest, response: Response): string | null => {
+const requireArtist = (
+  request: AuthRequest,
+  response: Response,
+): string | null => {
   const account = request.account;
   if (!account) {
     response.status(401).send("unauthorized");
     return null;
   }
   if (account.type !== "artist") {
-    response.status(403).send("this feature is only available to artist accounts");
+    response
+      .status(403)
+      .send("this feature is only available to artist accounts");
     return null;
   }
   return account._id;
@@ -39,11 +49,16 @@ export class ArtistController {
       const to = parseRangeDate(request.query.to, "end");
 
       if (from && to && from > to) {
-        response.status(400).send("the 'from' date must be before the 'to' date");
+        response
+          .status(400)
+          .send("the 'from' date must be before the 'to' date");
         return;
       }
 
-      const data = await ArtistAnalyticsService.getReport(artistId, { from, to });
+      const data = await ArtistAnalyticsService.getReport(artistId, {
+        from,
+        to,
+      });
       response.send(data);
     } catch (e) {
       console.log(e);
@@ -72,7 +87,11 @@ export class ArtistController {
       const { category, description, cost, date, notes } = request.body;
       const amount = Number(cost);
 
-      if (!description || typeof description !== "string" || !description.trim()) {
+      if (
+        !description ||
+        typeof description !== "string" ||
+        !description.trim()
+      ) {
         response.status(400).send("description is required");
         return;
       }
@@ -111,7 +130,11 @@ export class ArtistController {
       const { category, description, cost, date, notes } = request.body;
       const amount = Number(cost);
 
-      if (!description || typeof description !== "string" || !description.trim()) {
+      if (
+        !description ||
+        typeof description !== "string" ||
+        !description.trim()
+      ) {
         response.status(400).send("description is required");
         return;
       }
@@ -158,6 +181,54 @@ export class ArtistController {
       }
 
       response.send({ deletedId: id });
+    } catch (e) {
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static getSettings = async (request: AuthRequest, response: Response) => {
+    try {
+      const artistId = requireArtist(request, response);
+      if (!artistId) return;
+
+      const hourlyRate = await ArtistInfoService.getHourlyRate(artistId);
+      if (hourlyRate === undefined) {
+        response.status(404).send("artist profile not found");
+        return;
+      }
+      response.send({ hourlyRate });
+    } catch (e) {
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static updateHourlyRate = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const artistId = requireArtist(request, response);
+      if (!artistId) return;
+
+      const parsed = updateHourlyRateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response
+          .status(400)
+          .send(parsed.error.issues[0]?.message || "invalid hourly rate");
+        return;
+      }
+
+      const info = await ArtistInfoService.setHourlyRate(
+        artistId,
+        parsed.data.hourlyRate,
+      );
+      if (!info) {
+        response.status(404).send("artist profile not found");
+        return;
+      }
+      response.send({ hourlyRate: info.hourlyRate });
     } catch (e) {
       console.log(e);
       response.status(500).send("error occur");

@@ -8,12 +8,14 @@ import { getDate, getTime } from "../utils/customFunction";
 import { getPaidCheckout, PaymentError } from "../utils/payMongo";
 import { NotificationService } from "../services/notifications.service";
 import { AccountService } from "../services/acccount.service";
-import { InventoryService } from "../services/inventory.service";
-import { InventoryLogService } from "../services/inventoryLog.service";
 import { sendEmail, sendNewClientAccountEmail } from "../utils/customFunction";
 import { generateSecurePassword } from "../utils/password";
 import { Console } from "console";
 import { ClientDirectoryService } from "../services/clientDirectory.service";
+import {
+  BookingCompletionError,
+  BookingCompletionService,
+} from "../services/bookingCompletion.service";
 
 export class BookingController {
   static createBooking = async (request: AuthRequest, response: Response) => {
@@ -344,34 +346,54 @@ export class BookingController {
     try {
       const acccount = request.account;
       const { id, status, reason, clientId } = request.body;
+
+      if (!acccount) {
+        response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const existing = await BookingService.get(id);
+      if (!existing) {
+        response.status(404).json({ error: "Booking not found" });
+        return;
+      }
+      const isBookingArtist = existing.artist._id.toString() === acccount._id;
+      const isBookingBusiness =
+        !!existing.bussiness &&
+        existing.bussiness._id.toString() === acccount._id;
+      if (!isBookingArtist && !isBookingBusiness) {
+        response
+          .status(403)
+          .json({ error: "You are not authorized to update this booking" });
+        return;
+      }
+
+      if (status == "completed") {
+        // Completion + inventory deduction + expense are handled together
+        // (and idempotently) by the completion service.
+        const result = await BookingCompletionService.complete(id, {
+          id: acccount._id,
+          name: acccount.name,
+        });
+        if (!result.alreadyCompleted) {
+          const client = await AccountService.get(
+            result.booking.client.toString(),
+          );
+          sendEmail(
+            client?.email!,
+            "Booking Completed",
+            `Thankyou For Trusting us!!`,
+          );
+        }
+        const bookings = await BookingService.getByArtist(acccount._id);
+        response.send(bookings);
+        return;
+      }
+
       const booking = await BookingService.updateStatus(id, status);
 
       const client = await AccountService.get(clientId);
 
-      if (status == "completed" && booking) {
-        const artist = await AccountService.get(booking?.artist.toString()!);
-        for (let i = 0; i < booking?.itemUsed.length; i++) {
-          await InventoryService.deduct(
-            booking.itemUsed[i].itemId,
-            booking.itemUsed[i].qty,
-          );
-          await InventoryLogService.create({
-            account: booking.bussiness
-              ? booking.bussiness.toString()
-              : booking.artist.toString(),
-            date: getDate(),
-            time: getTime(),
-            message: `session completed -${booking.itemUsed[i].qty} stocks to ${booking.itemUsed[i].item}`,
-            type: "deduct",
-            actionBy: artist?.name!,
-          });
-        }
-        sendEmail(
-          client?.email!,
-          "Booking Completed",
-          `Thankyou For Trusting us!!`,
-        );
-      } else if (status == "active" && booking) {
+      if (status == "active" && booking) {
         try {
           await BookingController.reconcileBookingPayment(booking);
         } catch (e) {
@@ -419,6 +441,10 @@ export class BookingController {
       const bookings = await BookingService.getByArtist(acccount?._id!);
       response.send(bookings);
     } catch (e) {
+      if (e instanceof BookingCompletionError) {
+        response.status(e.status).json({ error: e.message });
+        return;
+      }
       console.log(e);
       response.status(500).send("error occur");
     }

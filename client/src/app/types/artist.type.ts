@@ -9,10 +9,13 @@ export const EXPENSE_CATEGORIES = [
   "Rent",
   "Utilities",
   "Marketing",
+  "Inventory Usage",
   "Other",
 ] as const;
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export const AUTO_EXPENSE_CATEGORY: ExpenseCategory = "Inventory Usage";
 
 export interface expenseInterface {
   _id: string;
@@ -23,6 +26,8 @@ export interface expenseInterface {
   date: string;
   notes?: string;
   recordedBy: string;
+  source?: "manual" | "booking_inventory";
+  booking?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }

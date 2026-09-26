@@ -12,10 +12,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { inventoryInterface } from "@/app/types/inventory.type";
+import {
+  inventoryInterface,
+  INVENTORY_CATEGORIES,
+} from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 import useUserStore from "@/app/store/useUserStore";
 import { Label } from "@/components/ui/label";
 import {
@@ -55,6 +59,12 @@ export function UpdateItemModal({
     },
   });
 
+  const categoryOptions: string[] = (
+    INVENTORY_CATEGORIES as readonly string[]
+  ).includes(inventory.category)
+    ? [...INVENTORY_CATEGORIES]
+    : [inventory.category, ...INVENTORY_CATEGORIES];
+
   const updateMutation = useMutation({
     mutationFn: (inventory: inventoryInterface) =>
       axiosInstance.put("/inventory", { inventory, recordedBy: "none" }),
@@ -63,7 +73,7 @@ export function UpdateItemModal({
       successAlert("item updated");
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const deleteMutation = useMutation({
@@ -129,21 +139,11 @@ export function UpdateItemModal({
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Tattoo Equipment">
-                      Tattoo Equipment
-                    </SelectItem>
-                    <SelectItem value="Needles & Cartridges">
-                      Needles & Cartridges
-                    </SelectItem>
-                    <SelectItem value="Inks & Pigments">
-                      Inks & Pigments
-                    </SelectItem>
-                    <SelectItem value="kin Prep & Aftercare">
-                      kin Prep & Aftercare
-                    </SelectItem>
-                    <SelectItem value="Hygiene & Safety">
-                      Hygiene & Safety
-                    </SelectItem>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}

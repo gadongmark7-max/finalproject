@@ -257,6 +257,18 @@ export const isBussinessApproveArtistAppoitnment = (
     return bussiness.config.artistBookAppointment;
   }
 };
+
+export const formatPostSize = (post: {
+  sizeWidthCm?: number | null;
+  sizeHeightCm?: number | null;
+  aiEstimate?: { sizeWidthCm?: number; sizeHeightCm?: number } | null;
+}): string | null => {
+  const width = post.sizeWidthCm ?? post.aiEstimate?.sizeWidthCm;
+  const height = post.sizeHeightCm ?? post.aiEstimate?.sizeHeightCm;
+  if (!(Number(width) > 0) || !(Number(height) > 0)) return null;
+  return `${Number(width)} × ${Number(height)} cm`;
+};
+
 export const formatPeso = (n: number) => `₱${Math.round(n).toLocaleString()}`;
 
 export const apiErrorMessage = (error: unknown, fallback: string): string => {

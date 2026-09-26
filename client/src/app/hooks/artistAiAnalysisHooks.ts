@@ -5,13 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { errorAlert, successAlert } from "@/app/utils/alert";
 import { apiErrorMessage } from "@/app/utils/customFunction";
-import { moneyField, positiveDecimalField } from "@/lib/validation/fields";
+import { positiveDecimalField } from "@/lib/validation/fields";
 import { tattooArtStyles } from "@/components/ui/artStyleSelect";
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 
 const RECALC_DEBOUNCE_MS = 400;
 
-export const aiRateSchema = moneyField({ label: "Rate" });
 export const aiSizeWidthSchema = positiveDecimalField({
   label: "Width",
   max: 100,
@@ -24,7 +23,7 @@ export const aiSizeHeightSchema = positiveDecimalField({
 interface Inputs {
   postImg: File | null;
   bodyPart: string;
-  perHour: string;
+  hourlyRate: number | null;
   sizeWidthCm: string;
   sizeHeightCm: string;
   category: string;
@@ -37,7 +36,6 @@ type RepricePayload = {
   complexity: number;
   isColored: boolean;
   bodyPart: string;
-  hourlyRate: number;
   sizeWidthCm: number;
   sizeHeightCm: number;
   calibration: aiAnalysisResultInterface["calibration"];
@@ -63,8 +61,11 @@ export function useArtistAiAnalysis(
       materialNames.current = new Map(
         result.materials.map((m) => [m.inventoryItemId, m.name]),
       );
-      const seed = payloadFor(result, result.pricing.hourlyRate);
-      queryClient.setQueryData(["ai-reprice", seed], result);
+      const seed = payloadFor(result);
+      queryClient.setQueryData(
+        ["ai-reprice", seed, result.pricing.hourlyRate],
+        result,
+      );
       setDebouncedPayload(seed);
       setAnalysis(result);
       onAnalyzed(result);
@@ -84,18 +85,12 @@ export function useArtistAiAnalysis(
     invalidReason?: string;
   } => {
     if (!analysis) return { payload: null };
-    const rate = aiRateSchema.safeParse(inputs.perHour);
     const width = aiSizeWidthSchema.safeParse(inputs.sizeWidthCm);
     const height = aiSizeHeightSchema.safeParse(inputs.sizeHeightCm);
     if (!inputs.bodyPart)
       return {
         payload: null,
         invalidReason: "Select a body part to update the estimate.",
-      };
-    if (!rate.success)
-      return {
-        payload: null,
-        invalidReason: "Enter a valid hourly rate to update the estimate.",
       };
     if (!width.success || !height.success)
       return {
@@ -116,7 +111,6 @@ export function useArtistAiAnalysis(
             : analysis.analysis.complexity,
         isColored: inputs.isColored,
         bodyPart: inputs.bodyPart,
-        hourlyRate: rate.data as number,
         sizeWidthCm: width.data,
         sizeHeightCm: height.data,
         calibration: analysis.calibration,
@@ -135,7 +129,7 @@ export function useArtistAiAnalysis(
   }, [payloadKey]);
 
   const repriceQuery = useQuery({
-    queryKey: ["ai-reprice", debouncedPayload],
+    queryKey: ["ai-reprice", debouncedPayload, inputs.hourlyRate],
     queryFn: async () =>
       (
         await axiosInstance.post<aiAnalysisResultInterface>(
@@ -162,7 +156,6 @@ export function useArtistAiAnalysis(
     const formData = new FormData();
     formData.append("file", inputs.postImg!);
     formData.append("bodyPart", inputs.bodyPart);
-    formData.append("hourlyRate", inputs.perHour);
     formData.append("sizeWidthCm", inputs.sizeWidthCm);
     formData.append("sizeHeightCm", inputs.sizeHeightCm);
     analyzeMutation.mutate(formData);
@@ -190,16 +183,12 @@ export function useArtistAiAnalysis(
   };
 }
 
-function payloadFor(
-  result: aiAnalysisResultInterface,
-  hourlyRate: number,
-): RepricePayload {
+function payloadFor(result: aiAnalysisResultInterface): RepricePayload {
   return {
     category: result.analysis.category,
     complexity: result.analysis.complexity,
     isColored: result.analysis.isColored,
     bodyPart: result.analysis.bodyPart,
-    hourlyRate,
     sizeWidthCm: result.size.widthCm,
     sizeHeightCm: result.size.heightCm,
     calibration: result.calibration,

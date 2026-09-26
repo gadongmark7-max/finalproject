@@ -867,7 +867,7 @@ export default function Page() {
             {[
               {
                 q: "How do I book a session?",
-                a: "Fill out the consultation form below or DM us on Instagram. We'll get back to you within 48 hours to discuss your idea, sizing, placement, and pricing.",
+                a: "Fill out the consultation form below or DM us on Facebook. We'll get back to you within 48 hours to discuss your idea, sizing, placement, and pricing.",
               },
               {
                 q: "Do you take walk-ins?",
@@ -875,7 +875,7 @@ export default function Page() {
               },
               {
                 q: "How much does a tattoo cost?",
-                a: "Pricing depends on size, complexity, placement, and the artist you choose. Consultations are free. We'll give you an honest quote before you commit to anything.",
+                a: "Pricing depends on size, complexity and placement. Consultations are free. We'll give you an honest quote before you commit to anything.",
               },
               {
                 q: "What should I do to prepare?",
@@ -1139,9 +1139,7 @@ export default function Page() {
               },
               {
                 heading: "Legal",
-                links: [
-                  { label: "Contact", href: "#contact" },
-                ],
+                links: [{ label: "Contact", href: "#contact" }],
               },
             ].map((col) => (
               <div key={col.heading}>
