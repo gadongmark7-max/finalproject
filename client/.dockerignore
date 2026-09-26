@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+coverage
+.git
+.gitignore
+.env
+.env.*
+npm-debug.log*
+Dockerfile
+.dockerignore
+docker-compose*.yml
+*.tsbuildinfo
+next-env.d.ts
+README.md
+temp_*.bat
+config.bat

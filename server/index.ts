@@ -23,6 +23,14 @@ app.set("trust proxy", 1);
 
 app.use(express.json());
 app.use(cors());
+
+app.get("/health", (request: Request, response: Response) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  response
+    .status(dbConnected ? 200 : 503)
+    .json({ status: dbConnected ? "ok" : "unavailable", db: dbConnected });
+});
+
 app.use(routes);
 
 mongoose.connect(mongodb_uri);

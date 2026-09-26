@@ -128,13 +128,6 @@ export function EstimateResult({
       </div>
 
       <div className="p-5 border-t border-border flex flex-col gap-3">
-        <Button asChild>
-          <Link
-            href={`/pages/client/posts?category=${encodeURIComponent(result.style)}`}
-          >
-            <CalendarCheck className="w-4 h-4" /> Book a Consultation
-          </Link>
-        </Button>
         <Button variant="outline" onClick={onStartOver}>
           <RotateCcw className="w-4 h-4" /> Estimate Another
         </Button>
