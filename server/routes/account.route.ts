@@ -1,17 +1,17 @@
 import { Router } from "express";
 import { AccountController } from "../controller/accounts.controller";
-import { authenticateJWT } from "../middleware/auth";
+import { authenticateJWT, requireAdmin } from "../middleware/auth";
 import { upload } from "../utils/upload";
 
 const route = Router()
 
 
 route.get("/client/home", authenticateJWT, AccountController.clientHome)
-route.get("/allUsers", authenticateJWT, AccountController.getAllUsers)
-route.put("/admin/ban/:id", authenticateJWT, AccountController.toggleIsBan)
+route.get("/allUsers", authenticateJWT, requireAdmin, AccountController.getAllUsers)
+route.put("/admin/ban/:id", authenticateJWT, requireAdmin, AccountController.toggleIsBan)
 route.post("/adminMessage", authenticateJWT,upload.single('file') ,AccountController.submitAdminMessage) 
-route.get("/adminMessage/unseen", authenticateJWT, AccountController.getAdminMessageUnseen)
-route.get("/adminMessage", authenticateJWT, AccountController.getAdminMessage)
+route.get("/adminMessage/unseen", authenticateJWT, requireAdmin, AccountController.getAdminMessageUnseen)
+route.get("/adminMessage", authenticateJWT, requireAdmin, AccountController.getAdminMessage)
 route.get("/admin", authenticateJWT, AccountController.getAdminAccount) 
 route.get("/clients", authenticateJWT, AccountController.getClientsAccount)
 route.get("/exists", authenticateJWT, AccountController.checkEmailExists)
@@ -24,9 +24,9 @@ route.post("/changeProfilePic", authenticateJWT, upload.single('file') ,AccountC
 route.post("/review", authenticateJWT, upload.single('file') ,AccountController.placeReview)
 route.post("/artistVerification/submit", authenticateJWT,upload.single('file') ,AccountController.submitArtistVerification)
 route.post("/BussinessVerification/submit", authenticateJWT, upload.fields(([{ name: 'BarangayClearance', maxCount: 1 },{ name: 'businessPermit', maxCount: 1 }])) ,AccountController.submitBussinessVerification)
-route.post("/artistVerification/admin", authenticateJWT, AccountController.artistVerification)
-route.post("/bussinessVerification/admin", authenticateJWT, AccountController.bussinessVerification)
-route.get("/artistVerification", authenticateJWT, AccountController.getAllArtistVerification)
+route.post("/artistVerification/admin", authenticateJWT, requireAdmin, AccountController.artistVerification)
+route.post("/bussinessVerification/admin", authenticateJWT, requireAdmin, AccountController.bussinessVerification)
+route.get("/artistVerification", authenticateJWT, requireAdmin, AccountController.getAllArtistVerification)
 route.put("/location/:id", authenticateJWT, AccountController.updateArtistLocation)
 route.get("/artistInfo", AccountController.getAllArtistInfo)
 route.get("/bussinessInfo", authenticateJWT, AccountController.getAllBussinessInfo)

@@ -89,7 +89,7 @@ export function AddStocksModal({
             <h1 className="font-bold text-stone-600"> Stocks </h1>
             <Input
               {...register("stocks")}
-              inputMode="numeric"
+              inputMode="decimal"
               aria-invalid={!!errors.stocks}
               placeholder="stocks to add"
               className="w-full"

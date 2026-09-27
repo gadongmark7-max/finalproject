@@ -10,6 +10,7 @@ import { Building, User, Layers } from "lucide-react";
 import { ArtistSelectionModal } from "./components/artistSelectionModal";
 import useUserStore from "@/app/store/useUserStore";
 import { artistInfoInterface } from "@/app/types/accounts.type";
+import { formatPostSize } from "@/app/utils/customFunction";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -19,7 +20,7 @@ export default function Page() {
   const [post, setPost] = useState<postInterface | null>(null);
 
   const { data } = useQuery({
-    queryKey: ["view_post"],
+    queryKey: ["view_post", postId],
     queryFn: () => axiosInstance.get(`/post/${postId}`),
   });
 
@@ -174,6 +175,30 @@ export default function Page() {
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
                     {post.category}
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-px bg-border border-t border-border">
+                <div className="bg-surface px-3 sm:px-5 py-5">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Tattoo Size
+                  </p>
+                  <p
+                    className="text-base sm:text-2xl font-light text-text"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
+                    {formatPostSize(post) ?? "Not specified"}
+                  </p>
+                </div>
+                <div className="bg-surface px-3 sm:px-5 py-5">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Body Part
+                  </p>
+                  <p
+                    className="text-base sm:text-2xl font-light text-text"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
+                    {post.bodyPart || "Not specified"}
                   </p>
                 </div>
               </div>

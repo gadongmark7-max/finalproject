@@ -32,6 +32,7 @@ export default function ForgotPasswordPage() {
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
+  const [verifiedOtp, setVerifiedOtp] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -75,7 +76,8 @@ export default function ForgotPasswordPage() {
   const verifyMutation = useMutation({
     mutationFn: (otpInput: string) =>
       axiosInstance.post("/auth/forgotPassword/verify", { email, otpInput }),
-    onSuccess: () => {
+    onSuccess: (_response, otpInput) => {
+      setVerifiedOtp(otpInput);
       setIsCorrect(true);
       setTimeout(() => setStep(3), 1200);
     },
@@ -97,7 +99,11 @@ export default function ForgotPasswordPage() {
 
   const updateMutation = useMutation({
     mutationFn: (newPassword: string) =>
-      axiosInstance.put("/auth/forgotPassword/update", { email, newPassword }),
+      axiosInstance.put("/auth/forgotPassword/update", {
+        email,
+        newPassword,
+        otpInput: verifiedOtp,
+      }),
     onSuccess: () => {
       successAlert("Password updated successfully");
       router.push("/login");

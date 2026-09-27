@@ -40,10 +40,28 @@ export interface bookingInterface {
   isReviewed: boolean;
   balance: number;
   itemUsed: {
+    itemId: string;
     item: string;
     qty: number;
   }[];
   tattooData: TattooDataInterface | null;
   /** How the client intended to pay. Older bookings default to "online". */
   paymentMethod?: PaymentMethod;
+  inventoryConsumption?: bookingInventoryConsumptionInterface | null;
+}
+
+export interface bookingInventoryConsumptionInterface {
+  consumedAt: string;
+  items: {
+    itemId: string;
+    item: string;
+    unit?: string;
+    qty: number;
+    deducted: number;
+    unitCost: number;
+    cost: number;
+    missing: boolean;
+  }[];
+  totalCost: number;
+  expense: string | null;
 }

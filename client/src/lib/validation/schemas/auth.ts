@@ -17,7 +17,10 @@ export type LoginValues = z.infer<typeof loginSchema>;
 
 export const registerSchema = z
   .object({
-    name: requiredText("Full name", { min: 2, max: 80 }),
+    name: requiredText("Full name", { min: 2, max: 80 }).regex(
+      /^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/,
+      "Name can only contain letters, spaces, hyphens, and apostrophes",
+    ),
 
     email: emailField().refine(
       (value) => value.toLowerCase().endsWith("@gmail.com"),

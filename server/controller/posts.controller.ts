@@ -7,6 +7,8 @@ import fs from "fs";
 import { NotificationService } from "../services/notifications.service";
 import { hashFile, hashRemoteImage } from "../utils/imageHash";
 import { aiEstimateSnapshotSchema } from "../validation/aiAnalysis.schema";
+import { sessionsField, updatePostSchema } from "../validation/post.schema";
+import { isValidObjectId } from "mongoose";
 
 const DUPLICATE_IMAGE_RESPONSE = {
   error: "This tattoo image already exists.",
@@ -31,6 +33,23 @@ export class PostController {
         sizeHeightCm,
         aiEstimate,
       } = request.body;
+
+      let rawSessions: unknown;
+      try {
+        rawSessions = JSON.parse(sessions);
+      } catch {
+        rawSessions = null;
+      }
+      const parsedSessions = sessionsField.safeParse(rawSessions);
+      if (!parsedSessions.success) {
+        if (request.file && fs.existsSync(request.file.path))
+          fs.unlinkSync(request.file.path);
+        response.status(400).json({
+          error: parsedSessions.error.issues[0]?.message || "Invalid sessions",
+        });
+        return;
+      }
+      const parsedSesion = parsedSessions.data;
 
       let url: string;
       let imageHash: string;
@@ -75,7 +94,6 @@ export class PostController {
       const account = request.account;
 
       const parsedTags = JSON.parse(tags);
-      const parsedSesion = JSON.parse(sessions);
       const parsedItemUsed = JSON.parse(itemUsed);
       let parsedAiEstimate = null;
       if (aiEstimate) {
@@ -178,19 +196,38 @@ export class PostController {
   };
 
   static updatePost = async (request: AuthRequest, response: Response) => {
-    const { id } = request.params;
-    const { tags, sessions, estimatedTime, category, price, downPercentage } =
-      request.body;
-    const updatedPost = await PostService.update(
-      id,
-      tags,
-      category,
-      estimatedTime,
-      sessions,
-      price,
-      downPercentage,
-    );
-    response.send(updatedPost);
+    try {
+      const { id } = request.params;
+      if (!isValidObjectId(id)) {
+        response.status(400).json({ error: "Invalid post" });
+        return;
+      }
+      const post = await PostService.get(id);
+      if (!post) {
+        response.status(404).json({ error: "Post not found" });
+        return;
+      }
+      if (post.account._id.toString() !== request.account?._id) {
+        response
+          .status(403)
+          .json({ error: "You are not authorized to edit this post" });
+        return;
+      }
+
+      const parsed = updatePostSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response
+          .status(400)
+          .json({ error: parsed.error.issues[0]?.message || "Invalid request" });
+        return;
+      }
+
+      const updatedPost = await PostService.update(id, parsed.data);
+      response.send(updatedPost);
+    } catch (error) {
+      console.error(error);
+      response.status(500).json({ error: "Could not update the post" });
+    }
   };
 
   static getAllPosts = async (request: AuthRequest, response: Response) => {

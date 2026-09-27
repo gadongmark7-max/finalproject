@@ -9,7 +9,10 @@ export type ExpenseCategory =
     | "Rent"
     | "Utilities"
     | "Marketing"
+    | "Inventory Usage"
     | "Other";
+
+export type ExpenseSource = "manual" | "booking_inventory";
 
 export interface expencesInterfaceInput {
     account : string,
@@ -19,6 +22,8 @@ export interface expencesInterfaceInput {
     recordedBy : string,
     category? : ExpenseCategory,
     notes? : string,
+    source? : ExpenseSource,
+    booking? : string,
 }
 
 export interface expencesInterface {
@@ -30,6 +35,8 @@ export interface expencesInterface {
     recordedBy : string,
     category? : ExpenseCategory,
     notes? : string,
+    source? : ExpenseSource,
+    booking? : string | null,
     createdAt? : string,
     updatedAt? : string,
 }

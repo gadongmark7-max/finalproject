@@ -7,6 +7,9 @@ const route = Router();
 route.get("/dashboard", authenticateJWT, ArtistController.getDashboard);
 route.get("/reports", authenticateJWT, ArtistController.getReports);
 
+route.get("/settings", authenticateJWT, ArtistController.getSettings);
+route.put("/settings/hourly-rate", authenticateJWT, ArtistController.updateHourlyRate);
+
 route.get("/expenses", authenticateJWT, ArtistController.listExpenses);
 route.post("/expenses", authenticateJWT, ArtistController.createExpense);
 route.put("/expenses/:id", authenticateJWT, ArtistController.updateExpense);

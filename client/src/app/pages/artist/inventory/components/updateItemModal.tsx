@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetClose,
@@ -12,10 +12,14 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { inventoryInterface } from "@/app/types/inventory.type";
+import {
+  inventoryInterface,
+  INVENTORY_CATEGORIES,
+} from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 import useUserStore from "@/app/store/useUserStore";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,8 +31,17 @@ import {
 } from "@/components/ui/select";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { updateItemSchema } from "@/lib/validation/schemas/inventory";
+import { updateItemWithPriceSchema } from "@/lib/validation/schemas/inventory";
+import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
+
+const formValues = (inventory: inventoryInterface) => ({
+  item: inventory.item,
+  category: inventory.category,
+  stocks: String(inventory.stocks ?? ""),
+  safeStock: String(inventory.safeStock ?? ""),
+  price: String(inventory.price ?? 0),
+});
 
 export function UpdateItemModal({
   setInventory,
@@ -45,15 +58,21 @@ export function UpdateItemModal({
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors, isValid },
-  } = useZodForm(updateItemSchema, {
-    defaultValues: {
-      item: inventory.item,
-      category: inventory.category,
-      stocks: String(inventory.stocks ?? ""),
-      safeStock: String(inventory.safeStock ?? ""),
-    },
+  } = useZodForm(updateItemWithPriceSchema, {
+    defaultValues: formValues(inventory),
   });
+
+  useEffect(() => {
+    if (open) reset(formValues(inventory));
+  }, [open, inventory, reset]);
+
+  const categoryOptions: string[] = (
+    INVENTORY_CATEGORIES as readonly string[]
+  ).includes(inventory.category)
+    ? [...INVENTORY_CATEGORIES]
+    : [inventory.category, ...INVENTORY_CATEGORIES];
 
   const updateMutation = useMutation({
     mutationFn: (inventory: inventoryInterface) =>
@@ -63,7 +82,7 @@ export function UpdateItemModal({
       successAlert("item updated");
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const deleteMutation = useMutation({
@@ -85,7 +104,7 @@ export function UpdateItemModal({
       category: values.category,
       type: inventory.type,
       safeStock: values.safeStock,
-      price: inventory.price,
+      price: values.price,
     });
   });
 
@@ -129,21 +148,11 @@ export function UpdateItemModal({
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Tattoo Equipment">
-                      Tattoo Equipment
-                    </SelectItem>
-                    <SelectItem value="Needles & Cartridges">
-                      Needles & Cartridges
-                    </SelectItem>
-                    <SelectItem value="Inks & Pigments">
-                      Inks & Pigments
-                    </SelectItem>
-                    <SelectItem value="kin Prep & Aftercare">
-                      kin Prep & Aftercare
-                    </SelectItem>
-                    <SelectItem value="Hygiene & Safety">
-                      Hygiene & Safety
-                    </SelectItem>
+                    {categoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}
@@ -152,22 +161,48 @@ export function UpdateItemModal({
           </div>
 
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Stocks </h1>
-            <Input
-              {...register("stocks")}
-              inputMode="numeric"
-              aria-invalid={!!errors.stocks}
-              placeholder="stock on hand"
-              className="w-full"
-            />
+            <h1 className="font-bold text-stone-600"> Quantity </h1>
+            <div className="flex items-center gap-2">
+              <Input
+                {...register("stocks")}
+                inputMode="decimal"
+                aria-invalid={!!errors.stocks}
+                placeholder="amount on hand"
+                className="w-full"
+              />
+              <span className="text-sm text-text-muted whitespace-nowrap">
+                {inventory.type}
+              </span>
+            </div>
             <FieldError>{errors.stocks?.message}</FieldError>
+          </div>
+
+          <div className="mt-3 w-full">
+            <h1 className="font-bold text-stone-600">
+              {" "}
+              Price per {inventory.type}{" "}
+            </h1>
+            <Controller
+              control={control}
+              name="price"
+              render={({ field }) => (
+                <MoneyInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  aria-invalid={!!errors.price}
+                  placeholder="0.00"
+                />
+              )}
+            />
+            <FieldError>{errors.price?.message}</FieldError>
           </div>
 
           <div className="mt-3 w-full">
             <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
             <Input
               {...register("safeStock")}
-              inputMode="numeric"
+              inputMode="decimal"
               aria-invalid={!!errors.safeStock}
               placeholder="safe stock level"
               className="w-full"

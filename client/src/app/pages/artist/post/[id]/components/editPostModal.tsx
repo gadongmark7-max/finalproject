@@ -4,6 +4,11 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
 import { priceField } from "@/lib/validation/schemas/booking";
 import { firstError, percentField, countField } from "@/lib/validation/fields";
+import {
+  aiSizeHeightSchema,
+  aiSizeWidthSchema,
+} from "@/app/hooks/artistAiAnalysisHooks";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 
 const downPaymentSchema = percentField("Down payment");
 const sessionHrsSchema = countField("Session hours", { min: 1, max: 24 });
@@ -26,7 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ImageIcon, Plus, X, Clock, Layers, Tag, Edit } from "lucide-react";
+import {
+  ImageIcon,
+  Plus,
+  X,
+  Clock,
+  Layers,
+  Tag,
+  Edit,
+  Ruler,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { postInterface } from "@/app/types/post.type";
 import { useMutation } from "@tanstack/react-query";
@@ -39,7 +53,12 @@ interface dataInterface {
   sessions: number[];
   price: number;
   downPercentage: number;
+  sizeWidthCm?: number;
+  sizeHeightCm?: number;
 }
+
+const initialSize = (value?: number | null) =>
+  typeof value === "number" && value > 0 ? String(value) : "";
 
 export function EditPostmodal({
   post,
@@ -58,7 +77,15 @@ export function EditPostmodal({
     String(post.downPercentage ?? ""),
   );
   const [sessionInput, setSessionInput] = useState("");
-  const [sessions, setSessions] = useState<number[]>(post.sessions);
+  const [sessions, setSessions] = useState<number[]>(
+    post.sessions.map((s) => Math.max(1, Math.floor(s))),
+  );
+  const [sizeWidthCm, setSizeWidthCm] = useState(
+    initialSize(post.sizeWidthCm ?? post.aiEstimate?.sizeWidthCm),
+  );
+  const [sizeHeightCm, setSizeHeightCm] = useState(
+    initialSize(post.sizeHeightCm ?? post.aiEstimate?.sizeHeightCm),
+  );
 
   const addTag = () => {
     if (tags.length >= 5) return errorAlert("the maximum tags is 5");
@@ -95,8 +122,16 @@ export function EditPostmodal({
       successAlert("saved Changes");
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
+
+  const hasSize = !!sizeWidthCm || !!sizeHeightCm;
+  const sizeWidthError = hasSize
+    ? firstError(aiSizeWidthSchema, sizeWidthCm, { showWhenEmpty: true })
+    : undefined;
+  const sizeHeightError = hasSize
+    ? firstError(aiSizeHeightSchema, sizeHeightCm, { showWhenEmpty: true })
+    : undefined;
 
   const priceError = firstError(priceField, price);
   const downPaymentError = firstError(downPaymentSchema, downpayment);
@@ -104,7 +139,12 @@ export function EditPostmodal({
   const handleSave = () => {
     const parsedPrice = priceField.safeParse(price);
     const parsedDown = downPaymentSchema.safeParse(downpayment);
-    if (!category || !sessions) return errorAlert("empty field");
+    if (!category || sessions.length === 0)
+      return errorAlert("Please add at least one session");
+    const parsedWidth = aiSizeWidthSchema.safeParse(sizeWidthCm);
+    const parsedHeight = aiSizeHeightSchema.safeParse(sizeHeightCm);
+    if (hasSize && (!parsedWidth.success || !parsedHeight.success))
+      return errorAlert("Please enter a valid tattoo width and height");
     if (!parsedPrice.success)
       return errorAlert(
         parsedPrice.error.issues[0]?.message ?? "Please enter a valid price",
@@ -120,6 +160,9 @@ export function EditPostmodal({
       category,
       price: parsedPrice.data,
       downPercentage: parsedDown.data,
+      ...(parsedWidth.success && parsedHeight.success
+        ? { sizeWidthCm: parsedWidth.data, sizeHeightCm: parsedHeight.data }
+        : {}),
     });
   };
 
@@ -166,6 +209,39 @@ export function EditPostmodal({
                 aria-invalid={!!priceError}
               />
               <FieldError>{priceError}</FieldError>
+            </div>
+          </div>
+
+          <div className="space-y-2 mt-3">
+            <Label className="flex items-center gap-2">
+              <Ruler className="w-4 h-4" />
+              Tattoo Size (cm)
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <Input
+                  placeholder="Width"
+                  inputMode="decimal"
+                  value={sizeWidthCm}
+                  aria-invalid={!!sizeWidthError}
+                  onChange={(e) =>
+                    setSizeWidthCm(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+                <FieldError>{sizeWidthError}</FieldError>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Input
+                  placeholder="Height"
+                  inputMode="decimal"
+                  value={sizeHeightCm}
+                  aria-invalid={!!sizeHeightError}
+                  onChange={(e) =>
+                    setSizeHeightCm(e.target.value.replace(/[^0-9.]/g, ""))
+                  }
+                />
+                <FieldError>{sizeHeightError}</FieldError>
+              </div>
             </div>
           </div>
 

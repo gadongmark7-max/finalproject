@@ -33,7 +33,11 @@ import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
 import { useZodForm } from "@/lib/validation/useZodForm";
 import { expenseSchema } from "@/lib/validation/schemas/expense";
-import { EXPENSE_CATEGORIES, expenseInterface } from "@/app/types/artist.type";
+import {
+  AUTO_EXPENSE_CATEGORY,
+  EXPENSE_CATEGORIES,
+  expenseInterface,
+} from "@/app/types/artist.type";
 
 const toDateInputValue = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -135,7 +139,12 @@ export function ExpenseModal({ expense }: { expense?: expenseInterface }) {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {EXPENSE_CATEGORIES.map((c) => (
+                    {EXPENSE_CATEGORIES.filter(
+                      // Reserved for automatic booking expenses.
+                      (c) =>
+                        c !== AUTO_EXPENSE_CATEGORY ||
+                        expense?.category === AUTO_EXPENSE_CATEGORY,
+                    ).map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>

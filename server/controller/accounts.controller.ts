@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Response, response } from "express";
 import { AuthRequest } from "../types/request.type";
 import {
@@ -35,6 +36,9 @@ import dotenv from "dotenv";
 import { AdminMessageService } from "../services/adminMessage.service";
 
 dotenv.config();
+
+const isValidResetOtp = (pin: unknown, input: unknown) =>
+  typeof pin === "string" && pin.length > 0 && typeof input === "string" && input === pin;
 
 export class AccountController {
   static getAllUsers = async (request: AuthRequest, response: Response) => {
@@ -91,12 +95,13 @@ export class AccountController {
     response: Response,
   ) => {
     const { email } = request.body;
-    const account = await AccountService.getByEmail(email);
+    const account =
+      typeof email === "string" ? await AccountService.getByEmail(email) : null;
     if (!account) {
       response.status(500).send("email not found");
       return;
     }
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const pin = crypto.randomInt(100000, 1000000).toString();
     await AccountService.updatePinByEmail(email, pin);
     sendEmail(
       account.email!,
@@ -111,12 +116,15 @@ export class AccountController {
     response: Response,
   ) => {
     const { email, otpInput } = request.body;
-    const account = await AccountService.getByEmail(email);
+    const account =
+      typeof email === "string"
+        ? await AccountService.getByEmailWithSecrets(email)
+        : null;
     if (!account) {
       response.status(500).send("email not found");
       return;
     }
-    if (otpInput == account.pin) {
+    if (isValidResetOtp(account.pin, otpInput)) {
       response.send("success");
     } else {
       response.status(500).send("invalid otp");
@@ -127,10 +135,21 @@ export class AccountController {
     request: AuthRequest,
     response: Response,
   ) => {
-    const { email, newPassword } = request.body;
-    const account = await AccountService.getByEmail(email);
+    const { email, newPassword, otpInput } = request.body;
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      response.status(400).send("new password is too short");
+      return;
+    }
+    const account =
+      typeof email === "string"
+        ? await AccountService.getByEmailWithSecrets(email)
+        : null;
     if (!account) {
       response.status(500).send("email not found");
+      return;
+    }
+    if (!isValidResetOtp(account.pin, otpInput)) {
+      response.status(400).send("invalid otp");
       return;
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -147,13 +166,15 @@ export class AccountController {
       return;
     }
 
-    const account = await AccountService.get(request.account?._id!);
+    const account = await AccountService.getWithSecrets(request.account?._id!);
     if (!account) {
       response.status(404).send("account not found");
       return;
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, account.password);
+    const isMatch =
+      typeof currentPassword === "string" &&
+      (await bcrypt.compare(currentPassword, account.password));
     if (!isMatch) {
       response.status(400).send("current password is incorrect");
       return;

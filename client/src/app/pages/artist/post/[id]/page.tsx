@@ -11,6 +11,7 @@ import { confirmAlert, errorAlert } from "@/app/utils/alert";
 import Swal from "sweetalert2";
 import { EditPostmodal } from "./components/editPostModal";
 import { Button } from "@/components/ui/button";
+import { formatPostSize } from "@/app/utils/customFunction";
 
 export default function Page() {
   const params = useParams();
@@ -20,7 +21,7 @@ export default function Page() {
   const [post, setPost] = useState<postInterface | null>(null);
 
   const { data } = useQuery({
-    queryKey: ["view_post"],
+    queryKey: ["view_post", postId],
     queryFn: () => axiosInstance.get(`/post/${postId}`),
   });
 
@@ -143,6 +144,28 @@ export default function Page() {
                     style={{ fontFamily: "'Cormorant Garamond', serif" }}
                   >
                     {post.category}
+                  </p>
+                </div>
+                <div className="bg-surface px-5 py-5">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Tattoo Size
+                  </p>
+                  <p
+                    className="text-2xl font-light text-text"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
+                    {formatPostSize(post) ?? "Not specified"}
+                  </p>
+                </div>
+                <div className="bg-surface px-5 py-5">
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-gold mb-1">
+                    Body Part
+                  </p>
+                  <p
+                    className="text-2xl font-light text-text"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                  >
+                    {post.bodyPart || "Not specified"}
                   </p>
                 </div>
               </div>

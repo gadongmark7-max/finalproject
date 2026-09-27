@@ -3,6 +3,7 @@ import os from "os";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
+import crypto from "crypto";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 
@@ -15,11 +16,20 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
+    const extension = path
+      .extname(path.basename(file.originalname))
+      .replace(/[^a-zA-Z0-9.]/g, "")
+      .slice(0, 10);
+    cb(null, `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${extension}`);
   },
 });
 
-export const upload = multer({ storage });
+export const UPLOAD_MAX_BYTES = 50 * 1024 * 1024;
+
+export const upload = multer({
+  storage,
+  limits: { fileSize: UPLOAD_MAX_BYTES },
+});
 
 const restoreStorage = multer.diskStorage({
   destination: function (req, file, cb) {

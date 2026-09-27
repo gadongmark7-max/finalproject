@@ -1,0 +1,9 @@
+# Root-level ignores (client/ and server/ have their own .gitignore)
+.env
+.env.*
+!.env.example
+node_modules/
+# TLS material issued by certbot (docker-compose.prod.yml)
+certbot/
+# Database dumps (DOCKER.md backup/restore)
+db-dumps/

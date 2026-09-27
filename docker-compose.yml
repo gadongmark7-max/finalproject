@@ -1,0 +1,51 @@
+name: inkofbaphomet-dev
+
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_dev_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    env_file: ./server/.env
+    environment:
+      PORT: "5001"
+      MONGODB_URI: ${DEV_MONGODB_URI:-mongodb://mongo:27017/inkofbaphomet}
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./server:/app
+      - server_node_modules:/app/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  client:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
+    env_file: ./client/.env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+      - client_next:/app/.next
+    depends_on:
+      - server
+
+volumes:
+  mongo_dev_data:
+  server_node_modules:
+  client_node_modules:
+  client_next:

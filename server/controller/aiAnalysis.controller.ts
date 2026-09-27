@@ -17,6 +17,7 @@ import {
   verifyEstimateToken,
 } from "../utils/estimateToken";
 import { AI_RATE_LIMIT_MESSAGE, consumeAiQuota } from "../utils/aiRateLimit";
+import { ArtistInfoService } from "../services/artistInfo.service";
 import {
   aiAnalysisRequestSchema,
   aiRepriceRequestSchema,
@@ -54,6 +55,25 @@ function requireArtist(request: AuthRequest, response: Response) {
     return false;
   }
   return true;
+}
+
+const HOURLY_RATE_NOT_SET_MESSAGE =
+  "Set your hourly rate in Settings before running the AI Tattoo Analysis.";
+
+/**
+ * Artists always price with the hourly rate saved in their Settings, so a
+ * post/booking form can't override it. Other accounts (business) keep
+ * sending the rate with the request.
+ */
+async function resolveHourlyRate(
+  request: AuthRequest,
+  requested: number | undefined,
+): Promise<number | null> {
+  if (request.account!.type === "artist") {
+    const rate = await ArtistInfoService.getHourlyRate(request.account!._id);
+    return typeof rate === "number" ? rate : null;
+  }
+  return requested ?? null;
 }
 
 function buildArtistEstimate(params: {
@@ -155,7 +175,12 @@ export class AiAnalysisController {
       });
       return;
     }
-    const { bodyPart, hourlyRate, sizeWidthCm, sizeHeightCm } = parsed.data;
+    const { bodyPart, sizeWidthCm, sizeHeightCm } = parsed.data;
+    const hourlyRate = await resolveHourlyRate(request, parsed.data.hourlyRate);
+    if (hourlyRate === null) {
+      response.status(400).json({ error: HOURLY_RATE_NOT_SET_MESSAGE });
+      return;
+    }
     if (!consumeAiQuota(request.account!._id)) {
       response.status(429).json({ error: AI_RATE_LIMIT_MESSAGE });
       return;
@@ -222,6 +247,11 @@ export class AiAnalysisController {
       return;
     }
     const body = parsed.data;
+    const hourlyRate = await resolveHourlyRate(request, body.hourlyRate);
+    if (hourlyRate === null) {
+      response.status(400).json({ error: HOURLY_RATE_NOT_SET_MESSAGE });
+      return;
+    }
 
     try {
       const inventory = await InventoryService.getByAccount(
@@ -235,7 +265,7 @@ export class AiAnalysisController {
           bodyPart: body.bodyPart,
           widthCm: body.sizeWidthCm,
           heightCm: body.sizeHeightCm,
-          hourlyRate: body.hourlyRate,
+          hourlyRate,
           calibration: PricingService.sanitizeCalibration(body.calibration),
           baseMaterials: body.materials,
           inventory,

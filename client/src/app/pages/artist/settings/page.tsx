@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { KeyRound, DatabaseBackup, ChevronRight } from "lucide-react";
 import { BackButton } from "@/components/ui/back-button";
+import { HourlyRateCard } from "./components/hourlyRateCard";
 
 const SETTINGS_ITEMS = [
   {
@@ -53,6 +54,7 @@ export default function Page() {
         </div>
 
         <div className="space-y-3">
+          <HourlyRateCard />
           {SETTINGS_ITEMS.map((item) => (
             <Link
               key={item.title}

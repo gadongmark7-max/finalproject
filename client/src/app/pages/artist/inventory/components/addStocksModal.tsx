@@ -14,6 +14,7 @@ import { inventoryInterface } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 import useUserStore from "@/app/store/useUserStore";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
@@ -52,7 +53,7 @@ export function AddStocksModal({
       reset();
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const addStocksHandler = handleSubmit((values) => {
@@ -81,14 +82,19 @@ export function AddStocksModal({
 
         <div className=" gap-6 mb-6">
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Stocks </h1>
-            <Input
-              {...register("stocks")}
-              inputMode="numeric"
-              aria-invalid={!!errors.stocks}
-              placeholder="stocks to add"
-              className="w-full"
-            />
+            <h1 className="font-bold text-stone-600"> Quantity to add </h1>
+            <div className="flex items-center gap-2">
+              <Input
+                {...register("stocks")}
+                inputMode="decimal"
+                aria-invalid={!!errors.stocks}
+                placeholder="e.g. 10"
+                className="w-full"
+              />
+              <span className="text-sm text-text-muted whitespace-nowrap">
+                {inventory.type}
+              </span>
+            </div>
             <FieldError>{errors.stocks?.message}</FieldError>
           </div>
         </div>

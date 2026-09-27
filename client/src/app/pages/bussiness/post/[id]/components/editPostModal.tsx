@@ -53,7 +53,9 @@ export function EditPostmodal({
   const [category, setCategory] = useState(post.category);
   const [price, setPrice] = useState(String(post.price ?? ""));
   const [sessionInput, setSessionInput] = useState("");
-  const [sessions, setSessions] = useState<number[]>(post.sessions);
+  const [sessions, setSessions] = useState<number[]>(
+    post.sessions.map((s) => Math.max(1, Math.floor(s))),
+  );
 
   const addTag = () => {
     if (tags.length >= 5) return errorAlert("the maximum tags is 5");

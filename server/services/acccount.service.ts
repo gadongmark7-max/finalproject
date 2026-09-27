@@ -72,6 +72,14 @@ export class AccountService {
     return account;
   }
 
+  static async getWithSecrets(id: string) {
+    return await AccountModel.findById(id).select("+password +pin");
+  }
+
+  static async getByEmailWithSecrets(email: string) {
+    return await AccountModel.findOne({ email }).select("+password +pin");
+  }
+
   static async getByEmail(email: string) {
     const account = AccountModel.findOne({ email });
     return account;

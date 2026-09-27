@@ -22,10 +22,13 @@ import {
 import {
   inventoryInterfaceInput,
   inventoryInterface,
+  INVENTORY_CATEGORIES,
+  INVENTORY_UNITS,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
+import { apiErrorMessage } from "@/app/utils/customFunction";
 import useUserStore from "@/app/store/useUserStore";
 import { Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -49,6 +52,7 @@ export function AddItemModal({
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isValid },
   } = useZodForm(addItemSchema, {
     defaultValues: {
@@ -63,8 +67,18 @@ export function AddItemModal({
 
   const getPricePerItem = (expenses: number, stocks: number) => {
     if (!stocks || stocks === 0) return 0; // or null
-    return expenses / stocks;
+    return Math.round((expenses / stocks) * 100) / 100;
   };
+
+  const [watchedQuantity, watchedCost, watchedUnit] = watch([
+    "stocks",
+    "expences",
+    "type",
+  ]);
+  const previewUnitPrice = getPricePerItem(
+    Number(watchedCost) || 0,
+    Number(watchedQuantity) || 0,
+  );
 
   const mutation = useMutation({
     mutationFn: (data: {
@@ -83,7 +97,7 @@ export function AddItemModal({
       reset();
       setOpen(false);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const addItemHandler = handleSubmit((values) => {
@@ -138,49 +152,48 @@ export function AddItemModal({
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Tattoo Equipment">
-                        Tattoo Equipment
-                      </SelectItem>
-                      <SelectItem value="Needles & Cartridges">
-                        Needles & Cartridges
-                      </SelectItem>
-                      <SelectItem value="Inks & Pigments">
-                        Inks & Pigments
-                      </SelectItem>
-                      <SelectItem value="kin Prep & Aftercare">
-                        kin Prep & Aftercare
-                      </SelectItem>
-                      <SelectItem value="Hygiene & Safety">
-                        Hygiene & Safety
-                      </SelectItem>
+                      {INVENTORY_CATEGORIES.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
               />
               <FieldError>{errors.category?.message}</FieldError>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>types / units</Label>
+          <div className="flex gap-3">
+            <div className="mt-3 w-full space-y-2">
+              <Label>Quantity</Label>
+              <Input
+                {...register("stocks")}
+                inputMode="decimal"
+                aria-invalid={!!errors.stocks}
+                placeholder="e.g. 10"
+                className="w-full"
+              />
+              <FieldError>{errors.stocks?.message}</FieldError>
+            </div>
+
+            <div className="mt-3 w-full space-y-2">
+              <Label>Unit</Label>
               <Controller
                 control={control}
                 name="type"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className=" w-full">
-                      <SelectValue placeholder="Select " />
+                      <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pcs">pcs</SelectItem>
-                      <SelectItem value="kg">kg</SelectItem>
-                      <SelectItem value="g">g</SelectItem>
-                      <SelectItem value="L">L</SelectItem>
-                      <SelectItem value="ml">ml</SelectItem>
-                      <SelectItem value="box">box</SelectItem>
-                      <SelectItem value="bottle">bottle</SelectItem>
-                      <SelectItem value="pack">pack</SelectItem>
-                      <SelectItem value="roll">roll</SelectItem>
-                      <SelectItem value="tube">tube</SelectItem>
+                      {INVENTORY_UNITS.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -191,22 +204,10 @@ export function AddItemModal({
 
           <div className="flex gap-3">
             <div className="mt-3 w-full">
-              <h1 className="font-bold text-stone-600"> Stocks </h1>
-              <Input
-                {...register("stocks")}
-                inputMode="numeric"
-                aria-invalid={!!errors.stocks}
-                placeholder="initial stocks"
-                className="w-full"
-              />
-              <FieldError>{errors.stocks?.message}</FieldError>
-            </div>
-
-            <div className="mt-3 w-full">
               <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
               <Input
                 {...register("safeStock")}
-                inputMode="numeric"
+                inputMode="decimal"
                 aria-invalid={!!errors.safeStock}
                 placeholder="safe stock level"
                 className="w-full"
@@ -216,7 +217,7 @@ export function AddItemModal({
           </div>
 
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Expences </h1>
+            <h1 className="font-bold text-stone-600"> Total Cost </h1>
             <Controller
               control={control}
               name="expences"
@@ -231,6 +232,13 @@ export function AddItemModal({
               )}
             />
             <FieldError>{errors.expences?.message}</FieldError>
+            <p className="text-xs text-text-muted mt-1">
+              Price per {watchedUnit || "unit"}: ₱
+              {previewUnitPrice.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
           </div>
         </div>
         <SheetFooter>
