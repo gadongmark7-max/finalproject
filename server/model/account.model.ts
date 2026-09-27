@@ -8,12 +8,20 @@ const AccountSchema = new Schema({
     contact: { type: String, required: true },
     subscriptionExpiration: { type: String, required: false },
     email: { type: String, required: true },
-    password: { type: String, required: true },
+    password: { type: String, required: true, select: false },
     isBan : { type: Boolean, required: true }, 
-    pin : { type: String, required: false },
+    pin : { type: String, required: false, select: false },
     location : {
         long : { type: Number, required: false },
         lat : { type: Number, required: false },
+    },
+}, {
+    toJSON: {
+        transform: (_doc, ret: Record<string, unknown>) => {
+            delete ret.password;
+            delete ret.pin;
+            return ret;
+        },
     },
 });
 

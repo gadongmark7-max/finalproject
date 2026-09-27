@@ -20,8 +20,10 @@ strips `/api`: `https://inkofbaphomet.com/api/auth/login` → Express `/auth/log
 The browser bundle is built with `NEXT_PUBLIC_BACKEND_URL_LIVE=/api` (same origin),
 so the same image works on the real domain, `http://localhost` and a Codespaces URL.
 
-`/api/admin`, `/api/artistAccount` and `/api/addField` (unauthenticated seed/maintenance
-endpoints in `server/index.ts`) are blocked with 404 at Nginx.
+`/api/auth/*` (login, register, OTP, password reset) is rate limited at Nginx to
+20 requests/minute per IP (burst 20); over the limit it returns `429` with a plain-text message.
+Nginx re-resolves container names every 10 s, so recreating `client` or `server` does not
+require restarting Nginx.
 
 ## Files
 
@@ -29,6 +31,7 @@ endpoints in `server/index.ts`) are blocked with 404 at Nginx.
 |------|---------|
 | `docker-compose.yml` | Development: `npm run dev`, bind mounts, hot reload |
 | `docker-compose.prod.yml` | Production: built images, Nginx, Mongo volume, health checks |
+| `docker-compose.atlas.yml` | Optional override: use MongoDB Atlas instead of the `mongo` container |
 | `client/Dockerfile` | Multi-stage Next.js build, `output: "standalone"`, non-root |
 | `server/Dockerfile` | Multi-stage TypeScript build, prod deps only, non-root |
 | `nginx/nginx.conf` | HTTP only (local / Codespaces / first certificate) |
@@ -90,15 +93,19 @@ docker inspect --format '{{.State.Health.Status}}' inkofbaphomet-server-1
 
 After HTTPS is enabled, use `https://inkofbaphomet.com/...` for these checks.
 
-### Creating the first admin on an empty database
+### Creating the first admin (or the artist) account
 
-The seed route is blocked publicly. Run it from inside the container, then
-**change the password immediately** (it is hard-coded as `123`):
+There are no seed routes. Use the CLI inside the server container; the password
+(at least 12 characters) is read from stdin so it never lands in shell history:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec server \
-  node -e "fetch('http://127.0.0.1:5001/admin').then(r=>r.text()).then(console.log)"
+read -rs PW   # type the password, press Enter
+printf '%s' "$PW" | docker compose -f docker-compose.prod.yml exec -T server \
+  node dist/scripts/createAccount.js --type admin --email you@example.com --name "Admin"
+unset PW
 ```
+
+`--type artist` also creates the artist profile (schedule defaults Mon–Fri 08:00–15:00).
 
 ## HTTPS (Let's Encrypt)
 
@@ -120,7 +127,7 @@ into Nginx.
    `docker compose -f docker-compose.prod.yml up -d nginx`
 5. Renewal (host crontab, daily):
    ```cron
-   0 3 * * * cd /opt/inkofbaphomet && docker compose -f docker-compose.prod.yml --profile tls run --rm certbot renew --quiet && docker compose -f docker-compose.prod.yml exec nginx nginx -s reload
+   0 3 * * * cd /var/www/inkofbaphomet && docker compose -f docker-compose.prod.yml --profile tls run --rm certbot renew --quiet && docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
    ```
 
 `nginx.ssl.conf` redirects all HTTP and `https://www.` to `https://inkofbaphomet.com`
@@ -139,6 +146,17 @@ Create at your DNS provider (`<SERVER_IP>` = the VPS public IPv4):
 
 (`www` may instead be `CNAME www → inkofbaphomet.com`.) Open ports 80 and 443 in the
 server firewall. Keep 27017, 3000 and 5001 closed; compose does not publish them.
+
+## Using MongoDB Atlas instead of the container
+
+Set `ATLAS_MONGODB_URI` in the root `.env` (keep the `MONGO_*` values set; they are
+still required by the compose file even though the container is not started), allow
+the VPS public IP in Atlas → Network Access, then add the override to **every**
+compose command:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.atlas.yml up -d
+```
 
 ## MongoDB backup
 
@@ -182,7 +200,7 @@ docker run --rm -v "$PWD/db-dumps:/dump" mongo:7 \
 ## Updating production
 
 ```bash
-cd /opt/inkofbaphomet
+cd /var/www/inkofbaphomet
 git pull
 # 1. back up the database (see above)
 # 2. keep the current images for rollback

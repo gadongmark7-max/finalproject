@@ -1,3 +1,4 @@
+import { getJwtSecret } from "../utils/jwtSecret";
 import { Request, Response, NextFunction } from "express";
 import { AuthRequest } from "../types/request.type";
 import jwt from "jsonwebtoken";
@@ -7,7 +8,7 @@ import { accountInterface } from "../types/accounts.type";
 
 dotenv.config();
 
-const secret = process.env.JWT_SECRET || "defaultsecret";
+const secret = getJwtSecret();
 
 
 
@@ -27,7 +28,11 @@ export const authenticateJWT = async (request: AuthRequest, response: Response, 
     const { id } = decoded as { id: string };
     const accountDoc = await AccountService.get(id);
     
-    if (accountDoc) {
+    if (!accountDoc) {
+      response.status(401).json({ message: "Invalid token" });
+      return;
+    }
+    {
       const account: accountInterface = {
         _id: accountDoc._id.toString(),
         subscriptionExpiration : accountDoc.subscriptionExpiration!,
@@ -36,10 +41,10 @@ export const authenticateJWT = async (request: AuthRequest, response: Response, 
         type: accountDoc.type,
         contact: accountDoc.contact,
         email: accountDoc.email,
-        password: accountDoc.password,
+        password: "",
         location : accountDoc.location,
         isBan : accountDoc.isBan,
-        pin : accountDoc.pin || null
+        pin : null
       };
       request.account = account;
     }
@@ -48,4 +53,13 @@ export const authenticateJWT = async (request: AuthRequest, response: Response, 
     console.log(err)
      response.status(401).json({ message: "Invalid token" });
   }
+};
+
+
+export const requireAdmin = (request: AuthRequest, response: Response, next: NextFunction) => {
+  if (request.account?.type !== "admin") {
+    response.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  next();
 };

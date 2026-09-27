@@ -1,3 +1,4 @@
+import { getJwtSecret } from "./jwtSecret";
 import crypto from "crypto";
 import { z } from "zod";
 import {
@@ -20,7 +21,7 @@ export type EstimateTokenPayload = Omit<z.infer<typeof payloadSchema>, "exp">;
 const key = () =>
   crypto
     .createHash("sha256")
-    .update(`${process.env.JWT_SECRET || "defaultsecret"}:client-ai-estimate`)
+    .update(`${getJwtSecret()}:client-ai-estimate`)
     .digest();
 
 export function createEstimateToken(payload: EstimateTokenPayload): string {
