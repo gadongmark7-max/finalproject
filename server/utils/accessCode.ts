@@ -39,11 +39,16 @@ export async function verifyAccessCode(code: string, hash: string) {
   return await bcrypt.compare(normalizeAccessCode(code), hash);
 }
 
+export async function regenerateAccessCode(accountId: string) {
+  const code = generateAccessCode();
+  await AccountService.setAccessCodeHash(accountId, await hashAccessCode(code));
+  return code;
+}
+
 export async function issueArtistAccessCode(accountId: string) {
   const account = await AccountService.get(accountId);
   if (!account || account.type !== "artist") return false;
 
-  const code = generateAccessCode();
-  await AccountService.setAccessCodeHash(accountId, await hashAccessCode(code));
+  const code = await regenerateAccessCode(accountId);
   return await sendArtistAccessCodeEmail(account.email, account.name, code);
 }

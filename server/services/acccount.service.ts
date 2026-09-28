@@ -86,6 +86,11 @@ export class AccountService {
     );
   }
 
+  static async hasAccessCode(id: string) {
+    const account = await AccountModel.findById(id).select("+accessCodeHash");
+    return !!account?.accessCodeHash;
+  }
+
   static async setAccessCodeHash(id: string, accessCodeHash: string) {
     return await AccountModel.findByIdAndUpdate(
       id,

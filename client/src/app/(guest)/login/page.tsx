@@ -89,6 +89,7 @@ export default function LoginPage() {
   const [accessCodeStep, setAccessCodeStep] = useState(false);
   const [accessCode, setAccessCode] = useState("");
   const [accessCodeError, setAccessCodeError] = useState<string>();
+  const [showAccessCode, setShowAccessCode] = useState(false);
   const accessCodeInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
@@ -382,6 +383,7 @@ export default function LoginPage() {
 
   const resetAccessCodeStep = () => {
     setAccessCodeStep(false);
+    setShowAccessCode(false);
     setAccessCode("");
     setAccessCodeError(undefined);
     setValue("password", "");
@@ -673,9 +675,21 @@ export default function LoginPage() {
                   </label>
                   <div className="relative flex items-center">
                     <KeyRound className="absolute left-3.5 w-3.5 h-3.5 text-border pointer-events-none" />
+                    <button
+                      type="button"
+                      onClick={() => setShowAccessCode((prev) => !prev)}
+                      disabled={isLocked}
+                      aria-label={showAccessCode ? "Hide access code" : "Show access code"}
+                      aria-pressed={showAccessCode}
+                      aria-controls="login-access-code"
+                      className="absolute right-1.5 z-10 text-text-muted hover:text-gold transition-colors duration-200 p-2 disabled:opacity-40"
+                    >
+                      {showAccessCode ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
                     <input
+                      id="login-access-code"
                       ref={accessCodeInputRef}
-                      type="password"
+                      type={showAccessCode ? "text" : "password"}
                       name="accessCode"
                       autoComplete="one-time-code"
                       value={accessCode}
@@ -685,7 +699,7 @@ export default function LoginPage() {
                       }}
                       placeholder="Enter your access code"
                       aria-invalid={!!accessCodeError}
-                      className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light tracking-[0.15em] outline-none transition-all duration-200 placeholder:text-text-dim placeholder:tracking-normal placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${accessCodeError ? "border-danger" : "border-border"}`}
+                      className={`w-full pl-10 pr-10 py-3 bg-primary border text-text text-sm font-light tracking-[0.15em] outline-none transition-all duration-200 placeholder:text-text-dim placeholder:tracking-normal placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${accessCodeError ? "border-danger" : "border-border"}`}
                       style={{
                         borderRadius: 0,
                         fontFamily: "'Raleway', sans-serif",

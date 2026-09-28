@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -8,11 +8,30 @@ import {
 } from "@/app/types/accounts.type";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import axiosInstance from "@/app/utils/axios";
-import useCurrentLocation from "@/app/hooks/locationHooks";
+import {
+  LocationError,
+  LOCATION_ERROR_MESSAGES,
+  useCurrentLocationState,
+} from "@/app/hooks/locationHooks";
+import type { RouteStatus } from "./components/routingMap";
+import {
+  formatRouteDistance,
+  formatRouteDuration,
+} from "@/app/utils/routing";
 import useUserStore from "@/app/store/useUserStore";
 import { ProfileOverview } from "./components/profileOverview";
 import { useState } from "react";
-import { MapPin, Star, User, Users, X } from "lucide-react";
+import {
+  AlertTriangle,
+  LoaderCircle,
+  MapPin,
+  Navigation,
+  RotateCcw,
+  Star,
+  User,
+  Users,
+  X,
+} from "lucide-react";
 import { ProfileDisplay } from "./components/profileDisplay";
 import { isNear, getDistance } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
@@ -25,11 +44,63 @@ const ClientMapView = dynamic(() => import("./components/mapLibreView"), {
 const App: React.FC = () => {
   const { user } = useUserStore();
 
-  const currentLocation = useCurrentLocation();
+  const {
+    location: currentLocation,
+    error: locationError,
+    refresh: refreshLocation,
+  } = useCurrentLocationState();
 
-  const [pointB, setPointB] = useState<{ lat: number; lng: number } | null>(
-    null,
+  const [route, setRoute] = useState<{
+    id: number;
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+  } | null>(null);
+  const [routeDestination, setRouteDestination] = useState<{
+    lat: number;
+    lng: number;
+    name: string;
+  } | null>(null);
+  const [routeStatus, setRouteStatus] = useState<RouteStatus | null>(null);
+  const routeRequestRef = useRef(0);
+
+  const showRoute = useCallback(
+    async (destination: { lat: number; lng: number; name: string }) => {
+      const requestId = ++routeRequestRef.current;
+      setRoute(null);
+      setRouteDestination(destination);
+      setRouteStatus({ state: "loading" });
+      try {
+        const from = await refreshLocation();
+        if (requestId !== routeRequestRef.current) return;
+        setRoute({
+          id: requestId,
+          from,
+          to: { lat: destination.lat, lng: destination.lng },
+        });
+      } catch (e) {
+        if (requestId !== routeRequestRef.current) return;
+        setRouteStatus({
+          state: "error",
+          message:
+            e instanceof LocationError
+              ? e.message
+              : LOCATION_ERROR_MESSAGES.unavailable,
+        });
+      }
+    },
+    [refreshLocation],
   );
+
+  const handleRouteStatus = useCallback((status: RouteStatus) => {
+    setRouteStatus(status);
+  }, []);
+
+  const clearRoute = () => {
+    routeRequestRef.current++;
+    setRoute(null);
+    setRouteDestination(null);
+    setRouteStatus(null);
+  };
 
   const [openModal, setOpenModal] = useState(false);
 
@@ -122,6 +193,25 @@ const App: React.FC = () => {
     }
   }, [currentLocation, artistInfo, bussinessInfo]);
 
+  if (!currentLocation && locationError) {
+    return (
+      <div className="h-dvh w-full flex items-center justify-center bg-primary px-4">
+        <div className="max-w-md w-full bg-secondary border border-border p-6 space-y-4 text-center">
+          <AlertTriangle className="w-6 h-6 text-gold mx-auto" />
+          <p className="text-sm text-text">
+            {LOCATION_ERROR_MESSAGES[locationError]}
+          </p>
+          <button
+            onClick={() => refreshLocation().catch(() => {})}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border-gold text-gold text-xs uppercase tracking-[0.18em] hover:bg-gold/10 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentLocation || !user) return <LoadingScreen />;
 
   const selectProfile = (
@@ -182,7 +272,7 @@ const App: React.FC = () => {
       {account && userProfile && (
         <ProfileOverview
           key={userProfile._id}
-          setPointB={setPointB}
+          onShowRoute={showRoute}
           userProfile={userProfile}
           account={account}
           setOpen={setOpenModal}
@@ -195,9 +285,72 @@ const App: React.FC = () => {
         userProfile={user.profile}
         artistInfo={artistInfo}
         bussinessInfo={bussinessInfo}
-        pointB={pointB}
+        route={route}
+        onRouteStatusChange={handleRouteStatus}
         onSelectProfile={selectProfile}
       />
+      {routeStatus && routeDestination && (
+        <div
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1100] w-[calc(100%-2rem)] max-w-md bg-secondary border border-border shadow-lg p-4"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-3">
+            <div className="bg-surface-alt border border-border p-2 shrink-0">
+              {routeStatus.state === "loading" ? (
+                <LoaderCircle className="w-4 h-4 text-gold animate-spin" />
+              ) : routeStatus.state === "error" ? (
+                <AlertTriangle className="w-4 h-4 text-danger-light" />
+              ) : (
+                <Navigation className="w-4 h-4 text-gold" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                Route to
+              </p>
+              <p className="text-sm text-text truncate">
+                {routeDestination.name}
+              </p>
+              {routeStatus.state === "loading" && (
+                <p className="text-xs text-text-muted mt-1">
+                  Getting your location and calculating the route…
+                </p>
+              )}
+              {routeStatus.state === "ready" && (
+                <p className="text-sm text-text mt-1">
+                  <span className="text-gold">
+                    {formatRouteDistance(routeStatus.distanceMeters)}
+                  </span>
+                  <span className="text-text-muted"> · about </span>
+                  {formatRouteDuration(routeStatus.durationSeconds)}
+                  <span className="text-text-muted"> by car</span>
+                </p>
+              )}
+              {routeStatus.state === "error" && (
+                <div className="mt-1 space-y-2">
+                  <p className="text-xs text-danger-light">
+                    {routeStatus.message}
+                  </p>
+                  <button
+                    onClick={() => showRoute(routeDestination)}
+                    className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline"
+                  >
+                    <RotateCcw className="w-3 h-3" /> Try again
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={clearRoute}
+              aria-label="Clear route"
+              className="p-1 text-text-muted hover:text-text transition-colors shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

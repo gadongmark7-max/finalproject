@@ -20,6 +20,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MessageCircle, User, Route, Star } from "lucide-react";
 import useUserStore from "@/app/store/useUserStore";
+import { errorAlert } from "@/app/utils/alert";
+import { isValidCoordinate } from "@/app/utils/routing";
 import { StarReviews } from "@/components/ui/starRating";
 
 export function ProfileOverview({
@@ -27,13 +29,13 @@ export function ProfileOverview({
   account,
   open,
   setOpen,
-  setPointB,
+  onShowRoute,
 }: {
   userProfile: artistInfoInterface | bussinessInfoInterface;
   account: accountInterface;
   open: boolean;
   setOpen: (val: boolean) => void;
-  setPointB: (val: { lat: number; lng: number }) => void;
+  onShowRoute: (destination: { lat: number; lng: number; name: string }) => void;
 }) {
   const router = useRouter();
   const { user } = useUserStore();
@@ -55,7 +57,15 @@ export function ProfileOverview({
   });
 
   const showRoute = () => {
-    setPointB({ lat: account.location?.lat!, lng: account.location?.long! });
+    const lat = account.location?.lat;
+    const lng = account.location?.long;
+    if (!isValidCoordinate(lat, lng)) {
+      errorAlert(
+        `${account.name} hasn't set a valid location yet, so a route can't be shown.`,
+      );
+      return;
+    }
+    onShowRoute({ lat: lat as number, lng: lng as number, name: account.name });
     setOpen(false);
   };
 

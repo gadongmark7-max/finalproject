@@ -7,6 +7,9 @@ import {
 import { ExpencesService } from "../services/expences.service";
 import { ArtistInfoService } from "../services/artistInfo.service";
 import { updateHourlyRateSchema } from "../validation/artistSettings.schema";
+import { AccountService } from "../services/acccount.service";
+import { regenerateAccessCode } from "../utils/accessCode";
+import bcrypt from "bcrypt";
 
 const requireArtist = (
   request: AuthRequest,
@@ -27,6 +30,57 @@ const requireArtist = (
 };
 
 export class ArtistController {
+  static getAccessCodeStatus = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const artistId = requireArtist(request, response);
+      if (!artistId) return;
+
+      const configured = await AccountService.hasAccessCode(artistId);
+      response.send({ configured });
+    } catch (e) {
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static regenerateAccessCode = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const artistId = requireArtist(request, response);
+      if (!artistId) return;
+
+      const { currentPassword } = request.body ?? {};
+      if (typeof currentPassword !== "string" || !currentPassword) {
+        response.status(400).send("current password is required");
+        return;
+      }
+
+      const account = await AccountService.getWithSecrets(artistId);
+      if (!account) {
+        response.status(404).send("account not found");
+        return;
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, account.password);
+      if (!isMatch) {
+        response.status(400).send("current password is incorrect");
+        return;
+      }
+
+      const accessCode = await regenerateAccessCode(artistId);
+      response.set("Cache-Control", "no-store");
+      response.send({ accessCode });
+    } catch (e) {
+      console.log("failed to regenerate access code");
+      response.status(500).send("could not generate a new access code");
+    }
+  };
+
   static getDashboard = async (request: AuthRequest, response: Response) => {
     try {
       const artistId = requireArtist(request, response);

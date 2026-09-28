@@ -76,15 +76,15 @@ export function InventoryLogs() {
                 <TableCell>{item.message}</TableCell>
                 <TableCell>
                   {item.type === "deduct" ? (
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-700">
+                    <span className="px-2 py-1 text-xs font-medium border bg-danger-muted text-danger-light border-danger-border">
                      Deduct
                     </span>
                   ) : item.type === "update" ? (
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-700">
+                    <span className="px-2 py-1 text-xs font-medium border bg-warning-muted text-warning-light border-warning-border">
                       Edit
                     </span>
                   ) : (
-                    <span className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700">
+                    <span className="px-2 py-1 text-xs font-medium border bg-success-muted text-success-light border-success-border">
                       Add
                     </span>
                   )}

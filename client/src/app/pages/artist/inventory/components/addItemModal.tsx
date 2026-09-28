@@ -130,7 +130,7 @@ export function AddItemModal({
         </SheetHeader>
         <div className=" rounded-lg  shadow-sm w-full m-auto h-[800px] overflow-auto p-3 ">
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Item Name </h1>
+            <h1 className="font-bold text-text"> Item Name </h1>
             <Input
               {...register("item")}
               aria-invalid={!!errors.item}
@@ -204,7 +204,7 @@ export function AddItemModal({
 
           <div className="flex gap-3">
             <div className="mt-3 w-full">
-              <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
+              <h1 className="font-bold text-text"> Safe Stocks </h1>
               <Input
                 {...register("safeStock")}
                 inputMode="decimal"
@@ -217,7 +217,7 @@ export function AddItemModal({
           </div>
 
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Total Cost </h1>
+            <h1 className="font-bold text-text"> Total Cost </h1>
             <Controller
               control={control}
               name="expences"
