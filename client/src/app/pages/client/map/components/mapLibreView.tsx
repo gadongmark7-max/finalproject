@@ -13,14 +13,19 @@ import {
   OSM_ATTRIBUTION,
   OSM_TILE_URL,
 } from "@/app/utils/mapMarker";
-import RoutingLayer from "./routingMap";
+import RoutingLayer, { RouteStatus } from "./routingMap";
 
 interface ClientMapViewProps {
   currentLocation: { lat: number; lng: number };
   userProfile: string;
   artistInfo?: artistInfoInterface[];
   bussinessInfo?: bussinessInfoInterface[];
-  pointB: { lat: number; lng: number } | null;
+  route: {
+    id: number;
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+  } | null;
+  onRouteStatusChange: (status: RouteStatus) => void;
   onSelectProfile: (
     userProfile: artistInfoInterface | bussinessInfoInterface,
     account: accountInterface,
@@ -32,7 +37,8 @@ export default function ClientMapView({
   userProfile,
   artistInfo,
   bussinessInfo,
-  pointB,
+  route,
+  onRouteStatusChange,
   onSelectProfile,
 }: ClientMapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +144,15 @@ export default function ClientMapView({
   return (
     <>
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
-      {pointB && <RoutingLayer map={map} from={currentLocation} to={pointB} />}
+      {route && (
+        <RoutingLayer
+          key={route.id}
+          map={map}
+          from={route.from}
+          to={route.to}
+          onStatusChange={onRouteStatusChange}
+        />
+      )}
     </>
   );
 }

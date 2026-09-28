@@ -87,6 +87,10 @@ export class BookingService {
     return booking;
   }
 
+  static async setPaymentMethod(id: string, paymentMethod: "online" | "counter") {
+    return await BookingModel.findByIdAndUpdate(id, { paymentMethod });
+  }
+
   static async deductBalanceIfSufficient(id: string, amount: number) {
     return await BookingModel.findOneAndUpdate(
       { _id: id, balance: { $gte: amount } },

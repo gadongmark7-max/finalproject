@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
-import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
+import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
 import { rejectionReason } from "@/app/utils/alert";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import { payMongoRefund } from "@/app/utils/payMongo";
@@ -192,7 +192,7 @@ export default function PendingBookings({
                 </p>
 
                 <p className="whitespace-nowrap text-right text-xs text-text-muted">
-                  {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                  {bookingPaymentLabel(booking)}
                 </p>
               </div>
 

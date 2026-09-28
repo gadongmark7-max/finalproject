@@ -77,6 +77,7 @@ import { formatPeso } from "@/app/utils/customFunction";
 import { tattooSizeCmFromScene } from "@/app/utils/tattooScale";
 import { BackButton } from "@/components/ui/back-button";
 import {
+  bodyPartSchema,
   sessionHoursFromInput,
   sessionHoursSchema,
   sessionsSchema,
@@ -227,7 +228,7 @@ export default function Page() {
   const [category, setCategory] = useState("");
   const [complexity, setComplexity] = useState(0);
   const [isColored, setIsColored] = useState(false);
-  const [bodyPart, setBodyPart] = useState(tattooData?.meshName || "");
+  const [bodyPart, setBodyPart] = useState("");
   const [sizeWidthCm, setSizeWidthCm] = useState("");
   const [sizeHeightCm, setSizeHeightCm] = useState("");
   // True while width/height mirror the 3D placement; false once edited by hand.
@@ -241,9 +242,15 @@ export default function Page() {
   // The 3D body model is the trusted source for body part and size: each
   // time the artist saves a placement, mirror it into the form (the artist
   // can still override the fields by hand).
+  const modelBodyPart =
+    tattooData?.meshName && tattooData.meshName !== "Unknown"
+      ? tattooData.meshName
+      : null;
+
   useEffect(() => {
     if (!tattooData) return;
-    setBodyPart(tattooData.meshName);
+    if (tattooData.meshName && tattooData.meshName !== "Unknown")
+      setBodyPart(tattooData.meshName);
     const { widthCm, heightCm } = tattooSizeCmFromScene(tattooData);
     setSizeWidthCm(String(widthCm));
     setSizeHeightCm(String(heightCm));
@@ -366,8 +373,10 @@ export default function Page() {
       ? type === "workPost"
         ? "Could not load this work's image for AI analysis."
         : "Select a tattoo image first."
-      : !bodyPart
-        ? "Place the tattoo on the 3D body or select a body part."
+      : !bodyPart.trim()
+        ? "Place the tattoo on the 3D body or enter a body part."
+        : !bodyPartSchema.safeParse(bodyPart).success
+        ? "Enter a valid body part."
         : settings.isLoading
           ? "Loading your hourly rate…"
           : hourlyRate === null
@@ -403,6 +412,7 @@ export default function Page() {
   const sizeHeightError = firstError(sizeHeightSchema, sizeHeightCm, {
     showWhenEmpty: triedSubmit,
   });
+  const bodyPartError = firstError(bodyPartSchema, bodyPart);
   const sessionsError = triedSubmit
     ? firstError(sessionsSchema, sessions)
     : undefined;
@@ -453,6 +463,7 @@ export default function Page() {
     const parsedCategory = categorySchema.safeParse(category);
     const parsedWidth = sizeWidthSchema.safeParse(sizeWidthCm);
     const parsedHeight = sizeHeightSchema.safeParse(sizeHeightCm);
+    const parsedBodyPart = bodyPartSchema.safeParse(bodyPart);
     const hasTags = tags.length > 0;
     const hasImage = !!postImg || type !== "newPost";
 
@@ -462,6 +473,7 @@ export default function Page() {
       !parsedCategory.success ||
       !parsedWidth.success ||
       !parsedHeight.success ||
+      !parsedBodyPart.success ||
       !sessionsSchema.safeParse(sessions).success ||
       !hasTags ||
       !hasImage
@@ -483,7 +495,7 @@ export default function Page() {
     formData.append("size", tattooData?.size.toString() || (0.3).toString());
     formData.append("sizeWidthCm", String(parsedWidth.data));
     formData.append("sizeHeightCm", String(parsedHeight.data));
-    formData.append("bodyPart", bodyPart || "");
+    formData.append("bodyPart", parsedBodyPart.data);
 
     const aiEstimatePayload = buildAiEstimatePayload();
     if (aiEstimatePayload) {
@@ -554,7 +566,7 @@ export default function Page() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-text-dim">
+                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-text-muted">
                       <ImageIcon className="w-8 h-8" />
                       <span className="text-[10px] uppercase tracking-[0.18em]">
                         No image selected
@@ -588,6 +600,27 @@ export default function Page() {
                     fixSize={null}
                   />
                 )}
+
+                <div className="flex items-center justify-between gap-3 border border-border bg-surface-alt px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-text-muted">
+                      Body Part
+                    </p>
+                    <p className="text-sm text-text truncate">
+                      {bodyPart.trim() || "Not selected"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[10px] uppercase tracking-[0.14em] text-text-muted text-right">
+                    {modelBodyPart
+                      ? bodyPart.trim().toLowerCase() ===
+                        modelBodyPart.toLowerCase()
+                        ? "From 3D placement"
+                        : `3D placement: ${modelBodyPart}`
+                      : bodyPart.trim()
+                        ? "Entered manually"
+                        : "Place on 3D body"}
+                  </span>
+                </div>
 
                 {/* Art Style */}
                 <div className="space-y-2">
@@ -641,7 +674,7 @@ export default function Page() {
                       <FieldError>{sizeHeightError}</FieldError>
                     </div>
                   </div>
-                  <p className="text-[11px] text-text-dim">
+                  <p className="text-[11px] text-text-muted">
                     {sizeFromScene
                       ? "Estimated from the 3D placement — resize the tattoo on the body or edit here."
                       : "Tip: placing the tattoo on the 3D body fills this in automatically."}
@@ -675,7 +708,7 @@ export default function Page() {
                     />
                     <FieldError>{priceError}</FieldError>
                     {ai.result && (
-                      <p className="text-[11px] text-text-dim" aria-live="polite">
+                      <p className="text-[11px] text-text-muted" aria-live="polite">
                         Estimated profit{" "}
                         <span
                           className={
@@ -704,8 +737,9 @@ export default function Page() {
                       onChange={() => {}}
                       readOnly
                       disabled
+                      className="bg-surface-alt disabled:opacity-100"
                     />
-                    <p className="flex items-center gap-1.5 text-[11px] text-text-dim">
+                    <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
                       <Settings className="w-3 h-3 shrink-0" />
                       To change it, go to{" "}
                       <Link
@@ -915,6 +949,8 @@ export default function Page() {
               missingMaterialNames={ai.missingMaterialNames}
               bodyPart={bodyPart}
               onBodyPartChange={setBodyPart}
+              bodyPartError={bodyPartError}
+              modelBodyPart={modelBodyPart}
               hourlyRate={hourlyRate}
               hourlyRateLoading={settings.isLoading}
               price={price}

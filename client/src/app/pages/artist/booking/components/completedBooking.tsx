@@ -15,7 +15,7 @@ import {
   PhilippinePeso,
   Wallet
 } from "lucide-react";
-import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
+import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
 
 const statusStyle: Record<string, string> = {
     pending:     "bg-warning-muted text-warning-light border border-warning-border",
@@ -110,7 +110,7 @@ export default function CompletedBookings({ bookings, setBookings } : {bookings 
                           <Wallet className="w-3 h-3 text-gold" /> Payment
                         </p>
                         <p className="text-text-muted text-xs">
-                          {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                          {bookingPaymentLabel(booking)}
                         </p>
                       </div>
 

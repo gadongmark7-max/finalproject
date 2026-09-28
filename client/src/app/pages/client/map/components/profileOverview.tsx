@@ -1,6 +1,16 @@
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { artistInfoInterface, bussinessInfoInterface } from "@/app/types/accounts.type";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  artistInfoInterface,
+  bussinessInfoInterface,
+} from "@/app/types/accounts.type";
 import { postInterface } from "@/app/types/post.type";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -10,6 +20,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MessageCircle, User, Route, Star } from "lucide-react";
 import useUserStore from "@/app/store/useUserStore";
+import { errorAlert } from "@/app/utils/alert";
+import { isValidCoordinate } from "@/app/utils/routing";
 import { StarReviews } from "@/components/ui/starRating";
 
 export function ProfileOverview({
@@ -17,13 +29,13 @@ export function ProfileOverview({
   account,
   open,
   setOpen,
-  setPointB
+  onShowRoute,
 }: {
   userProfile: artistInfoInterface | bussinessInfoInterface;
   account: accountInterface;
   open: boolean;
   setOpen: (val: boolean) => void;
-  setPointB: (val: { lat: number; lng: number }) => void;
+  onShowRoute: (destination: { lat: number; lng: number; name: string }) => void;
 }) {
   const router = useRouter();
   const { user } = useUserStore();
@@ -45,7 +57,15 @@ export function ProfileOverview({
   });
 
   const showRoute = () => {
-    setPointB({ lat: account.location?.lat!, lng: account.location?.long! });
+    const lat = account.location?.lat;
+    const lng = account.location?.long;
+    if (!isValidCoordinate(lat, lng)) {
+      errorAlert(
+        `${account.name} hasn't set a valid location yet, so a route can't be shown.`,
+      );
+      return;
+    }
+    onShowRoute({ lat: lat as number, lng: lng as number, name: account.name });
     setOpen(false);
   };
 
@@ -60,7 +80,9 @@ export function ProfileOverview({
           <div className="flex items-center gap-3 mb-1">
             <div className="h-px w-6 bg-gold" />
             <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-              {account.type === "artist" ? "Artist Profile" : "Business Profile"}
+              {account.type === "artist"
+                ? "Artist Profile"
+                : "Business Profile"}
             </span>
           </div>
           <SheetTitle
@@ -73,7 +95,6 @@ export function ProfileOverview({
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-6 pb-8 space-y-8">
-
           {/* Profile Card */}
           <div className="relative bg-surface border border-border p-5 group transition-all duration-500 hover:border-border-gold">
             <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
@@ -105,7 +126,9 @@ export function ProfileOverview({
             <div className="space-y-2">
               <Link
                 href={`/pages/client/${
-                  account.type === "artist" ? "artistProfile" : "bussinessProfile"
+                  account.type === "artist"
+                    ? "artistProfile"
+                    : "bussinessProfile"
                 }/${account._id}`}
                 className="block"
               >
@@ -117,7 +140,11 @@ export function ProfileOverview({
 
               <div className="grid grid-cols-2 gap-2">
                 {user?._id !== account._id && (
-                  <Button variant="default" onClick={() => messageMutation.mutate()} className="gap-2">
+                  <Button
+                    variant="default"
+                    onClick={() => messageMutation.mutate()}
+                    className="gap-2"
+                  >
                     <MessageCircle className="w-3.5 h-3.5" />
                     Message
                   </Button>
@@ -134,7 +161,9 @@ export function ProfileOverview({
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px w-6 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Reviews</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Reviews
+              </span>
             </div>
 
             {userProfile.reviews.length === 0 ? (
@@ -156,7 +185,10 @@ export function ProfileOverview({
                         className="w-9 h-9 object-cover border border-border flex-shrink-0"
                       />
                       <div>
-                        <p className="text-text text-sm font-light" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                        <p
+                          className="text-text text-sm font-light"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
                           {review.client.name}
                         </p>
                         <div className="flex gap-0.5">
@@ -174,7 +206,9 @@ export function ProfileOverview({
                       </div>
                     </div>
 
-                    <p className="text-text-muted text-xs leading-relaxed">{review.comment}</p>
+                    <p className="text-text-muted text-xs leading-relaxed">
+                      {review.comment}
+                    </p>
 
                     {review.img && (
                       <img
@@ -193,7 +227,9 @@ export function ProfileOverview({
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="h-px w-6 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Posts</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Posts
+              </span>
             </div>
 
             {!posts || posts.length === 0 ? (
@@ -225,7 +261,6 @@ export function ProfileOverview({
               </div>
             )}
           </div>
-
         </div>
       </SheetContent>
     </Sheet>

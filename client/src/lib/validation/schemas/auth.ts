@@ -15,6 +15,19 @@ export const loginSchema = z.object({
 });
 export type LoginValues = z.infer<typeof loginSchema>;
 
+export const ACCESS_CODE_MIN_LENGTH = 6;
+export const ACCESS_CODE_MAX_LENGTH = 64;
+
+export const accessCodeSchema = z
+  .string()
+  .trim()
+  .min(1, "Access code is required")
+  .min(
+    ACCESS_CODE_MIN_LENGTH,
+    `Access code must be at least ${ACCESS_CODE_MIN_LENGTH} characters`,
+  )
+  .max(ACCESS_CODE_MAX_LENGTH, "Access code is too long");
+
 export const registerSchema = z
   .object({
     name: requiredText("Full name", { min: 2, max: 80 }).regex(

@@ -50,7 +50,9 @@ export default function Page() {
   }, [data]);
 
   const outOfStock = inventory.filter((i) => i.stocks === 0).length;
-  const limitedStock = inventory.filter((i) => i.stocks > 0 && i.stocks < i.safeStock).length;
+  const limitedStock = inventory.filter(
+    (i) => i.stocks > 0 && i.stocks < i.safeStock,
+  ).length;
   const safeStock = inventory.filter((i) => i.stocks >= i.safeStock).length;
 
   // ── Derived filtered + sorted list ─────────────────────────────────────────
@@ -65,8 +67,10 @@ export default function Page() {
 
     // Stock status filter
     if (stockFilter === "out") list = list.filter((i) => i.stocks === 0);
-    else if (stockFilter === "limited") list = list.filter((i) => i.stocks > 0 && i.stocks < i.safeStock);
-    else if (stockFilter === "safe") list = list.filter((i) => i.stocks >= i.safeStock);
+    else if (stockFilter === "limited")
+      list = list.filter((i) => i.stocks > 0 && i.stocks < i.safeStock);
+    else if (stockFilter === "safe")
+      list = list.filter((i) => i.stocks >= i.safeStock);
 
     // Sort by stocks
     if (sortDir === "asc") list.sort((a, b) => a.stocks - b.stocks);
@@ -76,7 +80,9 @@ export default function Page() {
   }, [inventory, search, stockFilter, sortDir]);
 
   const cycleSort = () => {
-    setSortDir((prev) => (prev === null ? "asc" : prev === "asc" ? "desc" : null));
+    setSortDir((prev) =>
+      prev === null ? "asc" : prev === "asc" ? "desc" : null,
+    );
   };
 
   const clearFilters = () => {
@@ -85,9 +91,11 @@ export default function Page() {
     setSortDir(null);
   };
 
-  const hasActiveFilters = search.trim() || stockFilter !== "all" || sortDir !== null;
+  const hasActiveFilters =
+    search.trim() || stockFilter !== "all" || sortDir !== null;
 
-  const SortIcon = sortDir === "asc" ? ArrowUp : sortDir === "desc" ? ArrowDown : ArrowUpDown;
+  const SortIcon =
+    sortDir === "asc" ? ArrowUp : sortDir === "desc" ? ArrowDown : ArrowUpDown;
 
   const STOCK_FILTERS: { key: StockFilter; label: string }[] = [
     { key: "all", label: "All" },
@@ -97,24 +105,27 @@ export default function Page() {
   ];
 
   return (
-    <div className="w-full min-h-dvh bg-primary space-y-0">
-
+    <div className="w-full min-w-0 min-h-dvh bg-primary space-y-0">
       {/* Grain overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
 
       {/* Ambient gold glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       {/* Header */}
-      <div className="w-full border-b border-border bg-secondary px-6 lg:px-8 py-8">
-        <div className="max-w-7xl mx-auto flex justify-between items-start">
+      <div className="w-full border-b border-border bg-secondary px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-start gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <div className="h-px w-8 bg-gold" />
-              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">Studio Management</span>
+              <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                Studio Management
+              </span>
             </div>
             <h1
               className="text-4xl font-light text-text tracking-[-0.02em]"
@@ -126,7 +137,7 @@ export default function Page() {
               Track and manage your studio's supplies, inks, and equipment.
             </p>
           </div>
-          <div className="flex gap-3 items-center pt-2">
+          <div className="flex flex-wrap gap-3 items-center pt-2">
             <InventoryLogs />
             <AddItemModal setInventory={setInventory} />
           </div>
@@ -134,75 +145,110 @@ export default function Page() {
       </div>
 
       {/* Stats row */}
-      <div className="bg-primary border-b border-border px-6 lg:px-8 py-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-3 gap-px bg-border">
-
+      <div className="bg-primary border-b border-border px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-px bg-border">
           <button
             onClick={() => setStockFilter((p) => (p === "out" ? "all" : "out"))}
-            className={`px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
-              stockFilter === "out" ? "bg-danger-muted" : "bg-primary hover:bg-surface"
+            className={`px-4 lg:px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
+              stockFilter === "out"
+                ? "bg-danger-muted"
+                : "bg-primary hover:bg-surface"
             }`}
           >
-            <div className={`border p-2.5 transition-colors duration-200 ${stockFilter === "out" ? "bg-danger-muted border-danger-border" : "bg-surface-alt border-border"}`}>
+            <div
+              className={`border p-2.5 transition-colors duration-200 ${stockFilter === "out" ? "bg-danger-muted border-danger-border" : "bg-surface-alt border-border"}`}
+            >
               <XCircle className="w-4 h-4 text-danger-light" />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">Out of Stock</p>
-              <p className="text-2xl font-light text-text" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{outOfStock}</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">
+                Out of Stock
+              </p>
+              <p
+                className="text-2xl font-light text-text"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                {outOfStock}
+              </p>
             </div>
           </button>
 
           <button
-            onClick={() => setStockFilter((p) => (p === "limited" ? "all" : "limited"))}
-            className={`px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
-              stockFilter === "limited" ? "bg-warning-muted" : "bg-primary hover:bg-surface"
+            onClick={() =>
+              setStockFilter((p) => (p === "limited" ? "all" : "limited"))
+            }
+            className={`px-4 lg:px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
+              stockFilter === "limited"
+                ? "bg-warning-muted"
+                : "bg-primary hover:bg-surface"
             }`}
           >
-            <div className={`border p-2.5 transition-colors duration-200 ${stockFilter === "limited" ? "bg-warning-muted border-warning-border" : "bg-surface-alt border-border"}`}>
+            <div
+              className={`border p-2.5 transition-colors duration-200 ${stockFilter === "limited" ? "bg-warning-muted border-warning-border" : "bg-surface-alt border-border"}`}
+            >
               <AlertTriangle className="w-4 h-4 text-warning-light" />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">Limited Stock</p>
-              <p className="text-2xl font-light text-text" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{limitedStock}</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">
+                Limited Stock
+              </p>
+              <p
+                className="text-2xl font-light text-text"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                {limitedStock}
+              </p>
             </div>
           </button>
 
           <button
-            onClick={() => setStockFilter((p) => (p === "safe" ? "all" : "safe"))}
-            className={`px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
-              stockFilter === "safe" ? "bg-success-muted" : "bg-primary hover:bg-surface"
+            onClick={() =>
+              setStockFilter((p) => (p === "safe" ? "all" : "safe"))
+            }
+            className={`px-4 lg:px-6 py-5 flex items-center gap-4 transition-colors duration-200 text-left ${
+              stockFilter === "safe"
+                ? "bg-success-muted"
+                : "bg-primary hover:bg-surface"
             }`}
           >
-            <div className={`border p-2.5 transition-colors duration-200 ${stockFilter === "safe" ? "bg-success-muted border-success-border" : "bg-surface-alt border-border"}`}>
+            <div
+              className={`border p-2.5 transition-colors duration-200 ${stockFilter === "safe" ? "bg-success-muted border-success-border" : "bg-surface-alt border-border"}`}
+            >
               <CheckCircle className="w-4 h-4 text-success-light" />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">Safe Stock</p>
-              <p className="text-2xl font-light text-text" style={{ fontFamily: "'Cormorant Garamond', serif" }}>{safeStock}</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-0.5">
+                Safe Stock
+              </p>
+              <p
+                className="text-2xl font-light text-text"
+                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              >
+                {safeStock}
+              </p>
             </div>
           </button>
-
         </div>
       </div>
 
       {/* Filters bar */}
-      <div className="bg-secondary border-b border-border px-6 lg:px-8 py-4">
+      <div className="bg-secondary border-b border-border px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-3">
-
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-dim pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
             <input
               type="text"
               placeholder="Search by name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-surface border border-border pl-9 pr-9 py-2 text-sm text-text placeholder:text-text-dim focus:outline-none focus:border-border-gold transition-colors duration-200"
+              className="w-full bg-surface border border-border pl-9 pr-9 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:border-border-gold transition-colors duration-200"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text transition-colors"
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -210,7 +256,7 @@ export default function Page() {
           </div>
 
           {/* Stock status filter pills */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {STOCK_FILTERS.map((f) => (
               <button
                 key={f.key}
@@ -236,63 +282,86 @@ export default function Page() {
             }`}
           >
             <SortIcon className="w-3 h-3" />
-            Stocks {sortDir === "asc" ? "↑ Low–High" : sortDir === "desc" ? "↓ High–Low" : ""}
+            Stocks{" "}
+            {sortDir === "asc"
+              ? "↑ Low–High"
+              : sortDir === "desc"
+                ? "↓ High–Low"
+                : ""}
           </button>
 
           {/* Clear all */}
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-dim hover:text-danger-light border border-transparent hover:border-danger-border transition-all duration-200"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] uppercase tracking-[0.18em] text-text-muted hover:text-danger-light border border-transparent hover:border-danger-border transition-all duration-200"
             >
               <X className="w-3 h-3" />
               Clear
             </button>
           )}
-
         </div>
       </div>
 
       {/* Table section */}
-      <div className="bg-secondary px-6 lg:px-8 py-10">
+      <div className="bg-secondary px-4 sm:px-6 lg:px-8 py-10">
         <div className="max-w-7xl mx-auto">
-
           <div className="border border-border">
-            <Table>
-              <TableHeader>
+            <Table className="min-w-[960px]">
+              <TableHeader className="font-semibold">
                 <TableRow>
-                  <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Item</span>
+                  <TableHead className="min-w-[180px]">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Item
+                    </span>
                   </TableHead>
-                  <TableHead>
+                  <TableHead className="min-w-[110px]">
                     <button
                       onClick={cycleSort}
                       className="flex items-center gap-1.5 group transition-colors duration-200 hover:text-gold"
                     >
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted group-hover:text-gold transition-colors duration-200">Quantity</span>
-                      <SortIcon className={`w-3 h-3 transition-colors duration-200 ${sortDir !== null ? "text-gold" : "text-text-dim group-hover:text-gold"}`} />
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted group-hover:text-gold transition-colors duration-200">
+                        Quantity
+                      </span>
+                      <SortIcon
+                        className={`w-3 h-3 transition-colors duration-200 ${sortDir !== null ? "text-gold" : "text-text-muted group-hover:text-gold"}`}
+                      />
                     </button>
                   </TableHead>
                   <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Type</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Unit
+                    </span>
                   </TableHead>
                   <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Unit Price</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Unit Price
+                    </span>
                   </TableHead>
                   <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Safe Stocks</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Safe Stock
+                    </span>
                   </TableHead>
                   <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Status</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Status
+                    </span>
                   </TableHead>
                   <TableHead>
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Category</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Category
+                    </span>
                   </TableHead>
                   <TableHead className="text-end">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Edit</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Edit
+                    </span>
                   </TableHead>
                   <TableHead className="text-end">
-                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">Add Stocks</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                      Add Stocks
+                    </span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -303,18 +372,27 @@ export default function Page() {
                     <TableCell colSpan={9}>
                       <div className="flex flex-col items-center justify-center py-20 gap-4">
                         <div className="bg-surface-alt border border-border p-4">
-                          <Package className="w-8 h-8 text-text-dim" />
+                          <Package className="w-8 h-8 text-text-muted" />
                         </div>
                         <div className="text-center space-y-1">
                           {inventory.length === 0 ? (
                             <>
-                              <p className="text-sm text-text-muted">No inventory items found</p>
-                              <p className="text-xs text-text-dim tracking-wide">Add your first item to get started</p>
+                              <p className="text-sm text-text-muted">
+                                No inventory items found
+                              </p>
+                              <p className="text-xs text-text-muted tracking-wide">
+                                Add your first item to get started
+                              </p>
                             </>
                           ) : (
                             <>
-                              <p className="text-sm text-text-muted">No items match your filters</p>
-                              <button onClick={clearFilters} className="text-xs text-gold tracking-wide hover:underline">
+                              <p className="text-sm text-text-muted">
+                                No items match your filters
+                              </p>
+                              <button
+                                onClick={clearFilters}
+                                className="text-xs text-gold tracking-wide hover:underline"
+                              >
                                 Clear filters
                               </button>
                             </>
@@ -326,14 +404,18 @@ export default function Page() {
                 )}
 
                 {displayed.map((item) => (
-                  <TableRow key={item._id} className="group border-b border-border hover:bg-surface transition-colors duration-200">
-
+                  <TableRow
+                    key={item._id}
+                    className="group border-b border-border hover:bg-surface transition-colors duration-200"
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <div className="bg-surface-alt border border-border p-1.5">
                           <Layers className="w-3 h-3 text-gold" />
                         </div>
-                        <span className="text-sm text-text font-light">{item.item}</span>
+                        <span className="text-sm text-text font-light whitespace-normal break-words max-w-[240px]">
+                          {item.item}
+                        </span>
                       </div>
                     </TableCell>
 
@@ -342,21 +424,27 @@ export default function Page() {
                         className="text-xl font-light text-text"
                         style={{ fontFamily: "'Cormorant Garamond', serif" }}
                       >
-                        {item.stocks.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                        {item.stocks.toLocaleString("en-US", {
+                          maximumFractionDigits: 2,
+                        })}
                       </span>
-                      <span className="ml-1.5 text-sm text-text-muted">{item.type}</span>
                     </TableCell>
 
                     <TableCell>
-                      <span className="text-sm text-text-muted">{item.type}</span>
+                      <span className="text-sm text-text">{item.type}</span>
                     </TableCell>
 
                     <TableCell>
-                      <EditPriceCell inventory={item} setInventory={setInventory} />
+                      <EditPriceCell
+                        inventory={item}
+                        setInventory={setInventory}
+                      />
                     </TableCell>
 
                     <TableCell>
-                      <span className="text-sm text-text-dim">{item.safeStock}</span>
+                      <span className="text-sm text-text-muted">
+                        {item.safeStock}
+                      </span>
                     </TableCell>
 
                     <TableCell>
@@ -385,13 +473,18 @@ export default function Page() {
                     </TableCell>
 
                     <TableCell className="text-right">
-                      <UpdateItemModal inventory={item} setInventory={setInventory} />
+                      <UpdateItemModal
+                        inventory={item}
+                        setInventory={setInventory}
+                      />
                     </TableCell>
 
-                    <TableCell className="text-right w-[20px]">
-                      <AddStocksModal inventory={item} setInventory={setInventory} />
+                    <TableCell className="text-right">
+                      <AddStocksModal
+                        inventory={item}
+                        setInventory={setInventory}
+                      />
                     </TableCell>
-
                   </TableRow>
                 ))}
               </TableBody>
@@ -400,23 +493,23 @@ export default function Page() {
 
           {/* Footer label */}
           {inventory.length > 0 && (
-            <div className="flex justify-between items-center mt-4 px-1">
-              <p className="text-[10px] uppercase tracking-widest text-text-dim">
+            <div className="flex flex-wrap gap-2 justify-between items-center mt-4 px-1">
+              <p className="text-[10px] uppercase tracking-widest text-text-muted">
                 {displayed.length !== inventory.length
                   ? `${displayed.length} of ${inventory.length} item${inventory.length !== 1 ? "s" : ""}`
                   : `${inventory.length} item${inventory.length !== 1 ? "s" : ""} total`}
               </p>
               <div className="flex items-center gap-1.5">
                 <div className="h-px w-4 bg-border" />
-                <span className="text-[10px] uppercase tracking-widest text-text-dim">Ink Of Baphomet Studio</span>
+                <span className="text-[10px] uppercase tracking-widest text-text-muted">
+                  Ink Of Baphomet Studio
+                </span>
                 <div className="h-px w-4 bg-border" />
               </div>
             </div>
           )}
-
         </div>
       </div>
-
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
 import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
+  INVENTORY_UNITS,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -38,6 +39,7 @@ import { FieldError } from "@/components/ui/field-error";
 const formValues = (inventory: inventoryInterface) => ({
   item: inventory.item,
   category: inventory.category,
+  type: inventory.type,
   stocks: String(inventory.stocks ?? ""),
   safeStock: String(inventory.safeStock ?? ""),
   price: String(inventory.price ?? 0),
@@ -59,6 +61,7 @@ export function UpdateItemModal({
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isValid },
   } = useZodForm(updateItemWithPriceSchema, {
     defaultValues: formValues(inventory),
@@ -73,6 +76,14 @@ export function UpdateItemModal({
   ).includes(inventory.category)
     ? [...INVENTORY_CATEGORIES]
     : [inventory.category, ...INVENTORY_CATEGORIES];
+
+  const unitOptions: string[] = (INVENTORY_UNITS as readonly string[]).includes(
+    inventory.type,
+  )
+    ? [...INVENTORY_UNITS]
+    : [inventory.type, ...INVENTORY_UNITS];
+
+  const selectedUnit = watch("type") || inventory.type;
 
   const updateMutation = useMutation({
     mutationFn: (inventory: inventoryInterface) =>
@@ -102,7 +113,7 @@ export function UpdateItemModal({
       item: values.item,
       stocks: values.stocks,
       category: values.category,
-      type: inventory.type,
+      type: values.type,
       safeStock: values.safeStock,
       price: values.price,
     });
@@ -127,7 +138,7 @@ export function UpdateItemModal({
         </SheetHeader>
         <div className=" rounded-lg  shadow-sm w-full m-auto h-[800px] overflow-auto p-2 ">
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Item Name </h1>
+            <h1 className="font-bold text-text"> Item Name </h1>
             <Input
               {...register("item")}
               aria-invalid={!!errors.item}
@@ -160,8 +171,31 @@ export function UpdateItemModal({
             <FieldError>{errors.category?.message}</FieldError>
           </div>
 
+          <div className="space-y-2 mt-2">
+            <Label>Unit</Label>
+            <Controller
+              control={control}
+              name="type"
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className=" w-full">
+                    <SelectValue placeholder="Select unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unitOptions.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <FieldError>{errors.type?.message}</FieldError>
+          </div>
+
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Quantity </h1>
+            <h1 className="font-bold text-text"> Quantity </h1>
             <div className="flex items-center gap-2">
               <Input
                 {...register("stocks")}
@@ -171,16 +205,16 @@ export function UpdateItemModal({
                 className="w-full"
               />
               <span className="text-sm text-text-muted whitespace-nowrap">
-                {inventory.type}
+                {selectedUnit}
               </span>
             </div>
             <FieldError>{errors.stocks?.message}</FieldError>
           </div>
 
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600">
+            <h1 className="font-bold text-text">
               {" "}
-              Price per {inventory.type}{" "}
+              Price per {selectedUnit}{" "}
             </h1>
             <Controller
               control={control}
@@ -199,7 +233,7 @@ export function UpdateItemModal({
           </div>
 
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
+            <h1 className="font-bold text-text"> Safe Stocks </h1>
             <Input
               {...register("safeStock")}
               inputMode="decimal"

@@ -26,6 +26,19 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   counter: "Over-the-Counter",
 };
 
+export const BOOKING_PAYMENT_STATUSES = ["awaiting", "partial", "paid"] as const;
+export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUSES)[number];
+
+export const AWAITING_PAYMENT_LABEL = "Awaiting Payment";
+
+export function bookingPaymentLabel(booking: {
+  paymentStatus?: BookingPaymentStatus;
+  paymentMethod?: PaymentMethod;
+}): string {
+  if (booking.paymentStatus === "awaiting") return AWAITING_PAYMENT_LABEL;
+  return PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"];
+}
+
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS, {
   errorMap: () => ({ message: "Please select a payment method." }),
 });

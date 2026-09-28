@@ -22,7 +22,7 @@ export default function ArtistLayout({ children }: { children: React.ReactNode }
                 
                 <SidebarArtist />
                
-                <main className="w-full overflow-hidden">
+                <main className="w-full min-w-0 overflow-hidden">
                     <div className="mb-[80px] md:mb-[0px]"> </div>
                     {children}
                 </main>

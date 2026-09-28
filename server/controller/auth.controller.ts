@@ -10,6 +10,12 @@ import crypto from "crypto";
 import { isValidObjectId } from "mongoose";
 import { EmployeeInfoService } from "../services/employeeInfo.service";
 import { sendEmail } from "../utils/customFunction";
+import {
+  ACCESS_CODE_LOCK_MINUTES,
+  ACCESS_CODE_MAX_ATTEMPTS,
+  isValidAccessCodeFormat,
+  verifyAccessCode,
+} from "../utils/accessCode";
 
 dotenv.config();
 
@@ -56,12 +62,12 @@ export class AuthController {
   }
 
   static login = async (request : AuthRequest , response : Response) => {
-    const { email, password } = request.body
+    const { email, password, accessCode } = request.body ?? {}
     if (typeof email !== "string" || typeof password !== "string") {
         response.status(400).send("email and password are required")
         return
     }
-    const account = await AccountService.getByEmailWithSecrets(email)
+    const account = await AccountService.getByEmailForLogin(email)
 
     if(!account){
         response.status(500).send("user not found")
@@ -73,6 +79,46 @@ export class AuthController {
     if(!isMatch){
         response.status(500).send("incorect password")
         return
+    }
+
+    if(account.type == "artist"){
+      if(!account.accessCodeHash){
+        response.status(403).send("your artist access code has not been set up yet. please contact the administrator")
+        return
+      }
+
+      const lockedUntil = account.accessCodeLockedUntil
+      if(lockedUntil && lockedUntil.getTime() > Date.now()){
+        const minutes = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000)
+        response.status(429).send(`too many incorrect access code attempts. try again in ${minutes} minute${minutes === 1 ? "" : "s"}`)
+        return
+      }
+
+      if(accessCode === undefined || accessCode === null || accessCode === ""){
+        response.send({ requiresAccessCode: true })
+        return
+      }
+
+      const isCodeValid = isValidAccessCodeFormat(accessCode)
+        && await verifyAccessCode(accessCode, account.accessCodeHash)
+
+      if(!isCodeValid){
+        const updated = await AccountService.recordAccessCodeFailure(
+          account._id.toString(),
+          ACCESS_CODE_MAX_ATTEMPTS,
+          ACCESS_CODE_LOCK_MINUTES,
+        )
+        if(updated?.accessCodeLockedUntil && updated.accessCodeLockedUntil.getTime() > Date.now()){
+          response.status(429).send(`too many incorrect access code attempts. try again in ${ACCESS_CODE_LOCK_MINUTES} minutes`)
+          return
+        }
+        response.status(401).send("incorrect access code")
+        return
+      }
+
+      if(account.accessCodeFailedAttempts){
+        await AccountService.resetAccessCodeAttempts(account._id.toString())
+      }
     }
 
     const hasPendingOtp = !!account.pin

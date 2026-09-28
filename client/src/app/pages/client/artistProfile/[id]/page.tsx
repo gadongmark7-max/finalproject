@@ -146,7 +146,7 @@ export default function Page() {
                     <MessageCircle size={14} />
                     Message Artist
                   </Button>
-                  <ReportButton reportedAccount={artistInfo.artist._id} />
+                  {/* <ReportButton reportedAccount={artistInfo.artist._id} /> */}
                 </div>
               )}
             </div>

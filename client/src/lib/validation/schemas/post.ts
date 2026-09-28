@@ -14,3 +14,14 @@ export const sessionsSchema = z
 
 export const sessionHoursFromInput = (raw: string) =>
   Number(raw.replace(/\D/g, "").slice(0, 2))
+
+export const BODY_PART_MAX_LENGTH = 40
+
+export const bodyPartSchema = z
+  .string()
+  .trim()
+  .max(BODY_PART_MAX_LENGTH, `Body part must be at most ${BODY_PART_MAX_LENGTH} characters`)
+  .regex(
+    /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s'&/,.()-]*$/,
+    "Body part can only contain letters, numbers, spaces and basic punctuation",
+  )

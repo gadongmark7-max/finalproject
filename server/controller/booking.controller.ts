@@ -197,6 +197,8 @@ export class BookingController {
         if (deduct > 0) await BookingService.deductBalance(bookingId, deduct);
       }
 
+      await BookingService.setPaymentMethod(bookingId, paymentMethod);
+
       if (
         booking.status === "pending" &&
         booking.originalPrice != balanceBefore

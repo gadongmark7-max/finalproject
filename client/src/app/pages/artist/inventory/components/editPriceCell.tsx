@@ -61,12 +61,12 @@ export function EditPriceCell({
       <div className="flex items-center gap-2">
         <span className="text-sm text-text">
           {formatUnitPrice(inventory.price ?? 0)}
-          <span className="text-text-dim"> / {inventory.type}</span>
+          <span className="text-text-muted"> / {inventory.type}</span>
         </span>
         <button
           onClick={startEditing}
           aria-label={`Edit price of ${inventory.item}`}
-          className="text-text-dim hover:text-gold transition-colors"
+          className="text-text-muted hover:text-gold transition-colors"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>

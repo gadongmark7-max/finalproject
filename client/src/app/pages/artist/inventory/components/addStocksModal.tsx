@@ -82,7 +82,7 @@ export function AddStocksModal({
 
         <div className=" gap-6 mb-6">
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-stone-600"> Quantity to add </h1>
+            <h1 className="font-bold text-text"> Quantity to add </h1>
             <div className="flex items-center gap-2">
               <Input
                 {...register("stocks")}

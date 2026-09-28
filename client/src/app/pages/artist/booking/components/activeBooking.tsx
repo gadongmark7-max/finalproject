@@ -20,7 +20,7 @@ import { BookNextSession } from "./nextSessionBooking";
 import { Session } from "inspector/promises";
 import { Button } from "@/components/ui/button";
 import { confirmAlert, errorAlert } from "@/app/utils/alert";
-import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
+import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
 import { CashPayment } from "./cashPayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
@@ -195,7 +195,7 @@ export default function ActiveBookings({
                   <Wallet className="w-3 h-3 text-gold" /> Payment
                 </p>
                 <p className="text-text-muted text-xs">
-                  {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                  {bookingPaymentLabel(booking)}
                 </p>
               </div>
 

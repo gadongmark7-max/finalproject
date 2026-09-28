@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { AccountService } from "../services/acccount.service";
 import { ArtistInfoService } from "../services/artistInfo.service";
+import { issueArtistAccessCode } from "../utils/accessCode";
 
 const USAGE =
   "usage: printf '%s' \"$PASSWORD\" | node dist/scripts/createAccount.js --type admin|artist --email <email> --name <name> [--contact <number>]";
@@ -66,6 +67,12 @@ async function main() {
       profileImages: [],
       reviews: [],
     });
+    const sent = await issueArtistAccessCode(account._id.toString());
+    console.log(
+      sent
+        ? `Artist access code emailed to ${email}`
+        : `Artist access code was set but the email to ${email} failed; rerun setArtistAccessCode to issue a new one`,
+    );
   }
 
   console.log(`Created ${type} account ${email} (${account._id})`);

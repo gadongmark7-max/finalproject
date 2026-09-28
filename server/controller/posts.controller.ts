@@ -7,7 +7,11 @@ import fs from "fs";
 import { NotificationService } from "../services/notifications.service";
 import { hashFile, hashRemoteImage } from "../utils/imageHash";
 import { aiEstimateSnapshotSchema } from "../validation/aiAnalysis.schema";
-import { sessionsField, updatePostSchema } from "../validation/post.schema";
+import {
+  bodyPartField,
+  sessionsField,
+  updatePostSchema,
+} from "../validation/post.schema";
 import { isValidObjectId } from "mongoose";
 
 const DUPLICATE_IMAGE_RESPONSE = {
@@ -50,6 +54,16 @@ export class PostController {
         return;
       }
       const parsedSesion = parsedSessions.data;
+
+      const parsedBodyPart = bodyPartField.safeParse(bodyPart ?? "");
+      if (!parsedBodyPart.success) {
+        if (request.file && fs.existsSync(request.file.path))
+          fs.unlinkSync(request.file.path);
+        response.status(400).json({
+          error: parsedBodyPart.error.issues[0]?.message || "Invalid body part",
+        });
+        return;
+      }
 
       let url: string;
       let imageHash: string;
@@ -119,7 +133,7 @@ export class PostController {
         itemUsed: parsedItemUsed,
         downPercentage: Number(downPercentage),
         size: size,
-        bodyPart: bodyPart || undefined,
+        bodyPart: parsedBodyPart.data || undefined,
         sizeWidthCm: sizeWidthCm ? Number(sizeWidthCm) : undefined,
         sizeHeightCm: sizeHeightCm ? Number(sizeHeightCm) : undefined,
         aiEstimate: parsedAiEstimate,

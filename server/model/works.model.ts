@@ -3,7 +3,13 @@ import mongoose, { Schema } from "mongoose";
 const LayerSchema = new Schema(
   {
     id: { type: String, required: true },
-    src: { type: String, required: true }, // image URL
+    type: { type: String, enum: ["image", "text"], default: "image" },
+    src: {
+      type: String,
+      required: function (this: { type?: string }) {
+        return this.type !== "text";
+      },
+    }, 
     x: Number,
     y: Number,
     scaleX: Number,
@@ -11,6 +17,10 @@ const LayerSchema = new Schema(
     rotation: Number,
     grayscale: Boolean,
     name: String,
+    text: { type: String, maxlength: 500 },
+    fontFamily: { type: String, maxlength: 100 },
+    fontSize: { type: Number, min: 1, max: 1000 },
+    fill: { type: String, maxlength: 32 },
   },
   { _id: false }
 );

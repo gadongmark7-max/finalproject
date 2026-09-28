@@ -55,7 +55,13 @@ export class PricingService {
 
   static bodyPartFactor(bodyPart?: string | null) {
     if (!bodyPart) return 1;
-    return PRICING_CONFIG.BODY_PART_TIME_FACTOR[bodyPart] ?? 1;
+    const exact = PRICING_CONFIG.BODY_PART_TIME_FACTOR[bodyPart];
+    if (exact !== undefined) return exact;
+    const key = bodyPart.trim().toLowerCase();
+    const match = Object.entries(PRICING_CONFIG.BODY_PART_TIME_FACTOR).find(
+      ([name]) => name.toLowerCase() === key,
+    );
+    return match ? match[1] : 1;
   }
 
   static modelHours(input: Omit<WorkInput, "calibration">) {

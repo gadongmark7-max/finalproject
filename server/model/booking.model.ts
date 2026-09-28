@@ -105,12 +105,30 @@ const BookingSchema = new Schema({
   paymentMethod: {
     type: String,
     enum: ["online", "counter"],
-    default: "online",
+    required: false,
   },
   inventoryConsumption: {
     type: InventoryConsumptionSchema,
     default: null,
   },
+}, {
+  toJSON: { virtuals: ["paymentStatus"] },
+});
+
+export const BOOKING_PAYMENT_STATUSES = ["awaiting", "partial", "paid"] as const;
+export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUSES)[number];
+
+export function getBookingPaymentStatus(
+  originalPrice: number,
+  balance: number,
+): BookingPaymentStatus {
+  if (!(Number(balance) > 0)) return "paid";
+  if (Number(balance) >= Number(originalPrice)) return "awaiting";
+  return "partial";
+}
+
+BookingSchema.virtual("paymentStatus").get(function () {
+  return getBookingPaymentStatus(this.originalPrice, this.balance);
 });
 
 export default mongoose.model("Bookings", BookingSchema);

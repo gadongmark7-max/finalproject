@@ -8,6 +8,7 @@ import { apiErrorMessage } from "@/app/utils/customFunction";
 import { positiveDecimalField } from "@/lib/validation/fields";
 import { tattooArtStyles } from "@/components/ui/artStyleSelect";
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
+import { bodyPartSchema } from "@/lib/validation/schemas/post";
 
 const RECALC_DEBOUNCE_MS = 400;
 
@@ -96,10 +97,11 @@ export function useArtistAiAnalysis(
     if (!analysis) return { payload: null };
     const width = aiSizeWidthSchema.safeParse(inputs.sizeWidthCm);
     const height = aiSizeHeightSchema.safeParse(inputs.sizeHeightCm);
-    if (!inputs.bodyPart)
+    const bodyPart = bodyPartSchema.safeParse(inputs.bodyPart);
+    if (!bodyPart.success || !bodyPart.data)
       return {
         payload: null,
-        invalidReason: "Select a body part to update the estimate.",
+        invalidReason: "Enter a valid body part to update the estimate.",
       };
     if (!width.success || !height.success)
       return {
@@ -119,7 +121,7 @@ export function useArtistAiAnalysis(
             ? inputs.complexity
             : analysis.analysis.complexity,
         isColored: inputs.isColored,
-        bodyPart: inputs.bodyPart,
+        bodyPart: bodyPart.data,
         sizeWidthCm: width.data,
         sizeHeightCm: height.data,
         calibration: analysis.calibration,
@@ -164,7 +166,7 @@ export function useArtistAiAnalysis(
     if (analyzeMutation.isPending) return;
     const formData = new FormData();
     formData.append("file", inputs.postImg!);
-    formData.append("bodyPart", inputs.bodyPart);
+    formData.append("bodyPart", inputs.bodyPart.trim());
     formData.append("sizeWidthCm", inputs.sizeWidthCm);
     formData.append("sizeHeightCm", inputs.sizeHeightCm);
     analyzeMutation.mutate(formData);
