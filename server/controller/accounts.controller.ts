@@ -34,6 +34,7 @@ import bcrypt from "bcrypt";
 import path from "path";
 import dotenv from "dotenv";
 import { AdminMessageService } from "../services/adminMessage.service";
+import { issueArtistAccessCode } from "../utils/accessCode";
 
 dotenv.config();
 
@@ -189,6 +190,30 @@ export class AccountController {
     const { id } = request.params;
     await AccountService.toggleIsBan(id);
     response.send("success");
+  };
+
+  static issueArtistAccessCode = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    const { id } = request.params;
+    if (!mongoose.isValidObjectId(id)) {
+      response.status(400).json({ error: "Invalid account" });
+      return;
+    }
+    const account = await AccountService.get(id);
+    if (!account || account.type !== "artist") {
+      response.status(404).json({ error: "Artist account not found" });
+      return;
+    }
+    const sent = await issueArtistAccessCode(id);
+    if (!sent) {
+      response
+        .status(502)
+        .json({ error: "Access code was reset but the email could not be sent" });
+      return;
+    }
+    response.send({ message: "Access code sent to the artist's email" });
   };
 
   static getEmployee = async (request: AuthRequest, response: Response) => {
@@ -957,6 +982,7 @@ export class AccountController {
 
     if (status == "approve") {
       await AccountService.updateAccountType(accountId, "artist");
+      await issueArtistAccessCode(accountId);
       await ArtistInfoService.create({
         artist: accountId,
         bio: "none",

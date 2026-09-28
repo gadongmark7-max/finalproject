@@ -1,14 +1,19 @@
 /* ---------- Layer ---------- */
 export interface layerInterface {
   id: string;
-  src: string;
+  type?: "image" | "text";
+  src?: string;
   x: number;
   y: number;
   scaleX: number;
   scaleY: number;
   rotation: number;
-  grayscale: boolean;
+  grayscale?: boolean;
   name?: string;
+  text?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fill?: string;
 }
 
 /* ---------- Stage ---------- */

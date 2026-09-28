@@ -49,6 +49,7 @@ export const updateItemSchema = z.object({
 export type UpdateItemValues = z.infer<typeof updateItemSchema>;
 
 export const updateItemWithPriceSchema = updateItemSchema.extend({
+  type: selectField("a unit"),
   price: inventoryPriceSchema,
 });
 

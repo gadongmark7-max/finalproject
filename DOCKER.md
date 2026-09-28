@@ -105,7 +105,29 @@ printf '%s' "$PW" | docker compose -f docker-compose.prod.yml exec -T server \
 unset PW
 ```
 
-`--type artist` also creates the artist profile (schedule defaults Mon–Fri 08:00–15:00).
+`--type artist` also creates the artist profile (schedule defaults Mon–Fri 08:00–15:00)
+and emails the artist a login access code.
+
+### Artist access codes
+
+Artist accounts must enter an access code after their password. Codes are stored
+only as bcrypt hashes. Admins can re-issue a code from the Users page, or use the CLI:
+
+```bash
+# issue codes (by email) to every existing artist that does not have one yet
+docker compose -f docker-compose.prod.yml exec -T server \
+  node dist/scripts/setArtistAccessCode.js --all-missing
+
+# issue a new code to one artist by email
+docker compose -f docker-compose.prod.yml exec -T server \
+  node dist/scripts/setArtistAccessCode.js --email artist@example.com
+
+# or set a specific code (read from stdin, never echoed)
+read -rs CODE
+printf '%s' "$CODE" | docker compose -f docker-compose.prod.yml exec -T server \
+  node dist/scripts/setArtistAccessCode.js --email artist@example.com
+unset CODE
+```
 
 ## HTTPS (Let's Encrypt)
 

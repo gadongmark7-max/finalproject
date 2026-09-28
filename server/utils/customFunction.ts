@@ -251,6 +251,25 @@ export const sendNewClientAccountEmail = (
   );
 };
 
+export const sendArtistAccessCodeEmail = (
+  email: string,
+  name: string,
+  accessCode: string,
+) => {
+  return sendEmail(
+    email,
+    "Your Ink Of Baphomet Artist Access Code",
+    `Hi ${escapeHtml(name)}, an access code has been issued for your artist account. You will be asked for it every time you sign in.<br/><br/>` +
+      `<span style="display:block;text-align:left;background:#121212;border:1px solid #242424;border-left:2px solid #C9A84C;padding:20px 22px;">` +
+      `<span style="display:block;margin:0 0 16px 0;font-size:11px;letter-spacing:4px;color:#C9A84C;text-transform:uppercase;">Artist Access Code</span>` +
+      `<span style="display:block;margin:0;font-size:18px;color:#C9A84C;font-weight:bold;letter-spacing:3px;word-break:break-all;">${escapeHtml(accessCode)}</span>` +
+      `</span><br/>` +
+      `<span style="display:block;text-align:left;background:#2A1A1A;border:1px solid #7A2E2E;padding:14px 18px;color:#F2EDE4;font-size:13px;line-height:1.6;">` +
+      `<strong style="color:#E07A7A;">Keep this code private.</strong> Any previously issued access code no longer works.` +
+      `</span>`,
+  );
+};
+
 export const sendEmail_old = (
   email: string,
   title: string,

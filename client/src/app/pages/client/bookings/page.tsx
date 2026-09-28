@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { OnlinePayment } from "./components/onlinePayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import crypto from "crypto";
-import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
+import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
 
 
 const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
@@ -176,7 +176,7 @@ export default function Page() {
                         <Wallet className="w-3 h-3 text-gold" /> Payment
                       </p>
                       <p className="text-text-muted text-xs">
-                        {PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}
+                        {bookingPaymentLabel(booking)}
                       </p>
                     </div>
 

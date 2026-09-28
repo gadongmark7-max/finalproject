@@ -1,6 +1,9 @@
 import { accountInterface } from "./accounts.type";
 import { TattooDataInterface } from "./threejs.type";
-import { PaymentMethod } from "@/lib/validation/schemas/booking";
+import {
+  BookingPaymentStatus,
+  PaymentMethod,
+} from "@/lib/validation/schemas/booking";
 
 export interface bookingInterfaceInput {
   bussiness: string | null;
@@ -45,8 +48,9 @@ export interface bookingInterface {
     qty: number;
   }[];
   tattooData: TattooDataInterface | null;
-  /** How the client intended to pay. Older bookings default to "online". */
+  /** How the booking was paid, or how the client intends to pay. */
   paymentMethod?: PaymentMethod;
+  paymentStatus?: BookingPaymentStatus;
   inventoryConsumption?: bookingInventoryConsumptionInterface | null;
 }
 

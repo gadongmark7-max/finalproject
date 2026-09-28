@@ -1,6 +1,12 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Image as KonvaImage,
+  Text as KonvaText,
+  Transformer,
+} from "react-konva";
 import {
   ArrowLeft,
   Upload,
@@ -19,6 +25,7 @@ import {
   Loader2,
   Search,
   X,
+  Type,
 } from "lucide-react";
 import Konva from "konva";
 import { removeBackground } from "@imgly/background-removal";
@@ -32,20 +39,53 @@ import { successAlert, errorAlert, confirmAlert } from "@/app/utils/alert";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { imageFile } from "@/lib/validation/fields";
+import {
+  CANVA_FONTS,
+  DEFAULT_CANVA_FONT,
+  canvaFontFamily,
+} from "./fonts";
 
 const canvaImageSchema = imageFile({ maxMB: 12 });
 
-interface ImageLayer {
+const DEFAULT_TEXT = "Your Text";
+const DEFAULT_FONT_SIZE = 48;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 200;
+const MAX_TEXT_LENGTH = 500;
+
+interface BaseLayer {
   id: string;
-  image: HTMLImageElement;
   x: number;
   y: number;
   scaleX: number;
   scaleY: number;
   rotation: number;
-  grayscale: boolean;
   name: string;
 }
+
+interface ImageLayer extends BaseLayer {
+  type?: "image";
+  image: HTMLImageElement;
+  grayscale: boolean;
+}
+
+interface TextLayer extends BaseLayer {
+  type: "text";
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  fill: string;
+}
+
+type CanvasLayer = ImageLayer | TextLayer;
+
+const isTextLayer = (layer: CanvasLayer): layer is TextLayer =>
+  layer.type === "text";
+
+const textLayerName = (text: string) => {
+  const firstLine = text.split("\n")[0].trim();
+  return `Text · ${firstLine.slice(0, 24) || "Empty"}`;
+};
 
 // NEW: History entry type for image editing
 interface ImageEditHistoryEntry {
@@ -58,7 +98,7 @@ interface ImageEditHistoryEntry {
 // NEW: History entry type for layer changes (existing behavior)
 interface LayerHistoryEntry {
   type: "layers";
-  layers: ImageLayer[];
+  layers: CanvasLayer[];
 }
 
 const brushTypes: ("normal" | "stipple" | "sketch")[] = [
@@ -72,7 +112,7 @@ type HistoryEntry = ImageEditHistoryEntry | LayerHistoryEntry;
 const TattooEditor: React.FC = () => {
   const router = useRouter();
 
-  const [layers, setLayers] = useState<ImageLayer[]>([]);
+  const [layers, setLayers] = useState<CanvasLayer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tool, setTool] = useState<"select" | "eraser" | "brush">("select");
   const [eraserSize, setEraserSize] = useState(20);
@@ -84,6 +124,7 @@ const TattooEditor: React.FC = () => {
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [showShapesModal, setShowShapesModal] = useState(false);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
 
   // NEW: Updated history to use discriminated union
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -173,9 +214,27 @@ const TattooEditor: React.FC = () => {
   const saveCanva = async () => {
     if (!stageRef.current) return;
     setIsCanvaSaving(true);
-    const savedLayers = [];
+    const savedLayers: designInterface["layers"] = [];
 
     for (const layer of layers) {
+      if (isTextLayer(layer)) {
+        savedLayers.push({
+          id: layer.id,
+          type: "text" as const,
+          text: layer.text,
+          fontFamily: layer.fontFamily,
+          fontSize: layer.fontSize,
+          fill: layer.fill,
+          x: layer.x,
+          y: layer.y,
+          scaleX: layer.scaleX,
+          scaleY: layer.scaleY,
+          rotation: layer.rotation,
+          name: layer.name,
+        });
+        continue;
+      }
+
       const canvas = document.createElement("canvas");
       canvas.width = layer.image.width;
       canvas.height = layer.image.height;
@@ -195,6 +254,7 @@ const TattooEditor: React.FC = () => {
 
       savedLayers.push({
         id: layer.id,
+        type: "image" as const,
         src: url,
         x: layer.x,
         y: layer.y,
@@ -255,8 +315,24 @@ const TattooEditor: React.FC = () => {
     setStagePos(design.stage.position);
 
     try {
-      const loadedLayers: ImageLayer[] = await Promise.all(
+      const loadedLayers: CanvasLayer[] = await Promise.all(
         design.layers.map((layer: any) => {
+          if (layer.type === "text") {
+            return Promise.resolve<TextLayer>({
+              id: layer.id,
+              type: "text",
+              text: layer.text ?? "",
+              fontFamily: layer.fontFamily || DEFAULT_CANVA_FONT,
+              fontSize: layer.fontSize || DEFAULT_FONT_SIZE,
+              fill: layer.fill || "#000000",
+              x: layer.x ?? 0,
+              y: layer.y ?? 0,
+              scaleX: layer.scaleX ?? 1,
+              scaleY: layer.scaleY ?? 1,
+              rotation: layer.rotation ?? 0,
+              name: layer.name || textLayerName(layer.text ?? ""),
+            });
+          }
           return new Promise<ImageLayer>((resolve, reject) => {
             const img = new window.Image();
             img.crossOrigin = "anonymous";
@@ -497,7 +573,7 @@ const TattooEditor: React.FC = () => {
   };
 
   // NEW: Save layer-based history (for transforms, new layers, etc.)
-  const saveLayerHistory = (newLayers: ImageLayer[]) => {
+  const saveLayerHistory = (newLayers: CanvasLayer[]) => {
     const newHistory = history.slice(0, historyStep + 1);
     newHistory.push({
       type: "layers",
@@ -525,7 +601,7 @@ const TattooEditor: React.FC = () => {
   };
 
   // Wrapper for layer updates (existing behavior)
-  const updateLayersHistory = (newLayers: ImageLayer[]) => {
+  const updateLayersHistory = (newLayers: CanvasLayer[]) => {
     setLayers(newLayers);
     saveLayerHistory(newLayers);
   };
@@ -653,7 +729,7 @@ const TattooEditor: React.FC = () => {
   const toggleGrayscale = () => {
     if (!selectedId) return;
     const newLayers = layers.map((layer) =>
-      layer.id === selectedId
+      layer.id === selectedId && !isTextLayer(layer)
         ? { ...layer, grayscale: !layer.grayscale }
         : layer,
     );
@@ -664,7 +740,7 @@ const TattooEditor: React.FC = () => {
     if (!selectedId) return;
 
     const layer = layers.find((l) => l.id === selectedId);
-    if (!layer) return;
+    if (!layer || isTextLayer(layer)) return;
 
     setIsRemovingBg(true);
 
@@ -721,7 +797,7 @@ const TattooEditor: React.FC = () => {
     if (!selectedId) return;
     const layerToDuplicate = layers.find((l) => l.id === selectedId);
     if (layerToDuplicate) {
-      const newLayer: ImageLayer = {
+      const newLayer: CanvasLayer = {
         ...layerToDuplicate,
         id: `layer-${Date.now()}`,
         x: layerToDuplicate.x + 20,
@@ -775,6 +851,62 @@ const TattooEditor: React.FC = () => {
     }
   };
 
+  const selectedLayer = layers.find((l) => l.id === selectedId) ?? null;
+  const selectedTextLayer =
+    selectedLayer && isTextLayer(selectedLayer) ? selectedLayer : null;
+
+  const addText = () => {
+    const newLayer: TextLayer = {
+      id: `layer-${Date.now()}`,
+      type: "text",
+      text: DEFAULT_TEXT,
+      fontFamily: DEFAULT_CANVA_FONT,
+      fontSize: DEFAULT_FONT_SIZE,
+      fill: brushColor,
+      x: 200,
+      y: 250,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+      name: textLayerName(DEFAULT_TEXT),
+    };
+    updateLayersHistory([...layers, newLayer]);
+    setSelectedId(newLayer.id);
+    setIsDragable(true);
+    setTool("select");
+    setTimeout(() => {
+      textInputRef.current?.focus();
+      textInputRef.current?.select();
+    }, 0);
+  };
+
+  const changeTextLayer = (
+    changes: Partial<Pick<TextLayer, "text" | "fontFamily" | "fontSize" | "fill">>,
+    commit: boolean,
+  ) => {
+    if (!selectedTextLayer) return;
+    const newLayers = layers.map((layer) =>
+      layer.id === selectedTextLayer.id && isTextLayer(layer)
+        ? {
+            ...layer,
+            ...changes,
+            name:
+              changes.text !== undefined
+                ? textLayerName(changes.text)
+                : layer.name,
+          }
+        : layer,
+    );
+    if (commit) updateLayersHistory(newLayers);
+    else setLayers(newLayers);
+  };
+
+  const commitTextEdit = () => {
+    const last = history[historyStep];
+    if (last?.type === "layers" && last.layers === layers) return;
+    saveLayerHistory(layers);
+  };
+
   const deleteSelected = () => {
     if (!selectedId) return;
     const newLayers = layers.filter((l) => l.id !== selectedId);
@@ -820,7 +952,11 @@ const TattooEditor: React.FC = () => {
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (tool === "eraser" || tool === "brush") {
       // ✅ Eraser only works when a layer is selected
-      if (tool === "eraser" && !selectedId) {
+      const selectedImageLayer = layers.find(
+        (l): l is ImageLayer => l.id === selectedId && !isTextLayer(l),
+      );
+
+      if (tool === "eraser" && !selectedImageLayer) {
         return; // Don't allow erasing without selection
       }
 
@@ -836,7 +972,7 @@ const TattooEditor: React.FC = () => {
       setLastPos(pos);
 
       // Handle creating new drawing layer (only for brush)
-      if (!selectedId && tool === "brush") {
+      if (!selectedImageLayer && tool === "brush") {
         const canvas = document.createElement("canvas");
         canvas.width = 800;
         canvas.height = 600;
@@ -869,7 +1005,7 @@ const TattooEditor: React.FC = () => {
         return;
       }
 
-      const layer = layers.find((l) => l.id === selectedId);
+      const layer = selectedImageLayer;
       if (!layer) return;
 
       // ✅ CAPTURE IMAGE STATE BEFORE EDITING (for both brush AND eraser)
@@ -972,7 +1108,7 @@ const TattooEditor: React.FC = () => {
     if (!pos || !lastPos) return;
 
     const layer = layers.find((l) => l.id === selectedId);
-    if (!layer) return;
+    if (!layer || isTextLayer(layer)) return;
 
     const imageNode = stage.findOne(`#${selectedId}`) as Konva.Image;
     if (!imageNode) return;
@@ -1089,7 +1225,7 @@ const TattooEditor: React.FC = () => {
       // ✅ CAPTURE IMAGE STATE AFTER EDITING and SAVE HISTORY
       if (selectedId && beforeImageRef.current) {
         const layer = layers.find((l) => l.id === selectedId);
-        if (layer) {
+        if (layer && !isTextLayer(layer)) {
           const canvas = document.createElement("canvas");
           canvas.width = layer.image.width;
           canvas.height = layer.image.height;
@@ -1393,6 +1529,12 @@ const TattooEditor: React.FC = () => {
                 </svg>
                 Add Shapes
               </button>
+              <button
+                onClick={addText}
+                className="w-full flex items-center gap-2 px-4 py-2.5 bg-surface border border-border text-text-muted text-xs hover:border-border-gold hover:text-gold transition-all duration-300"
+              >
+                <Type size={16} /> Add Text
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1458,10 +1600,10 @@ const TattooEditor: React.FC = () => {
               </button>
               <button
                 onClick={() => setTool("eraser")}
-                disabled={!selectedId}
+                disabled={!selectedId || !!selectedTextLayer}
                 className={`w-full flex items-center gap-2 px-4 py-2.5 border text-xs transition-all duration-300
                 ${tool === "eraser" ? "bg-surface-alt border-border-gold text-gold" : "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold"}
-                ${!selectedId ? "opacity-40 cursor-not-allowed" : ""}`}
+                ${!selectedId || selectedTextLayer ? "opacity-40 cursor-not-allowed" : ""}`}
               >
                 <Eraser size={16} /> Eraser
               </button>
@@ -1561,6 +1703,113 @@ const TattooEditor: React.FC = () => {
               )}
             </div>
 
+            {selectedTextLayer && (
+              <div className="bg-secondary p-4 space-y-4">
+                <span className="text-[10px] uppercase tracking-[0.22em] text-gold block">
+                  Text
+                </span>
+                <div>
+                  <label
+                    htmlFor="canva-text-content"
+                    className="text-[10px] uppercase tracking-[0.18em] text-text-muted block mb-2"
+                  >
+                    Content
+                  </label>
+                  <textarea
+                    id="canva-text-content"
+                    ref={textInputRef}
+                    rows={3}
+                    maxLength={MAX_TEXT_LENGTH}
+                    value={selectedTextLayer.text}
+                    onChange={(e) =>
+                      changeTextLayer({ text: e.target.value }, false)
+                    }
+                    onBlur={commitTextEdit}
+                    placeholder="Type your text"
+                    className="w-full px-3 py-2 bg-surface border border-border text-text text-sm placeholder:text-text-muted focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold/30 resize-y"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="canva-text-font"
+                    className="text-[10px] uppercase tracking-[0.18em] text-text-muted block mb-2"
+                  >
+                    Font
+                  </label>
+                  <select
+                    id="canva-text-font"
+                    value={selectedTextLayer.fontFamily}
+                    onChange={(e) =>
+                      changeTextLayer({ fontFamily: e.target.value }, true)
+                    }
+                    className="w-full px-3 py-2 bg-surface border border-border text-text text-sm focus:border-gold focus:outline-none"
+                    style={{
+                      fontFamily: canvaFontFamily(selectedTextLayer.fontFamily),
+                    }}
+                  >
+                    {!CANVA_FONTS.some(
+                      (font) => font.key === selectedTextLayer.fontFamily,
+                    ) && (
+                      <option value={selectedTextLayer.fontFamily}>
+                        {selectedTextLayer.fontFamily}
+                      </option>
+                    )}
+                    {CANVA_FONTS.map((font) => (
+                      <option
+                        key={font.key}
+                        value={font.key}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="canva-text-size"
+                    className="text-[10px] uppercase tracking-[0.18em] text-text-muted block mb-2"
+                  >
+                    Size: {selectedTextLayer.fontSize}px
+                  </label>
+                  <input
+                    id="canva-text-size"
+                    type="range"
+                    min={MIN_FONT_SIZE}
+                    max={MAX_FONT_SIZE}
+                    value={selectedTextLayer.fontSize}
+                    onChange={(e) =>
+                      changeTextLayer(
+                        { fontSize: Number(e.target.value) },
+                        false,
+                      )
+                    }
+                    onPointerUp={commitTextEdit}
+                    onKeyUp={commitTextEdit}
+                    className="w-full accent-gold"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="canva-text-color"
+                    className="text-[10px] uppercase tracking-[0.18em] text-text-muted block mb-2"
+                  >
+                    Color
+                  </label>
+                  <input
+                    id="canva-text-color"
+                    type="color"
+                    value={selectedTextLayer.fill}
+                    onChange={(e) =>
+                      changeTextLayer({ fill: e.target.value }, false)
+                    }
+                    onBlur={commitTextEdit}
+                    className="w-full h-10 cursor-pointer bg-surface border border-border"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
             {selectedId && (
               <div className="bg-secondary p-4 space-y-2">
@@ -1579,12 +1828,14 @@ const TattooEditor: React.FC = () => {
                   Move
                 </button>
 
+                {selectedLayer && !isTextLayer(selectedLayer) && (
+                <>
                 <button
                   onClick={toggleGrayscale}
                   className={`w-full px-4 py-2.5 border text-xs transition-all duration-300
-                  ${layers.find((l) => l.id === selectedId)?.grayscale ? "bg-surface-alt border-border-gold text-gold" : "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold"}`}
+                  ${selectedLayer.grayscale ? "bg-surface-alt border-border-gold text-gold" : "bg-surface border-border text-text-muted hover:border-border-gold hover:text-gold"}`}
                 >
-                  {layers.find((l) => l.id === selectedId)?.grayscale
+                  {selectedLayer.grayscale
                     ? "Remove"
                     : "Apply"}{" "}
                   Grayscale
@@ -1603,6 +1854,8 @@ const TattooEditor: React.FC = () => {
                     "Remove Background"
                   )}
                 </button>
+                </>
+                )}
 
                 <button
                   onClick={duplicateLayer}
@@ -1743,7 +1996,33 @@ const TattooEditor: React.FC = () => {
               }}
             >
               <Layer>
-                {layers.map((layer) => (
+                {layers.map((layer) =>
+                  isTextLayer(layer) ? (
+                    <TextElement
+                      allowDrag={isDragable}
+                      key={layer.id}
+                      layer={layer}
+                      isSelected={layer.id === selectedId}
+                      onSelect={() => {
+                        setSelectedId(layer.id);
+                        setIsDragable(true);
+                        setTool("select");
+                      }}
+                      onEdit={() => {
+                        setSelectedId(layer.id);
+                        setIsDragable(true);
+                        setTool("select");
+                        setTimeout(() => textInputRef.current?.focus(), 0);
+                      }}
+                      onChange={(newAttrs) => {
+                        const newLayers = layers.map((l) =>
+                          l.id === layer.id ? { ...l, ...newAttrs } : l,
+                        );
+                        setLayers(newLayers);
+                        saveLayerHistory(newLayers);
+                      }}
+                    />
+                  ) : (
                   <ImageElement
                     allowDrag={isDragable}
                     key={layer.id}
@@ -1764,7 +2043,8 @@ const TattooEditor: React.FC = () => {
                       saveLayerHistory(layers);
                     }}
                   />
-                ))}
+                  ),
+                )}
               </Layer>
             </Stage>
           </div>
@@ -1778,7 +2058,7 @@ interface ImageElementProps {
   layer: ImageLayer;
   isSelected: boolean;
   onSelect: () => void;
-  onChange: (newAttrs: Partial<ImageLayer>) => void;
+  onChange: (newAttrs: Partial<BaseLayer>) => void;
   onTransformEnd: () => void;
   allowDrag: boolean;
 }
@@ -1845,6 +2125,106 @@ const ImageElement: React.FC<ImageElementProps> = ({
           ref={trRef}
           boundBoxFunc={(oldBox, newBox) => {
             if (newBox.width < 5 || newBox.height < 5) return oldBox;
+            return newBox;
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+interface TextElementProps {
+  layer: TextLayer;
+  isSelected: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onChange: (newAttrs: Partial<BaseLayer>) => void;
+  allowDrag: boolean;
+}
+
+const TextElement: React.FC<TextElementProps> = ({
+  layer,
+  isSelected,
+  onSelect,
+  onEdit,
+  onChange,
+  allowDrag,
+}) => {
+  const textRef = useRef<Konva.Text>(null);
+  const trRef = useRef<Konva.Transformer>(null);
+  const fontFamily = canvaFontFamily(layer.fontFamily);
+
+  useEffect(() => {
+    if (isSelected && trRef.current && textRef.current) {
+      trRef.current.nodes([textRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [isSelected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (typeof document === "undefined" || !document.fonts) return;
+    document.fonts
+      .load(`${layer.fontSize}px ${fontFamily}`, layer.text || "A")
+      .then(() => {
+        const node = textRef.current;
+        if (cancelled || !node) return;
+        node.fontFamily("");
+        node.fontFamily(fontFamily);
+        trRef.current?.forceUpdate();
+        node.getLayer()?.batchDraw();
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [fontFamily, layer.fontSize, layer.text]);
+
+  useEffect(() => {
+    trRef.current?.forceUpdate();
+    trRef.current?.getLayer()?.batchDraw();
+  }, [layer.text, layer.fontSize, layer.fontFamily]);
+
+  return (
+    <>
+      <KonvaText
+        id={layer.id}
+        ref={textRef}
+        text={layer.text}
+        fontFamily={fontFamily}
+        fontSize={layer.fontSize}
+        fill={layer.fill}
+        x={layer.x}
+        y={layer.y}
+        scaleX={layer.scaleX}
+        scaleY={layer.scaleY}
+        rotation={layer.rotation}
+        draggable={isSelected && allowDrag}
+        onClick={onSelect}
+        onTap={onSelect}
+        onDblClick={onEdit}
+        onDblTap={onEdit}
+        onDragEnd={(e) => {
+          onChange({ x: e.target.x(), y: e.target.y() });
+        }}
+        onTransformEnd={() => {
+          const node = textRef.current;
+          if (!node) return;
+          onChange({
+            x: node.x(),
+            y: node.y(),
+            scaleX: node.scaleX(),
+            scaleY: node.scaleY(),
+            rotation: node.rotation(),
+          });
+        }}
+      />
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          boundBoxFunc={(oldBox, newBox) => {
+            if (Math.abs(newBox.width) < 5 || Math.abs(newBox.height) < 5)
+              return oldBox;
             return newBox;
           }}
         />

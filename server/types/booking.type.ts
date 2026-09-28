@@ -43,6 +43,7 @@ export interface bookingInterface{
         qty : number,
     }[],
     tattooData : TattooDataInterface | null,
-    paymentMethod? : "online" | "counter"
+    paymentMethod? : "online" | "counter",
+    paymentStatus? : "awaiting" | "partial" | "paid"
 }
 

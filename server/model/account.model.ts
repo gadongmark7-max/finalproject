@@ -11,6 +11,9 @@ const AccountSchema = new Schema({
     password: { type: String, required: true, select: false },
     isBan : { type: Boolean, required: true }, 
     pin : { type: String, required: false, select: false },
+    accessCodeHash : { type: String, required: false, select: false },
+    accessCodeFailedAttempts : { type: Number, default: 0, select: false },
+    accessCodeLockedUntil : { type: Date, default: null, select: false },
     location : {
         long : { type: Number, required: false },
         lat : { type: Number, required: false },
@@ -20,6 +23,9 @@ const AccountSchema = new Schema({
         transform: (_doc, ret: Record<string, unknown>) => {
             delete ret.password;
             delete ret.pin;
+            delete ret.accessCodeHash;
+            delete ret.accessCodeFailedAttempts;
+            delete ret.accessCodeLockedUntil;
             return ret;
         },
     },

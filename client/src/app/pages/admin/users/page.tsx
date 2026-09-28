@@ -4,7 +4,8 @@ import { useQuery, useMutation } from "@tanstack/react-query"
 import axiosInstance from "@/app/utils/axios"
 import { confirmAlert, errorAlert, successAlert } from "@/app/utils/alert"
 import { accountInterface } from "@/app/types/accounts.type"
-import { Search, SlidersHorizontal, Users, ShieldOff, ShieldCheck } from "lucide-react"
+import { Search, SlidersHorizontal, Users, ShieldOff, ShieldCheck, KeyRound } from "lucide-react"
+import { apiErrorMessage } from "@/app/utils/customFunction"
 
 import {
   Table, TableBody, TableCell, TableHead,
@@ -49,6 +50,18 @@ export default function Page() {
     },
     onError: () => errorAlert("Error occurred"),
   })
+
+  const accessCodeMutation = useMutation({
+    mutationFn: (id: string) => axiosInstance.put(`/account/admin/artistAccessCode/${id}`),
+    onSuccess: () => successAlert("Access code sent to the artist's email"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "Error occurred")),
+  })
+
+  const handleAccessCode = (id: string) => {
+    confirmAlert("Issue a new access code? The current code will stop working.", "Send code", () => {
+      accessCodeMutation.mutate(id)
+    })
+  }
 
   const handleBan = (id: string, isBan: boolean) => {
     const title = isBan ? "Unban this user?" : "Ban this user?"
@@ -256,6 +269,18 @@ export default function Page() {
                     </TableCell>
 
                     <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                      {user.type === "artist" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={accessCodeMutation.isPending}
+                          onClick={() => handleAccessCode(user._id)}
+                        >
+                          <KeyRound size={12} />
+                          Access Code
+                        </Button>
+                      )}
                       {user.isBan ? (
                         <Button
                           size="sm"
@@ -275,6 +300,7 @@ export default function Page() {
                           Ban
                         </Button>
                       )}
+                      </div>
                     </TableCell>
 
                   </TableRow>

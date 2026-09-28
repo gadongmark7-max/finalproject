@@ -14,6 +14,17 @@ export const sessionsField = z
   .min(1, "Add at least one session")
   .max(20, "Too many sessions");
 
+export const BODY_PART_MAX_LENGTH = 40;
+
+export const bodyPartField = z
+  .string({ invalid_type_error: "Body part must be text" })
+  .trim()
+  .max(BODY_PART_MAX_LENGTH, `Body part must be at most ${BODY_PART_MAX_LENGTH} characters`)
+  .regex(
+    /^[A-Za-zÀ-ÖØ-öø-ÿ0-9\s'&/,.()-]*$/,
+    "Body part can only contain letters, numbers, spaces and basic punctuation",
+  );
+
 const sizeCmField = (label: string) =>
   z.coerce
     .number({ invalid_type_error: `Tattoo ${label} must be a number` })
@@ -28,6 +39,7 @@ export const updatePostSchema = z
     sessions: sessionsField.optional(),
     price: z.coerce.number().finite().nonnegative().optional(),
     downPercentage: z.coerce.number().finite().min(0).max(100).optional(),
+    bodyPart: bodyPartField.optional(),
     sizeWidthCm: sizeCmField("width").optional(),
     sizeHeightCm: sizeCmField("height").optional(),
   })

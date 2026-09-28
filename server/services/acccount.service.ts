@@ -80,6 +80,77 @@ export class AccountService {
     return await AccountModel.findOne({ email }).select("+password +pin");
   }
 
+  static async getByEmailForLogin(email: string) {
+    return await AccountModel.findOne({ email }).select(
+      "+password +pin +accessCodeHash +accessCodeFailedAttempts +accessCodeLockedUntil",
+    );
+  }
+
+  static async setAccessCodeHash(id: string, accessCodeHash: string) {
+    return await AccountModel.findByIdAndUpdate(
+      id,
+      {
+        accessCodeHash,
+        accessCodeFailedAttempts: 0,
+        accessCodeLockedUntil: null,
+      },
+      { new: true },
+    );
+  }
+
+  static async recordAccessCodeFailure(
+    id: string,
+    maxAttempts: number,
+    lockMinutes: number,
+  ) {
+    const lockUntil = new Date(Date.now() + lockMinutes * 60 * 1000);
+    return await AccountModel.findByIdAndUpdate(
+      id,
+      [
+        {
+          $set: {
+            accessCodeFailedAttempts: {
+              $add: [{ $ifNull: ["$accessCodeFailedAttempts", 0] }, 1],
+            },
+          },
+        },
+        {
+          $set: {
+            accessCodeLockedUntil: {
+              $cond: [
+                { $gte: ["$accessCodeFailedAttempts", maxAttempts] },
+                lockUntil,
+                "$accessCodeLockedUntil",
+              ],
+            },
+            accessCodeFailedAttempts: {
+              $cond: [
+                { $gte: ["$accessCodeFailedAttempts", maxAttempts] },
+                0,
+                "$accessCodeFailedAttempts",
+              ],
+            },
+          },
+        },
+      ],
+      { new: true },
+    ).select("+accessCodeFailedAttempts +accessCodeLockedUntil");
+  }
+
+  static async resetAccessCodeAttempts(id: string) {
+    return await AccountModel.findByIdAndUpdate(id, {
+      accessCodeFailedAttempts: 0,
+      accessCodeLockedUntil: null,
+    });
+  }
+
+  static async getArtistsWithoutAccessCode() {
+    return await AccountModel.find({
+      type: "artist",
+      $or: [{ accessCodeHash: { $exists: false } }, { accessCodeHash: null }],
+    });
+  }
+
   static async getByEmail(email: string) {
     const account = AccountModel.findOne({ email });
     return account;

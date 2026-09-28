@@ -12,12 +12,17 @@ import {
   EyeOff,
   Lock,
   ArrowLeft,
+  KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field-error";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { loginSchema, type LoginValues } from "@/lib/validation/schemas/auth";
+import {
+  accessCodeSchema,
+  loginSchema,
+  type LoginValues,
+} from "@/lib/validation/schemas/auth";
 import { gsap } from "gsap";
 import { BackButton } from "@/components/ui/back-button";
 
@@ -81,6 +86,10 @@ const readLockoutBatch = () => {
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [accessCodeStep, setAccessCodeStep] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+  const [accessCodeError, setAccessCodeError] = useState<string>();
+  const accessCodeInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     register,
@@ -292,10 +301,22 @@ export default function LoginPage() {
   }, [secondsLeft, lockedUntil]);
 
   const mutation = useMutation({
-    mutationFn: (data: { email: string; password: string }) =>
-      axiosInstance.post("/auth/login", data),
+    mutationFn: (data: {
+      email: string;
+      password: string;
+      accessCode?: string;
+    }) => axiosInstance.post("/auth/login", data),
     onSuccess: (res) => {
+      if (res.data?.requiresAccessCode) {
+        setAccessCodeStep(true);
+        setAccessCode("");
+        setAccessCodeError(undefined);
+        setIsLoading(false);
+        setTimeout(() => accessCodeInputRef.current?.focus(), 0);
+        return;
+      }
       const { account, token } = res.data;
+      setAccessCode("");
       localStorage.setItem("token", token);
       setUser(account);
       setFailedAttempts(0);
@@ -321,8 +342,12 @@ export default function LoginPage() {
       }
     },
     onError: (err: { request: { response: string } }) => {
-      setValue("password", "");
-      setValue("email", "");
+      if (accessCodeStep) {
+        setAccessCode("");
+      } else {
+        setValue("password", "");
+        setValue("email", "");
+      }
       errorAlert(err.request.response);
       setIsLoading(false);
       gsap.fromTo(
@@ -355,8 +380,26 @@ export default function LoginPage() {
     },
   });
 
+  const resetAccessCodeStep = () => {
+    setAccessCodeStep(false);
+    setAccessCode("");
+    setAccessCodeError(undefined);
+    setValue("password", "");
+  };
+
   const handleLogin = (values: LoginValues) => {
     if (isLocked) return;
+    let payload: { email: string; password: string; accessCode?: string } =
+      values;
+    if (accessCodeStep) {
+      const parsed = accessCodeSchema.safeParse(accessCode);
+      if (!parsed.success) {
+        setAccessCodeError(parsed.error.issues[0]?.message);
+        return;
+      }
+      setAccessCodeError(undefined);
+      payload = { ...values, accessCode: parsed.data };
+    }
     gsap.to(btnRef.current, {
       scale: 0.97,
       duration: 0.1,
@@ -364,7 +407,7 @@ export default function LoginPage() {
       repeat: 1,
       ease: "power1.inOut",
     });
-    mutation.mutate(values);
+    mutation.mutate(payload);
     setIsLoading(true);
   };
 
@@ -562,6 +605,7 @@ export default function LoginPage() {
                       emailInputRef.current = el;
                     }}
                     placeholder="you@example.com"
+                    readOnly={accessCodeStep}
                     aria-invalid={!!errors.email}
                     className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.email ? "border-danger" : "border-border"}`}
                     style={{
@@ -601,6 +645,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     {...register("password")}
                     placeholder="••••••••"
+                    readOnly={accessCodeStep}
                     aria-invalid={!!errors.password}
                     className={`w-full pl-10 pr-10 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.password ? "border-danger" : "border-border"}`}
                     style={{
@@ -620,6 +665,48 @@ export default function LoginPage() {
                 </div>
                 <FieldError>{errors.password?.message}</FieldError>
               </div>
+
+              {accessCodeStep && (
+                <div className="mt-5 mb-2">
+                  <label className="block text-[0.62rem] font-light tracking-[0.2em] uppercase text-text-muted mb-2">
+                    Artist access code
+                  </label>
+                  <div className="relative flex items-center">
+                    <KeyRound className="absolute left-3.5 w-3.5 h-3.5 text-border pointer-events-none" />
+                    <input
+                      ref={accessCodeInputRef}
+                      type="password"
+                      name="accessCode"
+                      autoComplete="one-time-code"
+                      value={accessCode}
+                      onChange={(e) => {
+                        setAccessCode(e.target.value);
+                        if (accessCodeError) setAccessCodeError(undefined);
+                      }}
+                      placeholder="Enter your access code"
+                      aria-invalid={!!accessCodeError}
+                      className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light tracking-[0.15em] outline-none transition-all duration-200 placeholder:text-text-dim placeholder:tracking-normal placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${accessCodeError ? "border-danger" : "border-border"}`}
+                      style={{
+                        borderRadius: 0,
+                        fontFamily: "'Raleway', sans-serif",
+                      }}
+                    />
+                  </div>
+                  <FieldError>{accessCodeError}</FieldError>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <p className="text-[0.66rem] text-text-muted font-light tracking-[0.03em]">
+                      Artist accounts require the access code issued by the administrator.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetAccessCodeStep}
+                      className="shrink-0 text-[0.66rem] text-gold border-b border-gold/30 pb-px hover:border-gold hover:text-gold-light transition-all duration-200"
+                    >
+                      Use another account
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Attempts-remaining hint (shows only after a failed try, before lockout) */}
               {!isLocked && failedAttempts > 0 && (
@@ -705,7 +792,7 @@ export default function LoginPage() {
                       </>
                     ) : (
                       <>
-                        Sign in
+                        {accessCodeStep ? "Verify & sign in" : "Sign in"}
                         <ArrowRight
                           size={14}
                           className="transition-transform duration-300 group-hover:translate-x-1"
