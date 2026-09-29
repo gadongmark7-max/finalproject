@@ -32,6 +32,11 @@ import {
 import { FullScreenModal } from "@/components/ui/modal";
 import { TattooDataInterface } from "../types/threejs.type";
 import { detectHasAlpha } from "./detectImageAlpha";
+import {
+  detectBodyPart,
+  getModelBounds,
+  ModelBounds,
+} from "./bodyPartDetection";
 import { createTattooDecalMaterial } from "./tattooDecalMaterial";
 import {
   DEFAULT_CM_PER_WORLD_UNIT,
@@ -59,7 +64,7 @@ export function SetTattoo3DModal({
 
   const [bodyType, setBodyType] = useState("/gltf/boy.glb");
 
-  const [bodyPart, setBodyPart] = useState("");
+  const [bodyPart, setBodyPart] = useState(tattooData?.meshName ?? "");
 
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +102,7 @@ export function SetTattoo3DModal({
   const cameraRef = useRef<THREE.Camera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const modelRef = useRef<THREE.Object3D | null>(null);
+  const modelBoundsRef = useRef<ModelBounds | null>(null);
 
   const tattooDataRef = useRef<{
     mesh: THREE.Mesh;
@@ -189,6 +195,8 @@ export function SetTattoo3DModal({
 
       scene.add(model);
       modelRef.current = model;
+      model.updateMatrixWorld(true);
+      modelBoundsRef.current = getModelBounds(model);
     });
 
     // Click to place tattoo
@@ -222,53 +230,11 @@ export function SetTattoo3DModal({
         // Transform normal to world space
         const mesh = intersect.object as THREE.Mesh;
 
-        let bodyPart = "Unknown";
-
-        // Normalize the point for better detection
-        const x = point.x;
-        const y = point.y;
-        const z = point.z;
-
-        // Head (topmost part)
-        if (y > 1.6) {
-          bodyPart = "Head";
+        if (modelBoundsRef.current) {
+          setBodyPart(
+            detectBodyPart(point, modelBoundsRef.current, bodyType),
+          );
         }
-        // Arms (extended on X-axis, between shoulder and waist height)
-        else if (y > 1.0 && y <= 1.6 && Math.abs(x) > 0.25) {
-          // Upper arms
-          if (y > 1.3) {
-            bodyPart = "Arm";
-          }
-          // Hands/Lower arms
-          else {
-            bodyPart = "Hand";
-          }
-        }
-        // Torso (center body, low X values)
-        else if (y > 1.0 && y <= 1.6 && Math.abs(x) <= 0.25) {
-          // Use Z-axis to distinguish front (chest/stomach) from back
-          if (z > 0.05) {
-            // Front side
-            if (y > 1.3) {
-              bodyPart = "Chest";
-            } else {
-              bodyPart = "Stomach";
-            }
-          } else {
-            // Back side
-            bodyPart = "Back";
-          }
-        }
-        // Legs (upper legs, between waist and knees)
-        else if (y > 0.5 && y <= 1.0) {
-          bodyPart = "Legs";
-        }
-        // Calves (lower legs, below knees)
-        else if (y <= 0.5) {
-          bodyPart = "Calves";
-        }
-
-        setBodyPart(bodyPart);
 
         normal.transformDirection(mesh.matrixWorld);
 
@@ -561,6 +527,12 @@ export function SetTattoo3DModal({
       helper.position.copy(newIntersect.point);
       helper.lookAt(newIntersect.point.clone().add(newNormal));
       tattooDataRef.current.orientation.copy(helper.rotation);
+
+      if (modelBoundsRef.current) {
+        setBodyPart(
+          detectBodyPart(newIntersect.point, modelBoundsRef.current, bodyType),
+        );
+      }
 
       saveToHistory();
       recreateDecal();

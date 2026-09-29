@@ -14,6 +14,7 @@ import { ArrowLeft, Send } from "lucide-react";
 import { UploadImageModal } from "./components/uploadImageModal";
 import { getChatIndex } from "@/app/utils/customFunction";
 import Link from "next/link";
+import { ChatImage } from "@/components/ui/chat-image";
 
 export default function Page() {
   const { user } = useUserStore();
@@ -161,13 +162,7 @@ export default function Page() {
                   </p>
                 )}
 
-                {chat.type === "image" && (
-                  <img
-                    src={chat.url}
-                    alt="sent"
-                    className="max-h-64 object-cover border border-border"
-                  />
-                )}
+                {chat.type === "image" && <ChatImage src={chat.url} />}
 
                 {chat.type === "video" && (
                   <video

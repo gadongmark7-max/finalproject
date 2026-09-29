@@ -19,6 +19,7 @@ export const INVENTORY_UNITS = [
   "ml",
   "L",
   "pcs",
+  "pair",
   "box",
   "pack",
   "sheets",
@@ -27,6 +28,25 @@ export const INVENTORY_UNITS = [
   "tubes",
   "sets",
 ] as const;
+
+export const MEASURED_INVENTORY_UNITS = ["ml", "L"] as const;
+
+export const isWholeNumberUnit = (unit: string) =>
+  (INVENTORY_UNITS as readonly string[]).includes(unit) &&
+  !(MEASURED_INVENTORY_UNITS as readonly string[]).includes(unit);
+
+export const isMeasuredUnit = (unit: string) =>
+  (MEASURED_INVENTORY_UNITS as readonly string[]).includes(unit);
+
+export const ML_PER_UNIT: Record<string, number> = { ml: 1, L: 1000 };
+
+export const INK_INVENTORY_CATEGORY = "INKS & PIGMENTS";
+
+export const isInkCategory = (category: string) =>
+  category.trim().toUpperCase() === INK_INVENTORY_CATEGORY;
+
+export const isMeasuredInkItem = (item: { category: string; type: string }) =>
+  isInkCategory(item.category) && ML_PER_UNIT[item.type] !== undefined;
 
 const Inventorychema = new Schema({
   account: {
@@ -37,6 +57,7 @@ const Inventorychema = new Schema({
   item: { type: String, required: true },
   category: { type: String, required: true },
   stocks: { type: Number, required: true },
+  quantityPerItem: { type: Number, default: null },
   type: { type: String, required: true },
   safeStock: { type: Number, required: true },
   price: { type: Number, required: true },

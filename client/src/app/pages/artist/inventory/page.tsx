@@ -2,7 +2,11 @@
 import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { useState, useEffect, useMemo } from "react";
-import { inventoryInterface } from "@/app/types/inventory.type";
+import {
+  formatQuantity,
+  inventoryInterface,
+  itemCountOf,
+} from "@/app/types/inventory.type";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AddItemModal } from "./components/addItemModal";
@@ -428,6 +432,15 @@ export default function Page() {
                           maximumFractionDigits: 2,
                         })}
                       </span>
+                      <span className="ml-1.5 text-xs text-text-muted">
+                        {item.type}
+                      </span>
+                      {item.quantityPerItem ? (
+                        <span className="block text-[11px] text-text-muted">
+                          {formatQuantity(itemCountOf(item) ?? 0)} ×{" "}
+                          {formatQuantity(item.quantityPerItem)} {item.type}
+                        </span>
+                      ) : null}
                     </TableCell>
 
                     <TableCell>

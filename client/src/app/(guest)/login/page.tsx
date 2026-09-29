@@ -709,7 +709,7 @@ export default function LoginPage() {
                   <FieldError>{accessCodeError}</FieldError>
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="text-[0.66rem] text-text-muted font-light tracking-[0.03em]">
-                      Artist accounts require the access code issued by the administrator.
+                      Enter the access code issued to you or the one you set in Settings.
                     </p>
                     <button
                       type="button"

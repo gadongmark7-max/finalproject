@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Check,
   Cpu,
+  Droplet,
   Flame,
   LoaderCircle,
   MapPin,
@@ -29,6 +30,13 @@ import { bodyParts } from "@/components/ui/bodyPartSelect";
 import { BODY_PART_MAX_LENGTH } from "@/lib/validation/schemas/post";
 import { AiProgressSteps } from "@/components/ui/ai-progress-steps";
 import { formatPeso } from "@/app/utils/customFunction";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 
 export function profitAtPrice(
@@ -57,6 +65,7 @@ const ANALYSIS_STEPS = [
   "Estimating size",
   "Estimating tattoo time",
   "Checking materials",
+  "Estimating ink usage",
   "Calculating estimated price",
 ];
 
@@ -82,6 +91,9 @@ interface AiAnalysisCardProps {
   price: string;
   onPriceChange: (value: string) => void;
   priceError?: string;
+
+  inkItemId: string | null;
+  onInkItemChange: (id: string) => void;
 
   analyzeDisabledReason?: string;
   onAnalyze: () => void;
@@ -257,6 +269,8 @@ export function AiAnalysisCard(props: AiAnalysisCardProps) {
           price={props.price}
           onPriceChange={props.onPriceChange}
           priceError={props.priceError}
+          inkItemId={props.inkItemId}
+          onInkItemChange={props.onInkItemChange}
           onApply={props.onApply}
           applyTarget={props.applyTarget ?? "post"}
         />
@@ -274,10 +288,14 @@ function Result({
   price,
   onPriceChange,
   priceError,
+  inkItemId,
+  onInkItemChange,
   onApply,
   applyTarget,
 }: {
   result: aiAnalysisResultInterface;
+  inkItemId: string | null;
+  onInkItemChange: (id: string) => void;
   isRecalculating: boolean;
   staleReason?: string;
   recalcError?: string;
@@ -288,7 +306,7 @@ function Result({
   onApply: () => void;
   applyTarget: string;
 }) {
-  const { analysis, size, materials, pricing } = result;
+  const { analysis, size, materials, pricing, ink } = result;
   const dim = isRecalculating || !!staleReason;
   const atPrice = profitAtPrice(price, pricing);
   const suggestedRounded = Math.round(pricing.suggestedPrice);
@@ -409,6 +427,15 @@ function Result({
         </div>
       </Section>
 
+      {ink && (
+        <InkSection
+          ink={ink}
+          inkItemId={inkItemId}
+          onInkItemChange={onInkItemChange}
+          dim={dim}
+        />
+      )}
+
       <Section title={`Materials · ${materials.length}`} icon={Package}>
         {materials.length === 0 ? (
           <p className="text-xs text-text-muted">
@@ -428,7 +455,10 @@ function Result({
                 <tr key={m.inventoryItemId} className="border-t border-border">
                   <td className="py-1.5 text-text pr-2">{m.name}</td>
                   <td className="py-1.5 text-right text-text-muted whitespace-nowrap">
-                    × {m.estimatedQuantity}
+                    × {m.estimatedQuantity.toLocaleString("en-US", {
+                      maximumFractionDigits: 4,
+                    })}{" "}
+                    {m.unit}
                   </td>
                   <td className="py-1.5 text-right text-text whitespace-nowrap">
                     {formatPeso(m.estimatedCost)}
@@ -460,9 +490,19 @@ function Result({
             label="Estimated Labor Cost"
             value={formatPeso(pricing.laborCost)}
           />
+          {ink && (
+            <Row
+              label={`Estimated Ink Cost${ink.inventoryItemId ? ` (${formatMl(ink.estimatedMl)})` : ""}`}
+              value={
+                ink.inventoryItemId ? formatPeso(pricing.inkCost) : "Select ink"
+              }
+            />
+          )}
           <Row
-            label="Estimated Material Cost"
-            value={formatPeso(pricing.materialCost)}
+            label={ink ? "Other Material Cost" : "Estimated Material Cost"}
+            value={formatPeso(
+              Math.round((pricing.materialCost - pricing.inkCost) * 100) / 100,
+            )}
           />
           <Row
             label="Estimated Total Cost"
@@ -512,6 +552,100 @@ function Result({
         </p>
       </div>
     </div>
+  );
+}
+
+const formatMl = (ml: number) =>
+  `${ml.toLocaleString("en-US", { maximumFractionDigits: 2 })} ml`;
+
+function InkSection({
+  ink,
+  inkItemId,
+  onInkItemChange,
+  dim,
+}: {
+  ink: NonNullable<aiAnalysisResultInterface["ink"]>;
+  inkItemId: string | null;
+  onInkItemChange: (id: string) => void;
+  dim: boolean;
+}) {
+  const selectable = ink.options.filter((o) => o.selectable);
+  const priced = ink.inventoryItemId
+    ? ink.options.find((o) => o.inventoryItemId === ink.inventoryItemId)
+    : undefined;
+
+  return (
+    <Section title="Ink" icon={Droplet}>
+      <div className={`grid grid-cols-2 gap-4 transition-opacity ${dim ? "opacity-60" : ""}`}>
+        <Stat
+          icon={Droplet}
+          label="Estimated Ink Usage"
+          value={formatMl(ink.estimatedMl)}
+        />
+        <Stat
+          icon={Wallet}
+          label="Ink Cost"
+          value={ink.inventoryItemId ? formatPeso(ink.cost) : "—"}
+        />
+      </div>
+
+      {ink.options.length === 0 ? (
+        <p className="text-[11px] text-text-muted">
+          Add your ink to inventory under INKS &amp; PIGMENTS with an ml or L
+          unit to include its cost.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          <Label htmlFor="ai-ink-item">Ink used</Label>
+          <Select
+            value={inkItemId ?? undefined}
+            onValueChange={onInkItemChange}
+          >
+            <SelectTrigger id="ai-ink-item" className="w-full">
+              <SelectValue placeholder="Select the ink for this tattoo" />
+            </SelectTrigger>
+            <SelectContent>
+              {ink.options.map((o) => (
+                <SelectItem
+                  key={o.inventoryItemId}
+                  value={o.inventoryItemId}
+                  disabled={!o.selectable}
+                >
+                  {o.name}
+                  {o.selectable
+                    ? ` · ${formatPeso(o.pricePerMl ?? 0)}/ml`
+                    : ` · set unit to ml or L (${o.unit})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {ink.needsSelection && (
+            <p className="text-[11px] text-gold" role="status">
+              {selectable.length > 1
+                ? "You have several inks — select the one used so its price is applied."
+                : "Select the ink used to include its cost."}
+            </p>
+          )}
+          {priced && ink.quantityInUnit !== null && (
+            <p className="text-[11px] text-text-muted">
+              {formatMl(ink.estimatedMl)} × {formatPeso(priced.pricePerMl ?? 0)}
+              /ml = {formatPeso(ink.cost)}
+              {priced.availableMl !== null && (
+                <>
+                  {" "}
+                  · {formatMl(Math.max(0, priced.availableMl - ink.estimatedMl))}{" "}
+                  left of {formatMl(priced.availableMl)} after this tattoo
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+      <p className="text-[11px] text-text-muted">
+        The AI estimates the ink volume only; the cost uses your inventory
+        price.
+      </p>
+    </Section>
   );
 }
 

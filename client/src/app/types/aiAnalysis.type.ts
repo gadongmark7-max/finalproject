@@ -15,6 +15,28 @@ export interface aiCalibrationInterface {
   refSessions: number;
 }
 
+export interface aiInkOptionInterface {
+  inventoryItemId: string;
+  name: string;
+  unit: string;
+  quantityPerItem: number | null;
+  pricePerMl: number | null;
+  availableMl: number | null;
+  selectable: boolean;
+}
+
+export interface aiInkEstimateInterface {
+  baseMl: number;
+  estimatedMl: number;
+  inventoryItemId: string | null;
+  quantityInUnit: number | null;
+  unit: string | null;
+  pricePerMl: number | null;
+  cost: number;
+  needsSelection: boolean;
+  options: aiInkOptionInterface[];
+}
+
 export interface aiAnalysisResultInterface {
   analysis: {
     category: string;
@@ -31,11 +53,13 @@ export interface aiAnalysisResultInterface {
   };
   calibration: aiCalibrationInterface;
   baseMaterials: { inventoryItemId: string; quantity: number }[];
+  ink: aiInkEstimateInterface | null;
   materials: aiAnalysisMaterialInterface[];
   missingMaterialIds: string[];
   pricing: {
     hourlyRate: number;
     laborCost: number;
+    inkCost: number;
     materialCost: number;
     totalCost: number;
     complexitySurchargePercent: number;

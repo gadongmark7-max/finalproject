@@ -11,6 +11,7 @@ import {
   PricingService,
 } from "../services/pricing.service";
 import { getClientHourlyRate } from "../config/pricing.config";
+import { isMeasuredInkItem, ML_PER_UNIT } from "../model/inventory.model";
 import {
   createEstimateToken,
   EstimateTokenPayload,
@@ -76,6 +77,23 @@ async function resolveHourlyRate(
   return requested ?? null;
 }
 
+function inkOptionsFor(inventory: InventoryDoc[]) {
+  return inventory
+    .filter(isMeasuredInkItem)
+    .map((item) => {
+      const mlPerUnit = ML_PER_UNIT[item.type];
+      return {
+        inventoryItemId: item._id.toString(),
+        name: item.item,
+        unit: item.type,
+        quantityPerItem: item.quantityPerItem ?? null,
+        pricePerMl: PricingService.pricePerMl(item.price, mlPerUnit),
+        availableMl: item.stocks * mlPerUnit,
+        selectable: true,
+      };
+    });
+}
+
 function buildArtistEstimate(params: {
   category: TattooCategory;
   complexity: number;
@@ -87,6 +105,7 @@ function buildArtistEstimate(params: {
   calibration: Calibration;
   baseMaterials: { inventoryItemId: string; quantity: number }[];
   inventory: InventoryDoc[];
+  ink: { baseMl: number; inventoryItemId: string | null } | null;
 }) {
   const inventoryById = new Map(
     params.inventory.map((item) => [item._id.toString(), item]),
@@ -112,6 +131,7 @@ function buildArtistEstimate(params: {
       missingMaterialIds.push(base.inventoryItemId);
       continue;
     }
+    if (isMeasuredInkItem(item)) continue;
     materials.push(
       PricingService.materialLine({
         inventoryItemId: base.inventoryItemId,
@@ -129,11 +149,61 @@ function buildArtistEstimate(params: {
     );
   }
 
+  const inkOptions = inkOptionsFor(params.inventory);
+  const selectableInks = inkOptions.filter((o) => o.selectable);
+  let ink = null;
+  let inkCost = 0;
+  if (params.ink) {
+    const estimatedMl = PricingService.scaleInkMl({
+      baseMl: params.ink.baseMl,
+      work,
+      calibration: params.calibration,
+    });
+    const requestedId = params.ink.inventoryItemId;
+    if (requestedId && !inventoryById.has(requestedId)) {
+      missingMaterialIds.push(requestedId);
+    }
+    const selected =
+      selectableInks.find((o) => o.inventoryItemId === requestedId) ??
+      (!requestedId && selectableInks.length === 1 ? selectableInks[0] : null);
+
+    let line: MaterialLine | null = null;
+    if (selected) {
+      const item = inventoryById.get(selected.inventoryItemId)!;
+      line = PricingService.materialLine({
+        inventoryItemId: selected.inventoryItemId,
+        name: item.item,
+        category: item.category,
+        unit: item.type,
+        unitCost: item.price,
+        estimatedQuantity: PricingService.inkQuantityInUnit(
+          estimatedMl,
+          ML_PER_UNIT[item.type],
+        ),
+      });
+      materials.unshift(line);
+      inkCost = line.estimatedCost;
+    }
+
+    ink = {
+      baseMl: params.ink.baseMl,
+      estimatedMl,
+      inventoryItemId: selected?.inventoryItemId ?? null,
+      quantityInUnit: line?.estimatedQuantity ?? null,
+      unit: line?.unit ?? null,
+      pricePerMl: selected?.pricePerMl ?? null,
+      cost: inkCost,
+      needsSelection: !selected && selectableInks.length > 0,
+      options: inkOptions,
+    };
+  }
+
   const pricing = PricingService.artistPricing({
     estimatedHours: work.estimatedHours,
     hourlyRate: params.hourlyRate,
     complexity: params.complexity,
     materials,
+    inkCost,
   });
 
   return {
@@ -152,6 +222,7 @@ function buildArtistEstimate(params: {
     },
     calibration: params.calibration,
     baseMaterials: params.baseMaterials,
+    ink,
     materials,
     missingMaterialIds,
     pricing,
@@ -175,7 +246,7 @@ export class AiAnalysisController {
       });
       return;
     }
-    const { bodyPart, sizeWidthCm, sizeHeightCm } = parsed.data;
+    const { bodyPart, sizeWidthCm, sizeHeightCm, inkItemId } = parsed.data;
     const hourlyRate = await resolveHourlyRate(request, parsed.data.hourlyRate);
     if (hourlyRate === null) {
       response.status(400).json({ error: HOURLY_RATE_NOT_SET_MESSAGE });
@@ -194,12 +265,14 @@ export class AiAnalysisController {
       const ai = await TattooAnalysisService.analyze({
         image: { data: request.file.buffer, mimeType: request.file.mimetype },
         trusted: { bodyPart, widthCm: sizeWidthCm, heightCm: sizeHeightCm },
-        inventory: inventory.map((item) => ({
-          id: item._id.toString(),
-          name: item.item,
-          category: item.category,
-          unit: item.type,
-        })),
+        inventory: inventory
+          .filter((item) => !isMeasuredInkItem(item))
+          .map((item) => ({
+            id: item._id.toString(),
+            name: item.item,
+            category: item.category,
+            unit: item.type,
+          })),
       });
 
       const calibration = PricingService.buildCalibration({
@@ -229,6 +302,13 @@ export class AiAnalysisController {
             quantity: Math.max(1, Math.round(i.estimatedQuantity)),
           })),
           inventory,
+          ink:
+            ai.estimatedInkMl !== undefined
+              ? {
+                  baseMl: PricingService.clampInkMl(ai.estimatedInkMl),
+                  inventoryItemId: inkItemId,
+                }
+              : null,
         }),
       );
     } catch (error) {
@@ -269,6 +349,12 @@ export class AiAnalysisController {
           calibration: PricingService.sanitizeCalibration(body.calibration),
           baseMaterials: body.materials,
           inventory,
+          ink: body.ink
+            ? {
+                baseMl: PricingService.clampInkMl(body.ink.baseMl),
+                inventoryItemId: body.ink.inventoryItemId,
+              }
+            : null,
         }),
       );
     } catch (error) {

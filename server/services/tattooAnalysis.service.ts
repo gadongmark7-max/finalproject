@@ -88,10 +88,16 @@ TASK:
 ${
   inventory
     ? `8. items: materials from AVAILABLE SHOP INVENTORY likely needed, each with
-   estimatedQuantity. Only recommend colored inks if isColored is true and only
-   colors plausibly in the image.`
+   estimatedQuantity. Ink measured in ml or L is NOT in this list and is
+   covered by estimatedInkMl; only recommend an ink-related item from this
+   list if it plausibly applies.`
     : "8. items: return an empty array."
 }
+9. estimatedInkMl: the total volume of tattoo ink in milliliters (all colors
+   combined, including ink poured into caps and discarded) realistically
+   consumed for this design at this size, based on the inked area, how much of
+   it is solid fill or shading versus line work, and color. This is a volume
+   only, not a price.
 
 RULES:
 - Never calculate any price, cost, or currency amount.
@@ -133,6 +139,7 @@ function buildResponseSchema(inventory?: InventoryOption[]) {
       },
       estimatedHours: { type: Type.NUMBER, minimum: 0.25 },
       estimatedSessions: { type: Type.INTEGER, minimum: 1 },
+      estimatedInkMl: { type: Type.NUMBER, minimum: 0.1, maximum: 500 },
       items: itemsSchema,
     },
     required: [
@@ -144,6 +151,7 @@ function buildResponseSchema(inventory?: InventoryOption[]) {
       "estimatedHeightCm",
       "estimatedHours",
       "estimatedSessions",
+      "estimatedInkMl",
       "items",
     ],
   };

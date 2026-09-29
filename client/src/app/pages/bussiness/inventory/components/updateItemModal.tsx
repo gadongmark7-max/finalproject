@@ -15,6 +15,7 @@ import {
 import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
+  quantityInputMode,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { updateItemSchema } from "@/lib/validation/schemas/inventory";
+import { updateItemSchemaFor } from "@/lib/validation/schemas/inventory";
 import { FieldError } from "@/components/ui/field-error";
 
 export function UpdateItemModal({
@@ -50,7 +51,7 @@ export function UpdateItemModal({
     control,
     handleSubmit,
     formState: { errors, isValid },
-  } = useZodForm(updateItemSchema, {
+  } = useZodForm(updateItemSchemaFor(inventory), {
     defaultValues: {
       item: inventory.item,
       category: inventory.category,
@@ -155,7 +156,7 @@ export function UpdateItemModal({
             <h1 className="font-bold text-stone-600"> Stocks </h1>
             <Input
               {...register("stocks")}
-              inputMode="decimal"
+              inputMode={quantityInputMode(inventory.type)}
               aria-invalid={!!errors.stocks}
               placeholder="stock on hand"
               className="w-full"
@@ -167,7 +168,7 @@ export function UpdateItemModal({
             <h1 className="font-bold text-stone-600"> Safe Stocks </h1>
             <Input
               {...register("safeStock")}
-              inputMode="decimal"
+              inputMode={quantityInputMode(inventory.type)}
               aria-invalid={!!errors.safeStock}
               placeholder="safe stock level"
               className="w-full"

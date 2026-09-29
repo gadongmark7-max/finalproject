@@ -52,7 +52,15 @@ const optionalHourlyRate = z.preprocess(
   hourlyRateField.optional(),
 );
 
+const inventoryIdField = z.string().trim().min(1).max(64);
+
+const optionalInkItemId = z.preprocess(
+  (v) => (v === "" || v === undefined ? null : v),
+  inventoryIdField.nullable(),
+);
+
 export const aiAnalysisRequestSchema = z.object({
+  inkItemId: optionalInkItemId,
   bodyPart: bodyPartField,
   hourlyRate: optionalHourlyRate,
   sizeWidthCm: sizeCm("width"),
@@ -89,6 +97,13 @@ export const aiRepriceRequestSchema = z.object({
     )
     .max(30)
     .default([]),
+  ink: z
+    .object({
+      baseMl: z.number().positive().max(1000),
+      inventoryItemId: optionalInkItemId,
+    })
+    .nullable()
+    .default(null),
 });
 
 export type AiRepriceRequest = z.infer<typeof aiRepriceRequestSchema>;
@@ -134,6 +149,7 @@ export const geminiAnalysisSchema = z.object({
   estimatedHeightCm: z.number().positive().max(MAX_SIZE_CM).optional(),
   estimatedHours: z.number().positive().max(100),
   estimatedSessions: z.number().positive().max(100),
+  estimatedInkMl: z.number().positive().max(1000).optional(),
   items: z
     .array(
       z.object({

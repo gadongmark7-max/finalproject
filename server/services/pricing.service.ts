@@ -35,6 +35,7 @@ export interface MaterialLine {
 export interface ArtistPricing {
   hourlyRate: number;
   laborCost: number;
+  inkCost: number;
   materialCost: number;
   totalCost: number;
   complexitySurchargePercent: number;
@@ -44,6 +45,7 @@ export interface ArtistPricing {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const round4 = (n: number) => Math.round(n * 10000) / 10000;
 const roundQuarter = (n: number) => Math.round(n * 4) / 4;
 const clamp = (n: number, min: number, max: number) =>
   Math.min(max, Math.max(min, n));
@@ -191,6 +193,35 @@ export class PricingService {
     return Math.max(1, Math.ceil(baseQuantity * ratio - 1e-9));
   }
 
+  static clampInkMl(ml: number) {
+    const step = PRICING_CONFIG.INK_ML_ROUNDING_STEP;
+    return clamp(
+      Math.round(ml / step) * step,
+      PRICING_CONFIG.MIN_INK_ML,
+      PRICING_CONFIG.MAX_INK_ML,
+    );
+  }
+
+  static scaleInkMl(params: {
+    baseMl: number;
+    work: WorkEstimate;
+    calibration: Calibration;
+  }) {
+    const { baseMl, work, calibration } = params;
+    const ratio =
+      (work.areaCm2 / calibration.refAreaCm2) **
+      PRICING_CONFIG.INK_ML_AREA_SCALING_EXPONENT;
+    return PricingService.clampInkMl(baseMl * ratio);
+  }
+
+  static inkQuantityInUnit(ml: number, mlPerUnit: number) {
+    return round4(ml / mlPerUnit);
+  }
+
+  static pricePerMl(unitPrice: number, mlPerUnit: number) {
+    return round4(unitPrice / mlPerUnit);
+  }
+
   static materialLine(item: Omit<MaterialLine, "estimatedCost">): MaterialLine {
     return {
       ...item,
@@ -203,6 +234,7 @@ export class PricingService {
     hourlyRate: number;
     complexity: number;
     materials: MaterialLine[];
+    inkCost?: number;
   }): ArtistPricing {
     const { estimatedHours, hourlyRate, complexity, materials } = params;
 
@@ -224,6 +256,7 @@ export class PricingService {
     return {
       hourlyRate,
       laborCost,
+      inkCost: round2(params.inkCost ?? 0),
       materialCost,
       totalCost,
       complexitySurchargePercent,

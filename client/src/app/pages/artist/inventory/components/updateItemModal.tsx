@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sheet,
   SheetClose,
@@ -16,6 +16,11 @@ import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  formatQuantity,
+  isMeasuredUnit,
+  itemCountOf,
+  quantityInputMode,
+  totalFromItems,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -32,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { updateItemWithPriceSchema } from "@/lib/validation/schemas/inventory";
+import { updateItemWithPriceSchemaFor } from "@/lib/validation/schemas/inventory";
 import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
 
@@ -41,6 +46,10 @@ const formValues = (inventory: inventoryInterface) => ({
   category: inventory.category,
   type: inventory.type,
   stocks: String(inventory.stocks ?? ""),
+  itemCount: inventory.quantityPerItem ? String(itemCountOf(inventory)) : "",
+  quantityPerItem: inventory.quantityPerItem
+    ? String(inventory.quantityPerItem)
+    : "",
   safeStock: String(inventory.safeStock ?? ""),
   price: String(inventory.price ?? 0),
 });
@@ -56,6 +65,22 @@ export function UpdateItemModal({
 
   const { user } = useUserStore();
 
+  const schema = useMemo(
+    () =>
+      updateItemWithPriceSchemaFor({
+        type: inventory.type,
+        stocks: inventory.stocks,
+        safeStock: inventory.safeStock,
+        quantityPerItem: inventory.quantityPerItem ?? null,
+      }),
+    [
+      inventory.type,
+      inventory.stocks,
+      inventory.safeStock,
+      inventory.quantityPerItem,
+    ],
+  );
+
   const {
     register,
     control,
@@ -63,7 +88,7 @@ export function UpdateItemModal({
     reset,
     watch,
     formState: { errors, isValid },
-  } = useZodForm(updateItemWithPriceSchema, {
+  } = useZodForm(schema, {
     defaultValues: formValues(inventory),
   });
 
@@ -84,9 +109,22 @@ export function UpdateItemModal({
     : [inventory.type, ...INVENTORY_UNITS];
 
   const selectedUnit = watch("type") || inventory.type;
+  const [watchedStocks, watchedItemCount, watchedPerItem, watchedPrice] = watch([
+    "stocks",
+    "itemCount",
+    "quantityPerItem",
+    "price",
+  ]);
+  const measured = isMeasuredUnit(selectedUnit);
+  const usesItems = measured && (watchedPerItem ?? "").trim() !== "";
+  const perItemNum = Number(watchedPerItem) || 0;
+  const itemCountNum = Number(watchedItemCount) || 0;
+  const previewTotal = usesItems
+    ? totalFromItems(itemCountNum, perItemNum)
+    : Number(watchedStocks) || 0;
 
   const updateMutation = useMutation({
-    mutationFn: (inventory: inventoryInterface) =>
+    mutationFn: (inventory: inventoryInterface & { itemCount?: number }) =>
       axiosInstance.put("/inventory", { inventory, recordedBy: "none" }),
     onSuccess: (response) => {
       setInventory(response.data);
@@ -111,7 +149,9 @@ export function UpdateItemModal({
       _id: inventory._id,
       account: user,
       item: values.item,
+      itemCount: values.itemCount,
       stocks: values.stocks,
+      quantityPerItem: values.quantityPerItem,
       category: values.category,
       type: values.type,
       safeStock: values.safeStock,
@@ -176,6 +216,9 @@ export function UpdateItemModal({
             <Controller
               control={control}
               name="type"
+              rules={{
+                deps: ["stocks", "safeStock", "itemCount", "quantityPerItem"],
+              }}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger className=" w-full">
@@ -194,22 +237,79 @@ export function UpdateItemModal({
             <FieldError>{errors.type?.message}</FieldError>
           </div>
 
-          <div className="mt-3 w-full">
-            <h1 className="font-bold text-text"> Quantity </h1>
-            <div className="flex items-center gap-2">
+          {measured && (
+            <div className="mt-3 w-full">
+              <h1 className="font-bold text-text"> Amount per Item </h1>
+              <div className="flex items-center gap-2">
+                <Input
+                  {...register("quantityPerItem", {
+                    deps: ["itemCount", "stocks"],
+                  })}
+                  inputMode="decimal"
+                  aria-invalid={!!errors.quantityPerItem}
+                  placeholder="e.g. 50"
+                  className="w-full"
+                />
+                <span className="text-sm text-text-muted whitespace-nowrap">
+                  {selectedUnit}
+                </span>
+              </div>
+              <FieldError>{errors.quantityPerItem?.message}</FieldError>
+              {!usesItems && (
+                <p className="text-[11px] text-text-muted mt-1">
+                  How much one bottle/container holds. Leave empty to enter the
+                  total amount instead.
+                </p>
+              )}
+            </div>
+          )}
+
+          {usesItems ? (
+            <div className="mt-3 w-full">
+              <h1 className="font-bold text-text"> Number of Items </h1>
               <Input
-                {...register("stocks")}
+                {...register("itemCount", { deps: ["quantityPerItem"] })}
                 inputMode="decimal"
-                aria-invalid={!!errors.stocks}
-                placeholder="amount on hand"
+                aria-invalid={!!errors.itemCount}
+                placeholder="e.g. 10"
                 className="w-full"
               />
-              <span className="text-sm text-text-muted whitespace-nowrap">
-                {selectedUnit}
+              <FieldError>{errors.itemCount?.message}</FieldError>
+            </div>
+          ) : (
+            <div className="mt-3 w-full">
+              <h1 className="font-bold text-text">
+                {" "}
+                {measured ? "Total Quantity" : "Quantity"}{" "}
+              </h1>
+              <div className="flex items-center gap-2">
+                <Input
+                  {...register("stocks")}
+                  inputMode={quantityInputMode(selectedUnit)}
+                  aria-invalid={!!errors.stocks}
+                  placeholder="amount on hand"
+                  className="w-full"
+                />
+                <span className="text-sm text-text-muted whitespace-nowrap">
+                  {selectedUnit}
+                </span>
+              </div>
+              <FieldError>{errors.stocks?.message}</FieldError>
+            </div>
+          )}
+
+          {usesItems && (
+            <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-surface-alt px-3 py-2">
+              <span className="text-xs text-text-muted">Total Quantity</span>
+              <span className="text-sm text-text" aria-live="polite">
+                {formatQuantity(itemCountNum)} × {formatQuantity(perItemNum)}{" "}
+                {selectedUnit} ={" "}
+                <span className="text-gold">
+                  {formatQuantity(previewTotal)} {selectedUnit}
+                </span>
               </span>
             </div>
-            <FieldError>{errors.stocks?.message}</FieldError>
-          </div>
+          )}
 
           <div className="mt-3 w-full">
             <h1 className="font-bold text-text">
@@ -230,17 +330,32 @@ export function UpdateItemModal({
               )}
             />
             <FieldError>{errors.price?.message}</FieldError>
+            {usesItems && perItemNum > 0 && (
+              <p className="text-[11px] text-text-muted mt-1">
+                ≈ ₱
+                {((Number(watchedPrice) || 0) * perItemNum).toLocaleString(
+                  "en-US",
+                  { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                )}{" "}
+                per item ({formatQuantity(perItemNum)} {selectedUnit})
+              </p>
+            )}
           </div>
 
           <div className="mt-3 w-full">
             <h1 className="font-bold text-text"> Safe Stocks </h1>
-            <Input
-              {...register("safeStock")}
-              inputMode="decimal"
-              aria-invalid={!!errors.safeStock}
-              placeholder="safe stock level"
-              className="w-full"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                {...register("safeStock")}
+                inputMode={quantityInputMode(selectedUnit)}
+                aria-invalid={!!errors.safeStock}
+                placeholder="safe stock level"
+                className="w-full"
+              />
+              <span className="text-sm text-text-muted whitespace-nowrap">
+                {selectedUnit}
+              </span>
+            </div>
             <FieldError>{errors.safeStock?.message}</FieldError>
           </div>
 

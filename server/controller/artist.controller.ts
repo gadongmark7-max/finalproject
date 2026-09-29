@@ -6,9 +6,15 @@ import {
 } from "../services/artistAnalytics.service";
 import { ExpencesService } from "../services/expences.service";
 import { ArtistInfoService } from "../services/artistInfo.service";
-import { updateHourlyRateSchema } from "../validation/artistSettings.schema";
+import {
+  customAccessCodeSchema,
+  updateHourlyRateSchema,
+} from "../validation/artistSettings.schema";
 import { AccountService } from "../services/acccount.service";
-import { regenerateAccessCode } from "../utils/accessCode";
+import {
+  regenerateAccessCode,
+  setCustomAccessCode,
+} from "../utils/accessCode";
 import bcrypt from "bcrypt";
 
 const requireArtist = (
@@ -54,9 +60,20 @@ export class ArtistController {
       const artistId = requireArtist(request, response);
       if (!artistId) return;
 
-      const { currentPassword } = request.body ?? {};
+      const { currentPassword, accessCode: customCode } = request.body ?? {};
       if (typeof currentPassword !== "string" || !currentPassword) {
         response.status(400).send("current password is required");
+        return;
+      }
+
+      const isCustom = customCode !== undefined && customCode !== null;
+      const parsedCode = isCustom
+        ? customAccessCodeSchema.safeParse(customCode)
+        : null;
+      if (parsedCode && !parsedCode.success) {
+        response
+          .status(400)
+          .send(parsedCode.error.issues[0]?.message ?? "invalid access code");
         return;
       }
 
@@ -72,12 +89,19 @@ export class ArtistController {
         return;
       }
 
-      const accessCode = await regenerateAccessCode(artistId);
       response.set("Cache-Control", "no-store");
+
+      if (parsedCode?.success) {
+        await setCustomAccessCode(artistId, parsedCode.data);
+        response.send({ updated: true });
+        return;
+      }
+
+      const accessCode = await regenerateAccessCode(artistId);
       response.send({ accessCode });
     } catch (e) {
-      console.log("failed to regenerate access code");
-      response.status(500).send("could not generate a new access code");
+      console.log("failed to update access code");
+      response.status(500).send("could not update the access code");
     }
   };
 
