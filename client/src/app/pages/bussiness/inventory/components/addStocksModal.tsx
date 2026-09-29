@@ -10,7 +10,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import { inventoryInterface } from "@/app/types/inventory.type";
+import {
+  inventoryInterface,
+  quantityInputMode,
+} from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
@@ -19,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { addStocksWithExpenseSchema } from "@/lib/validation/schemas/inventory";
+import { addStocksWithExpenseSchemaFor } from "@/lib/validation/schemas/inventory";
 import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
 
@@ -40,7 +43,7 @@ export function AddStocksModal({
     handleSubmit,
     reset,
     formState: { errors, isValid },
-  } = useZodForm(addStocksWithExpenseSchema, {
+  } = useZodForm(addStocksWithExpenseSchemaFor(inventory.type), {
     defaultValues: { stocks: "", expences: "" },
   });
 
@@ -89,7 +92,7 @@ export function AddStocksModal({
             <h1 className="font-bold text-stone-600"> Stocks </h1>
             <Input
               {...register("stocks")}
-              inputMode="decimal"
+              inputMode={quantityInputMode(inventory.type)}
               aria-invalid={!!errors.stocks}
               placeholder="stocks to add"
               className="w-full"

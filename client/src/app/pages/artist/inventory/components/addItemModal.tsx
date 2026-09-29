@@ -24,6 +24,7 @@ import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  quantityInputMode,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -165,16 +166,30 @@ export function AddItemModal({
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="mt-3 w-full space-y-2">
-              <Label>Quantity</Label>
-              <Input
-                {...register("stocks")}
-                inputMode="decimal"
-                aria-invalid={!!errors.stocks}
-                placeholder="e.g. 10"
-                className="w-full"
-              />
+              <Label htmlFor="add-item-stocks">
+                Quantity{watchedUnit ? ` (${watchedUnit})` : ""}
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="add-item-stocks"
+                  {...register("stocks")}
+                  inputMode={quantityInputMode(watchedUnit)}
+                  aria-invalid={!!errors.stocks}
+                  placeholder={
+                    watchedUnit
+                      ? `How many ${watchedUnit} you have`
+                      : "e.g. 10"
+                  }
+                  className="w-full"
+                />
+                {watchedUnit && (
+                  <span className="text-sm text-text-muted whitespace-nowrap">
+                    {watchedUnit}
+                  </span>
+                )}
+              </div>
               <FieldError>{errors.stocks?.message}</FieldError>
             </div>
 
@@ -183,6 +198,7 @@ export function AddItemModal({
               <Controller
                 control={control}
                 name="type"
+                rules={{ deps: ["stocks", "safeStock"] }}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className=" w-full">
@@ -205,13 +221,20 @@ export function AddItemModal({
           <div className="flex gap-3">
             <div className="mt-3 w-full">
               <h1 className="font-bold text-text"> Safe Stocks </h1>
-              <Input
-                {...register("safeStock")}
-                inputMode="decimal"
-                aria-invalid={!!errors.safeStock}
-                placeholder="safe stock level"
-                className="w-full"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  {...register("safeStock")}
+                  inputMode={quantityInputMode(watchedUnit)}
+                  aria-invalid={!!errors.safeStock}
+                  placeholder="safe stock level"
+                  className="w-full"
+                />
+                {watchedUnit && (
+                  <span className="text-sm text-text-muted whitespace-nowrap">
+                    {watchedUnit}
+                  </span>
+                )}
+              </div>
               <FieldError>{errors.safeStock?.message}</FieldError>
             </div>
           </div>

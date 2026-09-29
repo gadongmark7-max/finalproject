@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sheet,
   SheetClose,
@@ -16,6 +16,7 @@ import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  quantityInputMode,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -32,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { updateItemWithPriceSchema } from "@/lib/validation/schemas/inventory";
+import { updateItemWithPriceSchemaFor } from "@/lib/validation/schemas/inventory";
 import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
 
@@ -56,6 +57,16 @@ export function UpdateItemModal({
 
   const { user } = useUserStore();
 
+  const schema = useMemo(
+    () =>
+      updateItemWithPriceSchemaFor({
+        type: inventory.type,
+        stocks: inventory.stocks,
+        safeStock: inventory.safeStock,
+      }),
+    [inventory.type, inventory.stocks, inventory.safeStock],
+  );
+
   const {
     register,
     control,
@@ -63,7 +74,7 @@ export function UpdateItemModal({
     reset,
     watch,
     formState: { errors, isValid },
-  } = useZodForm(updateItemWithPriceSchema, {
+  } = useZodForm(schema, {
     defaultValues: formValues(inventory),
   });
 
@@ -176,6 +187,7 @@ export function UpdateItemModal({
             <Controller
               control={control}
               name="type"
+              rules={{ deps: ["stocks", "safeStock"] }}
               render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger className=" w-full">
@@ -199,7 +211,7 @@ export function UpdateItemModal({
             <div className="flex items-center gap-2">
               <Input
                 {...register("stocks")}
-                inputMode="decimal"
+                inputMode={quantityInputMode(selectedUnit)}
                 aria-invalid={!!errors.stocks}
                 placeholder="amount on hand"
                 className="w-full"
@@ -234,13 +246,18 @@ export function UpdateItemModal({
 
           <div className="mt-3 w-full">
             <h1 className="font-bold text-text"> Safe Stocks </h1>
-            <Input
-              {...register("safeStock")}
-              inputMode="decimal"
-              aria-invalid={!!errors.safeStock}
-              placeholder="safe stock level"
-              className="w-full"
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                {...register("safeStock")}
+                inputMode={quantityInputMode(selectedUnit)}
+                aria-invalid={!!errors.safeStock}
+                placeholder="safe stock level"
+                className="w-full"
+              />
+              <span className="text-sm text-text-muted whitespace-nowrap">
+                {selectedUnit}
+              </span>
+            </div>
             <FieldError>{errors.safeStock?.message}</FieldError>
           </div>
 

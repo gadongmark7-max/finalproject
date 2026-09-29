@@ -451,7 +451,7 @@ export default function Page() {
               <div className="inline-flex items-center gap-3 mb-6 self-start">
                 <span className="h-px w-8 bg-gold opacity-60" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.28em] text-gold">
-                  Tattoo Studio · Est. 2016
+                  Tattoo Studio · Est. 2019
                 </span>
                 <span className="h-px w-8 bg-gold opacity-60" />
               </div>
@@ -522,7 +522,7 @@ export default function Page() {
                 {
                   num: "8+",
                   label: "Years in Business",
-                  sub: "Open since 2016",
+                  sub: "Open since 2019",
                 },
                 {
                   num: "3K+",

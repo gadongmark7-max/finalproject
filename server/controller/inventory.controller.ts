@@ -14,6 +14,7 @@ import {
   addInventoryItemSchema,
   addStocksQuantityField,
   updateInventoryItemSchema,
+  wholeNumberUnitError,
 } from "../validation/inventory.schema";
 
 const firstIssue = (error: { issues: { message: string }[] }) =>
@@ -82,6 +83,20 @@ export class InventoryController {
     const qty = parsedQty.data;
     if (typeof inventoryId !== "string" || !isValidObjectId(inventoryId)) {
       response.status(400).json({ error: "Invalid inventory item" });
+      return;
+    }
+
+    const existing = await InventoryService.getByIdForAccount(
+      inventoryId,
+      account!._id,
+    );
+    if (!existing) {
+      response.status(404).json({ error: "Inventory item not found" });
+      return;
+    }
+    const qtyError = wholeNumberUnitError("Quantity", existing.type, qty);
+    if (qtyError) {
+      response.status(400).json({ error: qtyError });
       return;
     }
 
@@ -188,6 +203,21 @@ export class InventoryController {
     ) {
       response.status(400).json({ error: "Please select a valid unit" });
       return;
+    }
+
+    const unit = changes.type ?? current.type;
+    const unitChanged = unit !== current.type;
+    for (const [field, label] of [
+      ["stocks", "Quantity"],
+      ["safeStock", "Safe stock"],
+    ] as const) {
+      const value = changes[field] ?? (unitChanged ? current[field] : undefined);
+      if (!unitChanged && value === current[field]) continue;
+      const message = wholeNumberUnitError(label, unit, value);
+      if (message) {
+        response.status(400).json({ error: message });
+        return;
+      }
     }
 
     await InventoryService.updateForAccount(_id, account._id, changes);

@@ -5,6 +5,11 @@ import { fetchRoute, RouteError, RouteResult } from "@/app/utils/routing";
 
 const ROUTE_SOURCE_ID = "client-route";
 const ROUTE_LAYER_ID = "client-route-line";
+const ROUTE_CASING_LAYER_ID = "client-route-casing";
+const ROUTE_ENDPOINTS_SOURCE_ID = "client-route-endpoints";
+const ROUTE_ENDPOINTS_LAYER_ID = "client-route-endpoints";
+const ROUTE_COLOR = "#1A73E8";
+const ROUTE_CASING_COLOR = "#0B4FB3";
 
 export type RouteStatus =
   | { state: "loading" }
@@ -20,8 +25,14 @@ interface RoutingLayerProps {
 
 const removeRoute = (map: maplibregl.Map) => {
   try {
-    if (map.getLayer(ROUTE_LAYER_ID)) map.removeLayer(ROUTE_LAYER_ID);
-    if (map.getSource(ROUTE_SOURCE_ID)) map.removeSource(ROUTE_SOURCE_ID);
+    [ROUTE_ENDPOINTS_LAYER_ID, ROUTE_LAYER_ID, ROUTE_CASING_LAYER_ID].forEach(
+      (id) => {
+        if (map.getLayer(id)) map.removeLayer(id);
+      },
+    );
+    [ROUTE_SOURCE_ID, ROUTE_ENDPOINTS_SOURCE_ID].forEach((id) => {
+      if (map.getSource(id)) map.removeSource(id);
+    });
   } catch {}
 };
 
@@ -48,22 +59,78 @@ const RoutingControl: React.FC<RoutingLayerProps> = ({
         },
       };
 
-      const source = map.getSource(ROUTE_SOURCE_ID) as
-        | maplibregl.GeoJSONSource
-        | undefined;
+      const endpoints = {
+        type: "FeatureCollection" as const,
+        features: [
+          {
+            type: "Feature" as const,
+            properties: { role: "start" },
+            geometry: {
+              type: "Point" as const,
+              coordinates: route.coordinates[0],
+            },
+          },
+          {
+            type: "Feature" as const,
+            properties: { role: "end" },
+            geometry: {
+              type: "Point" as const,
+              coordinates: route.coordinates[route.coordinates.length - 1],
+            },
+          },
+        ],
+      };
 
-      if (source) {
-        source.setData(geojson);
-      } else {
-        map.addSource(ROUTE_SOURCE_ID, { type: "geojson", data: geojson });
-        map.addLayer({
-          id: ROUTE_LAYER_ID,
-          type: "line",
-          source: ROUTE_SOURCE_ID,
-          layout: { "line-join": "round", "line-cap": "round" },
-          paint: { "line-color": "#1A1A1A", "line-width": 4 },
-        });
-      }
+      removeRoute(map);
+      map.addSource(ROUTE_SOURCE_ID, { type: "geojson", data: geojson });
+      map.addSource(ROUTE_ENDPOINTS_SOURCE_ID, {
+        type: "geojson",
+        data: endpoints,
+      });
+      map.addLayer({
+        id: ROUTE_CASING_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ROUTE_CASING_COLOR,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 10, 6, 16, 12],
+          "line-opacity": 0.9,
+        },
+      });
+      map.addLayer({
+        id: ROUTE_LAYER_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-color": ROUTE_COLOR,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 10, 4, 16, 8],
+        },
+      });
+      map.addLayer({
+        id: ROUTE_ENDPOINTS_LAYER_ID,
+        type: "circle",
+        source: ROUTE_ENDPOINTS_SOURCE_ID,
+        paint: {
+          "circle-radius": 6,
+          "circle-color": [
+            "match",
+            ["get", "role"],
+            "start",
+            ROUTE_COLOR,
+            "#FFFFFF",
+          ],
+          "circle-stroke-color": [
+            "match",
+            ["get", "role"],
+            "start",
+            "#FFFFFF",
+            ROUTE_COLOR,
+          ],
+          "circle-stroke-width": 3,
+        },
+      });
 
       const bounds = route.coordinates.reduce(
         (b, coord) => b.extend(coord),
@@ -72,7 +139,15 @@ const RoutingControl: React.FC<RoutingLayerProps> = ({
           [from.lng, from.lat],
         ).extend([to.lng, to.lat]),
       );
-      map.fitBounds(bounds, { padding: 80, maxZoom: 16 });
+      const { clientWidth, clientHeight } = map.getContainer();
+      const side = Math.min(80, Math.max(24, clientWidth * 0.1));
+      const top = Math.min(90, Math.max(40, clientHeight * 0.1));
+      const bottom = Math.min(180, Math.max(top, clientHeight * 0.25));
+      map.fitBounds(bounds, {
+        padding: { top, bottom, left: side, right: side },
+        maxZoom: 16,
+        duration: 800,
+      });
     };
 
     const run = async () => {

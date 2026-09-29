@@ -19,6 +19,7 @@ export const INVENTORY_UNITS = [
   "ml",
   "L",
   "pcs",
+  "pair",
   "box",
   "pack",
   "sheets",
@@ -27,6 +28,12 @@ export const INVENTORY_UNITS = [
   "tubes",
   "sets",
 ] as const;
+
+export const MEASURED_INVENTORY_UNITS = ["ml", "L"] as const;
+
+export const isWholeNumberUnit = (unit: string) =>
+  (INVENTORY_UNITS as readonly string[]).includes(unit) &&
+  !(MEASURED_INVENTORY_UNITS as readonly string[]).includes(unit);
 
 const Inventorychema = new Schema({
   account: {

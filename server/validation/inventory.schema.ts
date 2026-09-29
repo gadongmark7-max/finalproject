@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  isWholeNumberUnit,
 } from "../model/inventory.model";
 
 const MAX_PRICE = 1_000_000;
@@ -41,14 +42,35 @@ const itemNameField = z
   .min(2, "Item name must be at least 2 characters")
   .max(80, "Item name must be at most 80 characters");
 
-export const addInventoryItemSchema = z.object({
-  item: itemNameField,
-  category: inventoryCategoryField,
-  type: inventoryUnitField,
-  stocks: stockField("Quantity").refine((n) => n > 0, "Quantity must be greater than 0"),
-  safeStock: stockField("Safe stock"),
-  price: inventoryPriceField,
-});
+export const wholeNumberUnitError = (
+  label: string,
+  unit: string,
+  value: number | undefined,
+) =>
+  value !== undefined && isWholeNumberUnit(unit) && !Number.isInteger(value)
+    ? `${label} must be a whole number for ${unit}`
+    : null;
+
+export const addInventoryItemSchema = z
+  .object({
+    item: itemNameField,
+    category: inventoryCategoryField,
+    type: inventoryUnitField,
+    stocks: stockField("Quantity").refine((n) => n > 0, "Quantity must be greater than 0"),
+    safeStock: stockField("Safe stock"),
+    price: inventoryPriceField,
+  })
+  .superRefine((values, ctx) => {
+    for (const [field, label] of [
+      ["stocks", "Quantity"],
+      ["safeStock", "Safe stock"],
+    ] as const) {
+      const message = wholeNumberUnitError(label, values.type, values[field]);
+      if (message) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message });
+      }
+    }
+  });
 
 
 export const updateInventoryItemSchema = z.object({

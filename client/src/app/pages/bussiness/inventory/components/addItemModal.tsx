@@ -158,6 +158,7 @@ export function AddItemModal({
               <Controller
                 control={control}
                 name="type"
+                rules={{ deps: ["stocks", "safeStock"] }}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className=" w-full">

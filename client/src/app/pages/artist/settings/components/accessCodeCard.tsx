@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import axiosInstance from "@/app/utils/axios";
 import { errorAlert, successAlert } from "@/app/utils/alert";
+import { customAccessCodeSchema } from "@/lib/validation/schemas/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,19 +30,83 @@ import {
 
 const ACCESS_CODE_STATUS_KEY = ["artist_access_code_status"];
 
-const errorText = (error: unknown) => {
+type Mode = "generate" | "custom";
+
+type AccessCodeResponse = { accessCode?: string; updated?: boolean };
+
+const errorText = (error: unknown, mode: Mode) => {
   const data = (error as { response?: { data?: unknown } })?.response?.data;
   return typeof data === "string" && data
     ? data
-    : "Could not generate a new access code. Please try again.";
+    : mode === "custom"
+      ? "Could not save your access code. Please try again."
+      : "Could not generate a new access code. Please try again.";
 };
+
+function SecretInput({
+  id,
+  value,
+  onChange,
+  visible,
+  onToggle,
+  disabled,
+  invalid,
+  autoComplete,
+  label,
+  placeholder,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  invalid?: boolean;
+  autoComplete: string;
+  label: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={visible ? "text" : "password"}
+        autoComplete={autoComplete}
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={invalid}
+        className="pr-11"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+        aria-pressed={visible}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-text-muted hover:text-gold transition-colors"
+      >
+        {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+      </button>
+    </div>
+  );
+}
 
 export function AccessCodeCard() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("generate");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string>();
+  const [customCode, setCustomCode] = useState("");
+  const [confirmCode, setConfirmCode] = useState("");
+  const [showCustomCode, setShowCustomCode] = useState(false);
+  const [customCodeError, setCustomCodeError] = useState<string>();
+  const [confirmCodeError, setConfirmCodeError] = useState<string>();
   const [newCode, setNewCode] = useState<string | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -52,51 +117,121 @@ export function AccessCodeCard() {
       (await axiosInstance.get("/artist/settings/access-code")).data,
   });
 
+  const configured = status.data?.configured;
+
+  const resetForm = () => {
+    setPassword("");
+    setShowPassword(false);
+    setPasswordError(undefined);
+    setCustomCode("");
+    setConfirmCode("");
+    setShowCustomCode(false);
+    setCustomCodeError(undefined);
+    setConfirmCodeError(undefined);
+  };
+
   const mutation = useMutation({
-    mutationFn: async (currentPassword: string) =>
+    mutationFn: async (payload: {
+      currentPassword: string;
+      accessCode?: string;
+    }) =>
       (
-        await axiosInstance.post<{ accessCode: string }>(
+        await axiosInstance.post<AccessCodeResponse>(
           "/artist/settings/access-code",
-          { currentPassword },
+          payload,
         )
-      ).data.accessCode,
+      ).data,
     gcTime: 0,
-    onSuccess: (accessCode) => {
-      setPassword("");
-      setNewCode(accessCode);
-      setShowCode(false);
+    onSuccess: (data) => {
+      const wasConfigured = configured;
       queryClient.setQueryData(ACCESS_CODE_STATUS_KEY, { configured: true });
-      successAlert("New access code generated. Your old code no longer works.");
+      if (data.accessCode) {
+        resetForm();
+        setNewCode(data.accessCode);
+        setShowCode(false);
+        successAlert("New access code generated. Your old code no longer works.");
+        return;
+      }
+      closeDialog();
+      successAlert(
+        wasConfigured
+          ? "Access code updated. Use your new code the next time you sign in."
+          : "Access code saved. Use it the next time you sign in.",
+      );
     },
     onError: (error) => {
-      const message = errorText(error);
+      const message = errorText(error, mode);
       if (message === "current password is incorrect") {
         setPasswordError("Current password is incorrect.");
+      } else if (
+        mode === "custom" &&
+        (error as { response?: { status?: number } })?.response?.status === 400
+      ) {
+        setCustomCodeError(message);
       } else {
         errorAlert(message);
       }
     },
   });
 
-  const closeDialog = () => {
+  const openDialog = (nextMode: Mode) => {
+    resetForm();
+    setMode(nextMode);
+    setOpen(true);
+  };
+
+  function closeDialog() {
     setOpen(false);
-    setPassword("");
-    setShowPassword(false);
-    setPasswordError(undefined);
+    resetForm();
     setNewCode(null);
     setShowCode(false);
     setCopied(false);
     mutation.reset();
-  };
+  }
 
-  const generate = () => {
+  const submit = () => {
     if (mutation.isPending) return;
+
+    let accessCode: string | undefined;
+    let hasError = false;
+
+    if (mode === "custom") {
+      const parsed = customAccessCodeSchema.safeParse(customCode);
+      if (!parsed.success) {
+        setCustomCodeError(parsed.error.issues[0]?.message);
+        hasError = true;
+      } else {
+        setCustomCodeError(undefined);
+        accessCode = parsed.data;
+      }
+
+      if (!confirmCode.trim()) {
+        setConfirmCodeError("Re-enter your new access code.");
+        hasError = true;
+      } else if (
+        parsed.success &&
+        confirmCode.trim().toUpperCase() !== parsed.data.toUpperCase()
+      ) {
+        setConfirmCodeError("Access codes do not match.");
+        hasError = true;
+      } else {
+        setConfirmCodeError(undefined);
+      }
+    }
+
     if (!password) {
       setPasswordError("Enter your current password to continue.");
-      return;
+      hasError = true;
+    } else {
+      setPasswordError(undefined);
     }
-    setPasswordError(undefined);
-    mutation.mutate(password);
+
+    if (hasError) return;
+    mutation.mutate(
+      accessCode
+        ? { currentPassword: password, accessCode }
+        : { currentPassword: password },
+    );
   };
 
   const copyCode = async () => {
@@ -109,7 +244,7 @@ export function AccessCodeCard() {
     }
   };
 
-  const configured = status.data?.configured;
+  const isCustom = mode === "custom";
 
   return (
     <div className="flex items-start gap-4 bg-surface border border-border p-5">
@@ -137,9 +272,23 @@ export function AccessCodeCard() {
             )}
           </p>
         </div>
-        <Button onClick={() => setOpen(true)} disabled={status.isLoading}>
-          {configured ? "Generate New Code" : "Create Access Code"}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            onClick={() => openDialog("custom")}
+            disabled={status.isLoading}
+            className="w-full sm:w-auto"
+          >
+            {configured ? "Change Access Code" : "Set Your Own Code"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => openDialog("generate")}
+            disabled={status.isLoading}
+            className="w-full sm:w-auto"
+          >
+            {configured ? "Generate New Code" : "Generate a Code"}
+          </Button>
+        </div>
       </div>
 
       <Dialog
@@ -198,49 +347,97 @@ export function AccessCodeCard() {
             <>
               <DialogHeader>
                 <DialogTitle>
-                  {configured ? "Generate a new access code?" : "Create your access code"}
+                  {isCustom
+                    ? configured
+                      ? "Change your access code"
+                      : "Set your access code"
+                    : configured
+                      ? "Generate a new access code?"
+                      : "Create your access code"}
                 </DialogTitle>
                 <DialogDescription>
-                  {configured
-                    ? "Your current access code will stop working immediately and be replaced by a new one."
-                    : "A new access code will be generated for your account."}
+                  {isCustom
+                    ? `Choose a code with at least 6 characters and no spaces. Codes are not case-sensitive.${
+                        configured
+                          ? " Your current code will stop working immediately."
+                          : ""
+                      }`
+                    : configured
+                      ? "Your current access code will stop working immediately and be replaced by a new one."
+                      : "A new access code will be generated for your account."}
                 </DialogDescription>
               </DialogHeader>
               <form
-                className="space-y-2"
+                className="space-y-4"
+                noValidate
                 onSubmit={(e) => {
                   e.preventDefault();
-                  generate();
+                  submit();
                 }}
               >
-                <Label htmlFor="access-code-current-password">
-                  Current password
-                </Label>
-                <div className="relative">
-                  <Input
+                {isCustom && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="access-code-new">New access code</Label>
+                      <SecretInput
+                        id="access-code-new"
+                        label="access code"
+                        autoComplete="new-password"
+                        placeholder="At least 6 characters"
+                        value={customCode}
+                        visible={showCustomCode}
+                        onToggle={() => setShowCustomCode((prev) => !prev)}
+                        disabled={mutation.isPending}
+                        invalid={!!customCodeError}
+                        onChange={(value) => {
+                          setCustomCode(value);
+                          if (customCodeError) setCustomCodeError(undefined);
+                        }}
+                      />
+                      <FieldError>{customCodeError}</FieldError>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="access-code-confirm">
+                        Confirm access code
+                      </Label>
+                      <SecretInput
+                        id="access-code-confirm"
+                        label="access code"
+                        autoComplete="new-password"
+                        value={confirmCode}
+                        visible={showCustomCode}
+                        onToggle={() => setShowCustomCode((prev) => !prev)}
+                        disabled={mutation.isPending}
+                        invalid={!!confirmCodeError}
+                        onChange={(value) => {
+                          setConfirmCode(value);
+                          if (confirmCodeError) setConfirmCodeError(undefined);
+                        }}
+                      />
+                      <FieldError>{confirmCodeError}</FieldError>
+                    </div>
+                  </>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="access-code-current-password">
+                    Current password
+                  </Label>
+                  <SecretInput
                     id="access-code-current-password"
-                    type={showPassword ? "text" : "password"}
+                    label="password"
                     autoComplete="current-password"
                     value={password}
+                    visible={showPassword}
+                    onToggle={() => setShowPassword((prev) => !prev)}
                     disabled={mutation.isPending}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
+                    invalid={!!passwordError}
+                    onChange={(value) => {
+                      setPassword(value);
                       if (passwordError) setPasswordError(undefined);
                     }}
-                    aria-invalid={!!passwordError}
-                    className="pr-11"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    aria-pressed={showPassword}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-text-muted hover:text-gold transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+                  <FieldError>{passwordError}</FieldError>
                 </div>
-                <FieldError>{passwordError}</FieldError>
                 <DialogFooter className="pt-2">
                   <Button
                     type="button"
@@ -254,7 +451,13 @@ export function AccessCodeCard() {
                     {mutation.isPending && (
                       <LoaderCircle className="w-4 h-4 animate-spin" />
                     )}
-                    {mutation.isPending ? "Generating…" : "Generate Code"}
+                    {mutation.isPending
+                      ? isCustom
+                        ? "Saving…"
+                        : "Generating…"
+                      : isCustom
+                        ? "Save Access Code"
+                        : "Generate Code"}
                   </Button>
                 </DialogFooter>
               </form>

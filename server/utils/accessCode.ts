@@ -45,6 +45,10 @@ export async function regenerateAccessCode(accountId: string) {
   return code;
 }
 
+export async function setCustomAccessCode(accountId: string, code: string) {
+  await AccountService.setAccessCodeHash(accountId, await hashAccessCode(code));
+}
+
 export async function issueArtistAccessCode(accountId: string) {
   const account = await AccountService.get(accountId);
   if (!account || account.type !== "artist") return false;

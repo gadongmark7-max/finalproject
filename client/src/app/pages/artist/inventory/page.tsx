@@ -428,6 +428,9 @@ export default function Page() {
                           maximumFractionDigits: 2,
                         })}
                       </span>
+                      <span className="ml-1.5 text-xs text-text-muted">
+                        {item.type}
+                      </span>
                     </TableCell>
 
                     <TableCell>

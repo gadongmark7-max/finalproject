@@ -10,7 +10,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useState } from "react";
-import { inventoryInterface } from "@/app/types/inventory.type";
+import {
+  inventoryInterface,
+  quantityInputMode,
+} from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
@@ -19,7 +22,7 @@ import useUserStore from "@/app/store/useUserStore";
 import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { addStocksSchema } from "@/lib/validation/schemas/inventory";
+import { addStocksSchemaFor } from "@/lib/validation/schemas/inventory";
 import { FieldError } from "@/components/ui/field-error";
 
 export function AddStocksModal({
@@ -38,7 +41,9 @@ export function AddStocksModal({
     handleSubmit,
     reset,
     formState: { errors, isValid },
-  } = useZodForm(addStocksSchema, { defaultValues: { stocks: "" } });
+  } = useZodForm(addStocksSchemaFor(inventory.type), {
+    defaultValues: { stocks: "" },
+  });
 
   const mutation = useMutation({
     mutationFn: (data: {
@@ -86,7 +91,7 @@ export function AddStocksModal({
             <div className="flex items-center gap-2">
               <Input
                 {...register("stocks")}
-                inputMode="decimal"
+                inputMode={quantityInputMode(inventory.type)}
                 aria-invalid={!!errors.stocks}
                 placeholder="e.g. 10"
                 className="w-full"

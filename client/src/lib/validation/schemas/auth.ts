@@ -28,6 +28,11 @@ export const accessCodeSchema = z
   )
   .max(ACCESS_CODE_MAX_LENGTH, "Access code is too long");
 
+export const customAccessCodeSchema = accessCodeSchema.regex(
+  /^\S+$/,
+  "Access code cannot contain spaces",
+);
+
 export const registerSchema = z
   .object({
     name: requiredText("Full name", { min: 2, max: 80 }).regex(

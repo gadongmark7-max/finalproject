@@ -198,42 +198,47 @@ export function ArtistBookModal({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[725px]">
         <DialogHeader>
-          <DialogTitle>Book a Tattoo Session</DialogTitle>
+          <DialogTitle>Book a Tattoo Sessions</DialogTitle>
           <DialogDescription>
             Fill in the details below to request an appointment with your chosen
             artist.
           </DialogDescription>
         </DialogHeader>
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:gap-6 overflow-hidden">
+          <div className="w-full md:w-auto flex justify-center">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              className="w-full max-w-full rounded-md border shadow-sm"
+              captionLayout="dropdown"
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-        <div className=" gap-6 mb-6 flex overflow-hidden">
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={setDate}
-            className="rounded-md border shadow-sm"
-            captionLayout="dropdown"
-            disabled={(date) => {
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
+                const dayName = date.toLocaleDateString("en-US", {
+                  weekday: "long",
+                });
 
-              const dayName = date.toLocaleDateString("en-US", {
-                weekday: "long",
-              });
-
-              return date < today || !days.includes(dayName);
-            }}
-          />
+                return date < today || !days.includes(dayName);
+              }}
+            />
+          </div>
 
           {date ? (
-            <div className="w-full rounded shadow-lg border p-5">
+            <div className="w-full min-w-0 rounded border p-4 shadow-lg sm:p-5">
               <div className="space-y-3">
-                <p className="text-sm font-bold  text-stone-600 ">
+                <p className="break-words text-sm font-bold text-stone-600">
                   {startTime && endTime
-                    ? `Date : ${date.toLocaleDateString("en-US").toString()} | Duration : ${sessionTime} ${sessionTime != 1 ? "hrs" : "hr"} |  ${convertToAmPm(startTime)} - ${convertToAmPm(endTime)}`
-                    : `Date : ${date.toLocaleDateString("en-US").toString()}`}
+                    ? `Date: ${date.toLocaleDateString(
+                        "en-US",
+                      )} | Duration: ${sessionTime} ${
+                        sessionTime != 1 ? "hrs" : "hr"
+                      } | ${convertToAmPm(startTime)} - ${convertToAmPm(endTime)}`
+                    : `Date: ${date.toLocaleDateString("en-US")}`}
                 </p>
 
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {times.map((item, index) => (
                     <Button
                       key={item}
@@ -242,9 +247,15 @@ export function ArtistBookModal({
                       }
                       disabled={checkIfTimeBooked(item)}
                       onClick={() => selectStartTime(index)}
-                      className={`${selectedtime.includes(item) && checkIfTimeBooked(item) && "text-red-500 border-2"}`}
+                      className={`w-full text-xs sm:text-sm ${
+                        selectedtime.includes(item) &&
+                        checkIfTimeBooked(item) &&
+                        "border-2 text-red-500"
+                      }`}
                     >
-                      {checkIfTimeBooked(item) && <LockIcon />}{" "}
+                      {checkIfTimeBooked(item) && (
+                        <LockIcon className="mr-1 h-3 w-3" />
+                      )}
                       {convertToAmPm(item)}
                     </Button>
                   ))}
@@ -252,15 +263,13 @@ export function ArtistBookModal({
               </div>
             </div>
           ) : (
-            <div className="w-full rounded shadow-lg border flex justify-center items-center">
-              <h1 className="text-lg font-bold text-stone-500">
-                {" "}
+            <div className="flex min-h-[120px] w-full items-center justify-center rounded border p-4 shadow-lg">
+              <h1 className="text-center text-base font-bold text-stone-500 sm:text-lg">
                 Select Date First
               </h1>
             </div>
           )}
         </div>
-
         <DialogFooter>
           <ClientAgreementModal
             isDisabled={isDisabled()}
