@@ -12,7 +12,9 @@ import {
 import { useState } from "react";
 import {
   inventoryInterface,
+  formatQuantity,
   quantityInputMode,
+  totalFromItems,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -36,19 +38,24 @@ export function AddStocksModal({
 
   const { user } = useUserStore();
 
+  const perItem = inventory.quantityPerItem ?? null;
+
   const {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isValid },
-  } = useZodForm(addStocksSchemaFor(inventory.type), {
+  } = useZodForm(addStocksSchemaFor(inventory.type, !!perItem), {
     defaultValues: { stocks: "" },
   });
+  const addedItems = Number(watch("stocks")) || 0;
 
   const mutation = useMutation({
     mutationFn: (data: {
       inventoryId: string;
-      stocks: number;
+      stocks?: number;
+      itemCount?: number;
       expences: number;
       recordedBy: string;
     }) => axiosInstance.post("/inventory/addStocks", data),
@@ -66,7 +73,7 @@ export function AddStocksModal({
     const recordedBy = "none";
     mutation.mutate({
       inventoryId: inventory._id,
-      stocks: values.stocks,
+      ...(perItem ? { itemCount: values.stocks } : { stocks: values.stocks }),
       expences: 0,
       recordedBy,
     });
@@ -87,20 +94,28 @@ export function AddStocksModal({
 
         <div className=" gap-6 mb-6">
           <div className="mt-3 w-full">
-            <h1 className="font-bold text-text"> Quantity to add </h1>
+            <h1 className="font-bold text-text">
+              {perItem ? " Items to add " : " Quantity to add "}
+            </h1>
             <div className="flex items-center gap-2">
               <Input
                 {...register("stocks")}
-                inputMode={quantityInputMode(inventory.type)}
+                inputMode={perItem ? "decimal" : quantityInputMode(inventory.type)}
                 aria-invalid={!!errors.stocks}
                 placeholder="e.g. 10"
                 className="w-full"
               />
               <span className="text-sm text-text-muted whitespace-nowrap">
-                {inventory.type}
+                {perItem ? `× ${formatQuantity(perItem)} ${inventory.type}` : inventory.type}
               </span>
             </div>
             <FieldError>{errors.stocks?.message}</FieldError>
+            {perItem && addedItems > 0 && (
+              <p className="text-[11px] text-text-muted mt-1">
+                Adds {formatQuantity(totalFromItems(addedItems, perItem))}{" "}
+                {inventory.type}
+              </p>
+            )}
           </div>
         </div>
 

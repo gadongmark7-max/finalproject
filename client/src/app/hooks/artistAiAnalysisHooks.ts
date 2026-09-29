@@ -30,6 +30,43 @@ export const distributeSessionHours = (
   return Array<number>(count).fill(perSession);
 };
 
+export type AiItemUsed = {
+  item: string;
+  qty: number;
+  itemId: string;
+  price: number;
+};
+
+export const itemsUsedFromMaterials = (
+  materials: aiAnalysisResultInterface["materials"],
+): AiItemUsed[] =>
+  materials.map((m) => ({
+    itemId: m.inventoryItemId,
+    item: m.name,
+    qty: m.estimatedQuantity,
+    price: m.unitCost,
+  }));
+
+export function useSyncAiItemsUsed(
+  result: aiAnalysisResultInterface | null,
+  setItemUsed: React.Dispatch<React.SetStateAction<AiItemUsed[]>>,
+  enabled = true,
+) {
+  const appliedIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!result || !enabled) return;
+    const next = itemsUsedFromMaterials(result.materials);
+    const nextIds = new Set(next.map((i) => i.itemId));
+    const previous = appliedIds.current;
+    setItemUsed((prev) => [
+      ...prev.filter((i) => !previous.has(i.itemId) && !nextIds.has(i.itemId)),
+      ...next,
+    ]);
+    appliedIds.current = nextIds;
+  }, [result, enabled, setItemUsed]);
+}
+
 interface Inputs {
   postImg: File | null;
   bodyPart: string;
@@ -50,6 +87,7 @@ type RepricePayload = {
   sizeHeightCm: number;
   calibration: aiAnalysisResultInterface["calibration"];
   materials: aiAnalysisResultInterface["baseMaterials"];
+  ink: { baseMl: number; inventoryItemId: string | null } | null;
 };
 
 export function useArtistAiAnalysis(
@@ -61,6 +99,7 @@ export function useArtistAiAnalysis(
     null,
   );
   const materialNames = useRef(new Map<string, string>());
+  const [inkItemId, setInkItemId] = useState<string | null>(null);
   const [debouncedPayload, setDebouncedPayload] =
     useState<RepricePayload | null>(null);
 
@@ -68,9 +107,13 @@ export function useArtistAiAnalysis(
     mutationFn: (data: FormData) =>
       axiosInstance.post<aiAnalysisResultInterface>("/post/ai-analysis", data),
     onSuccess: ({ data: result }) => {
-      materialNames.current = new Map(
-        result.materials.map((m) => [m.inventoryItemId, m.name]),
-      );
+      materialNames.current = new Map([
+        ...result.materials.map((m) => [m.inventoryItemId, m.name] as const),
+        ...(result.ink?.options ?? []).map(
+          (o) => [o.inventoryItemId, o.name] as const,
+        ),
+      ]);
+      setInkItemId(result.ink?.inventoryItemId ?? null);
       const seed = payloadFor(result);
       queryClient.setQueryData(
         ["ai-reprice", seed, result.pricing.hourlyRate],
@@ -126,9 +169,12 @@ export function useArtistAiAnalysis(
         sizeHeightCm: height.data,
         calibration: analysis.calibration,
         materials: analysis.baseMaterials,
+        ink: analysis.ink
+          ? { baseMl: analysis.ink.baseMl, inventoryItemId: inkItemId }
+          : null,
       },
     };
-  }, [analysis, inputs]);
+  }, [analysis, inputs, inkItemId]);
 
   const payloadKey = payload ? JSON.stringify(payload) : null;
   useEffect(() => {
@@ -169,18 +215,22 @@ export function useArtistAiAnalysis(
     formData.append("bodyPart", inputs.bodyPart.trim());
     formData.append("sizeWidthCm", inputs.sizeWidthCm);
     formData.append("sizeHeightCm", inputs.sizeHeightCm);
+    if (inkItemId) formData.append("inkItemId", inkItemId);
     analyzeMutation.mutate(formData);
   };
 
   const reset = () => {
     setAnalysis(null);
     setDebouncedPayload(null);
+    setInkItemId(null);
   };
 
   return {
     result,
     analyze,
     reset,
+    inkItemId,
+    setInkItemId,
     isAnalyzing: analyzeMutation.isPending,
     isRecalculating: !!analysis && (isDebouncing || repriceQuery.isFetching),
     staleReason: analysis ? invalidReason : undefined,
@@ -204,5 +254,11 @@ function payloadFor(result: aiAnalysisResultInterface): RepricePayload {
     sizeHeightCm: result.size.heightCm,
     calibration: result.calibration,
     materials: result.baseMaterials,
+    ink: result.ink
+      ? {
+          baseMl: result.ink.baseMl,
+          inventoryItemId: result.ink.inventoryItemId,
+        }
+      : null,
   };
 }

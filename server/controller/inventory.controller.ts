@@ -9,10 +9,14 @@ import { isValidObjectId } from "mongoose";
 import {
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  isMeasuredUnit,
 } from "../model/inventory.model";
 import {
   addInventoryItemSchema,
   addStocksQuantityField,
+  addStocksItemCountField,
+  quantityPerItemUnitError,
+  totalFromItems,
   updateInventoryItemSchema,
   wholeNumberUnitError,
 } from "../validation/inventory.schema";
@@ -73,14 +77,9 @@ export class InventoryController {
   static addStocks = async (request: AuthRequest, response: Response) => {
     const account = request.account;
 
-    const { inventoryId, stocks, expences, recordedBy } = request.body;
+    const { inventoryId, stocks, itemCount, expences, recordedBy } =
+      request.body;
 
-    const parsedQty = addStocksQuantityField.safeParse(stocks);
-    if (!parsedQty.success) {
-      response.status(400).json({ error: firstIssue(parsedQty.error) });
-      return;
-    }
-    const qty = parsedQty.data;
     if (typeof inventoryId !== "string" || !isValidObjectId(inventoryId)) {
       response.status(400).json({ error: "Invalid inventory item" });
       return;
@@ -93,6 +92,29 @@ export class InventoryController {
     if (!existing) {
       response.status(404).json({ error: "Inventory item not found" });
       return;
+    }
+
+    let qty: number;
+    if (itemCount !== undefined && itemCount !== null && itemCount !== "") {
+      if (!existing.quantityPerItem) {
+        response
+          .status(400)
+          .json({ error: "This item has no amount per item set" });
+        return;
+      }
+      const parsedCount = addStocksItemCountField.safeParse(itemCount);
+      if (!parsedCount.success) {
+        response.status(400).json({ error: firstIssue(parsedCount.error) });
+        return;
+      }
+      qty = totalFromItems(parsedCount.data, existing.quantityPerItem);
+    } else {
+      const parsedQty = addStocksQuantityField.safeParse(stocks);
+      if (!parsedQty.success) {
+        response.status(400).json({ error: firstIssue(parsedQty.error) });
+        return;
+      }
+      qty = parsedQty.data;
     }
     const qtyError = wholeNumberUnitError("Quantity", existing.type, qty);
     if (qtyError) {
@@ -114,7 +136,7 @@ export class InventoryController {
       await ExpencesService.create({
         account: account?._id!,
         date: new Date().toLocaleDateString("en-US"),
-        description: `Add ${stocks} ${item?.type} ${item?.item} stocks  `,
+        description: `Add ${qty} ${item?.type} ${item?.item} stocks  `,
         cost: expences,
         recordedBy: recordedBy,
       });
@@ -124,7 +146,7 @@ export class InventoryController {
       account: account?._id!,
       date: getDate(),
       time: getTime(),
-      message: `+${stocks} stocks to ${item?.item}`,
+      message: `+${qty} ${item?.type} stocks to ${item?.item}`,
       type: "add",
       actionBy: recordedBy != "none" ? recordedBy : account?.name!,
     });
@@ -176,7 +198,7 @@ export class InventoryController {
       response.status(400).json({ error: firstIssue(parsed.error) });
       return;
     }
-    const { _id, ...changes } = parsed.data;
+    const { _id, itemCount, ...changes } = parsed.data;
     if (!isValidObjectId(_id)) {
       response.status(400).json({ error: "Invalid inventory item" });
       return;
@@ -207,6 +229,32 @@ export class InventoryController {
 
     const unit = changes.type ?? current.type;
     const unitChanged = unit !== current.type;
+
+    const requestedPerItem =
+      changes.quantityPerItem !== undefined
+        ? changes.quantityPerItem
+        : (current.quantityPerItem ?? null);
+    const perItemError = quantityPerItemUnitError(
+      unit,
+      changes.quantityPerItem,
+    );
+    if (perItemError) {
+      response.status(400).json({ error: perItemError });
+      return;
+    }
+    const quantityPerItem = isMeasuredUnit(unit) ? requestedPerItem : null;
+    if (quantityPerItem !== (current.quantityPerItem ?? null)) {
+      changes.quantityPerItem = quantityPerItem;
+    }
+    if (itemCount !== undefined) {
+      if (!quantityPerItem) {
+        response
+          .status(400)
+          .json({ error: "Set the amount per item to update by number of items" });
+        return;
+      }
+      changes.stocks = totalFromItems(itemCount, quantityPerItem);
+    }
     for (const [field, label] of [
       ["stocks", "Quantity"],
       ["safeStock", "Safe stock"],

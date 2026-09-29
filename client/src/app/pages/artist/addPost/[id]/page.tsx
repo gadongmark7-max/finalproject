@@ -1,4 +1,9 @@
 "use client";
+import {
+  itemUsedQtySchemaFor,
+  sanitizeItemUsedQty,
+} from "@/lib/validation/schemas/inventory";
+import { quantityInputMode } from "@/app/types/inventory.type";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -10,18 +15,19 @@ import { priceField } from "@/lib/validation/schemas/booking";
 import {
   firstError,
   percentField,
-  countField,
   selectField,
 } from "@/lib/validation/fields";
 import {
   useArtistAiAnalysis,
+  useSyncAiItemsUsed,
+  itemsUsedFromMaterials,
+  type AiItemUsed,
   distributeSessionHours,
   aiSizeWidthSchema,
   aiSizeHeightSchema,
 } from "@/app/hooks/artistAiAnalysisHooks";
 
 const downPaymentSchema = percentField("Down payment");
-const qtySchema = countField("Quantity", { min: 1 });
 const categorySchema = selectField("an art style", [""]);
 const sizeWidthSchema = aiSizeWidthSchema;
 const sizeHeightSchema = aiSizeHeightSchema;
@@ -161,9 +167,7 @@ export default function Page() {
     },
   });
 
-  const [itemUsed, setItemUsed] = useState<
-    { item: string; qty: number; itemId: string; price: number }[]
-  >([]);
+  const [itemUsed, setItemUsed] = useState<AiItemUsed[]>([]);
   const [itemId, setItemId] = useState("");
   const [itemName, setItemName] = useState("");
   const [itemType, setItemType] = useState("Quantity");
@@ -180,7 +184,7 @@ export default function Page() {
 
   const addInventoryItem = () => {
     if (!itemId) return errorAlert("no selected item");
-    if (!qtySchema.safeParse(itemQty).success)
+    if (!itemUsedQtySchemaFor(itemType).safeParse(itemQty).success)
       return errorAlert("Enter a valid quantity");
     setItemUsed((prev) => {
       const existingItem = prev.find((item) => item.itemId === itemId);
@@ -189,7 +193,7 @@ export default function Page() {
           item.itemId === itemId
             ? {
                 ...item,
-                qty: item.qty + itemQtyNum,
+                qty: Math.round((item.qty + itemQtyNum) * 10000) / 10000,
                 item: itemName,
                 price: itemPrice,
               }
@@ -290,14 +294,7 @@ export default function Page() {
         result.analysis.estimatedSessions,
       ),
     );
-    setItemUsed(
-      result.materials.map((m) => ({
-        itemId: m.inventoryItemId,
-        item: m.name,
-        qty: m.estimatedQuantity,
-        price: m.unitCost,
-      })),
-    );
+    setItemUsed(itemsUsedFromMaterials(result.materials));
     setPrice(String(Math.round(result.pricing.suggestedPrice)));
   };
 
@@ -321,6 +318,8 @@ export default function Page() {
       },
     },
   );
+
+  useSyncAiItemsUsed(ai.result, setItemUsed);
 
   const addTag = () => {
     if (tags.length >= 5) return errorAlert("the maximum tags is 5");
@@ -841,16 +840,19 @@ export default function Page() {
                 <div className="space-y-2">
                   <Label>{itemType}</Label>
                   <Input
-                    inputMode="numeric"
+                    inputMode={quantityInputMode(itemType)}
                     value={itemQty}
                     onChange={(e) =>
-                      setItemQty(e.target.value.replace(/\D/g, ""))
+                      setItemQty(sanitizeItemUsedQty(e.target.value, itemType))
                     }
                   />
                 </div>
                 <Button
                   onClick={addInventoryItem}
-                  disabled={!itemId || !qtySchema.safeParse(itemQty).success}
+                  disabled={
+                    !itemId ||
+                    !itemUsedQtySchemaFor(itemType).safeParse(itemQty).success
+                  }
                   className="w-full"
                 >
                   <Plus className="mr-1 h-4 w-4" /> Add
@@ -865,7 +867,10 @@ export default function Page() {
                       className="flex items-center gap-2 border border-border bg-surface-alt px-3 py-1.5 text-xs text-text"
                     >
                       <span className="font-medium">{item.item}</span>
-                      <span className="text-text-muted">× {item.qty}</span>
+                      <span className="text-text-muted">
+                        × {item.qty}{" "}
+                        {getInventoryType(item.itemId, inventoryData || [])}
+                      </span>
                       <button
                         onClick={() => removeInventoryItem(item.itemId)}
                         className="ml-1 text-text-muted hover:text-danger-light transition-colors"
@@ -960,6 +965,8 @@ export default function Page() {
               sizeFromScene={sizeFromScene}
               analyzeDisabledReason={analyzeDisabledReason}
               onAnalyze={ai.analyze}
+              inkItemId={ai.inkItemId}
+              onInkItemChange={ai.setInkItemId}
               onApply={() => ai.result && applyAiEstimate(ai.result)}
             />
           </aside>

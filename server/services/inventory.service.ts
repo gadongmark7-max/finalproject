@@ -26,7 +26,13 @@ export class InventoryService {
     data: Partial<
       Pick<
         inventoryInterfaceInput,
-        "item" | "category" | "type" | "stocks" | "safeStock" | "price"
+        | "item"
+        | "category"
+        | "type"
+        | "stocks"
+        | "quantityPerItem"
+        | "safeStock"
+        | "price"
       >
     >,
   ) {

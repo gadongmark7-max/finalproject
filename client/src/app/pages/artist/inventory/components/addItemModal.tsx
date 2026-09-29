@@ -24,7 +24,10 @@ import {
   inventoryInterface,
   INVENTORY_CATEGORIES,
   INVENTORY_UNITS,
+  formatQuantity,
+  isMeasuredUnit,
   quantityInputMode,
+  totalFromItems,
 } from "@/app/types/inventory.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -35,7 +38,7 @@ import { Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Controller } from "react-hook-form";
 import { useZodForm } from "@/lib/validation/useZodForm";
-import { addItemSchema } from "@/lib/validation/schemas/inventory";
+import { addItemWithItemsSchema } from "@/lib/validation/schemas/inventory";
 import { MoneyInput } from "@/components/ui/money-input";
 import { FieldError } from "@/components/ui/field-error";
 
@@ -55,12 +58,14 @@ export function AddItemModal({
     reset,
     watch,
     formState: { errors, isValid },
-  } = useZodForm(addItemSchema, {
+  } = useZodForm(addItemWithItemsSchema, {
     defaultValues: {
       item: "",
       category: "",
       type: "",
       stocks: "",
+      itemCount: "",
+      quantityPerItem: "",
       safeStock: "0",
       expences: "0",
     },
@@ -71,19 +76,27 @@ export function AddItemModal({
     return Math.round((expenses / stocks) * 100) / 100;
   };
 
-  const [watchedQuantity, watchedCost, watchedUnit] = watch([
-    "stocks",
-    "expences",
-    "type",
-  ]);
+  const [
+    watchedQuantity,
+    watchedCost,
+    watchedUnit,
+    watchedItemCount,
+    watchedPerItem,
+  ] = watch(["stocks", "expences", "type", "itemCount", "quantityPerItem"]);
+  const measured = isMeasuredUnit(watchedUnit);
+  const itemCountNum = Number(watchedItemCount) || 0;
+  const perItemNum = Number(watchedPerItem) || 0;
+  const previewTotal = measured
+    ? totalFromItems(itemCountNum, perItemNum)
+    : Number(watchedQuantity) || 0;
   const previewUnitPrice = getPricePerItem(
     Number(watchedCost) || 0,
-    Number(watchedQuantity) || 0,
+    previewTotal,
   );
 
   const mutation = useMutation({
     mutationFn: (data: {
-      inventory: inventoryInterfaceInput;
+      inventory: inventoryInterfaceInput & { itemCount?: number };
       expences: number;
       recordedBy: string;
     }) =>
@@ -108,6 +121,8 @@ export function AddItemModal({
       account: user._id,
       item: values.item,
       stocks: values.stocks,
+      itemCount: values.itemCount,
+      quantityPerItem: values.quantityPerItem,
       category: values.category,
       type: values.type,
       safeStock: values.safeStock,
@@ -166,7 +181,77 @@ export function AddItemModal({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="mt-3 w-full space-y-2">
+            <Label>Unit</Label>
+            <Controller
+              control={control}
+              name="type"
+              rules={{
+                deps: ["stocks", "safeStock", "itemCount", "quantityPerItem"],
+              }}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger className=" w-full">
+                    <SelectValue placeholder="Select unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INVENTORY_UNITS.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <FieldError>{errors.type?.message}</FieldError>
+          </div>
+
+          {measured ? (
+            <>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="mt-3 w-full space-y-2">
+                  <Label htmlFor="add-item-count">Number of Items</Label>
+                  <Input
+                    id="add-item-count"
+                    {...register("itemCount", { deps: ["quantityPerItem"] })}
+                    inputMode="decimal"
+                    aria-invalid={!!errors.itemCount}
+                    placeholder="e.g. 10 bottles"
+                    className="w-full"
+                  />
+                  <FieldError>{errors.itemCount?.message}</FieldError>
+                </div>
+                <div className="mt-3 w-full space-y-2">
+                  <Label htmlFor="add-item-per-item">Amount per Item</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="add-item-per-item"
+                      {...register("quantityPerItem", { deps: ["itemCount"] })}
+                      inputMode="decimal"
+                      aria-invalid={!!errors.quantityPerItem}
+                      placeholder="e.g. 50"
+                      className="w-full"
+                    />
+                    <span className="text-sm text-text-muted whitespace-nowrap">
+                      {watchedUnit}
+                    </span>
+                  </div>
+                  <FieldError>{errors.quantityPerItem?.message}</FieldError>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3 border border-border bg-surface-alt px-3 py-2">
+                <span className="text-xs text-text-muted">Total Quantity</span>
+                <span className="text-sm text-text" aria-live="polite">
+                  {formatQuantity(itemCountNum)} ×{" "}
+                  {formatQuantity(perItemNum)} {watchedUnit} ={" "}
+                  <span className="text-gold">
+                    {formatQuantity(previewTotal)} {watchedUnit}
+                  </span>
+                </span>
+              </div>
+            </>
+          ) : (
             <div className="mt-3 w-full space-y-2">
               <Label htmlFor="add-item-stocks">
                 Quantity{watchedUnit ? ` (${watchedUnit})` : ""}
@@ -192,31 +277,7 @@ export function AddItemModal({
               </div>
               <FieldError>{errors.stocks?.message}</FieldError>
             </div>
-
-            <div className="mt-3 w-full space-y-2">
-              <Label>Unit</Label>
-              <Controller
-                control={control}
-                name="type"
-                rules={{ deps: ["stocks", "safeStock"] }}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className=" w-full">
-                      <SelectValue placeholder="Select unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INVENTORY_UNITS.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <FieldError>{errors.type?.message}</FieldError>
-            </div>
-          </div>
+          )}
 
           <div className="flex gap-3">
             <div className="mt-3 w-full">
@@ -261,6 +322,16 @@ export function AddItemModal({
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
+              {measured && perItemNum > 0 && itemCountNum > 0 && (
+                <>
+                  {" "}
+                  · per item: ₱
+                  {(Number(watchedCost) / itemCountNum || 0).toLocaleString(
+                    "en-US",
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                  )}
+                </>
+              )}
             </p>
           </div>
         </div>
