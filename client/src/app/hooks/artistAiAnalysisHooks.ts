@@ -7,7 +7,10 @@ import { errorAlert, successAlert } from "@/app/utils/alert";
 import { apiErrorMessage } from "@/app/utils/customFunction";
 import { positiveDecimalField } from "@/lib/validation/fields";
 import { tattooArtStyles } from "@/components/ui/artStyleSelect";
-import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
+import {
+  aiAnalysisResultInterface,
+  aiInkSelectionInterface,
+} from "@/app/types/aiAnalysis.type";
 import { bodyPartSchema } from "@/lib/validation/schemas/post";
 
 const RECALC_DEBOUNCE_MS = 400;
@@ -87,8 +90,16 @@ type RepricePayload = {
   sizeHeightCm: number;
   calibration: aiAnalysisResultInterface["calibration"];
   materials: aiAnalysisResultInterface["baseMaterials"];
-  ink: { baseMl: number; inventoryItemId: string | null } | null;
+  ink: { baseMl: number; selections: aiInkSelectionInterface[] } | null;
 };
+
+const inkSelectionsFrom = (
+  result: aiAnalysisResultInterface,
+): aiInkSelectionInterface[] =>
+  (result.ink?.selections ?? []).map((s) => ({
+    inventoryItemId: s.inventoryItemId,
+    share: s.share,
+  }));
 
 export function useArtistAiAnalysis(
   inputs: Inputs,
@@ -99,7 +110,10 @@ export function useArtistAiAnalysis(
     null,
   );
   const materialNames = useRef(new Map<string, string>());
-  const [inkItemId, setInkItemId] = useState<string | null>(null);
+  const [inkSelections, setInkSelections] = useState<
+    aiInkSelectionInterface[]
+  >([]);
+  const [inkTouched, setInkTouched] = useState(false);
   const [debouncedPayload, setDebouncedPayload] =
     useState<RepricePayload | null>(null);
 
@@ -113,7 +127,8 @@ export function useArtistAiAnalysis(
           (o) => [o.inventoryItemId, o.name] as const,
         ),
       ]);
-      setInkItemId(result.ink?.inventoryItemId ?? null);
+      setInkSelections(inkSelectionsFrom(result));
+      setInkTouched(false);
       const seed = payloadFor(result);
       queryClient.setQueryData(
         ["ai-reprice", seed, result.pricing.hourlyRate],
@@ -170,11 +185,11 @@ export function useArtistAiAnalysis(
         calibration: analysis.calibration,
         materials: analysis.baseMaterials,
         ink: analysis.ink
-          ? { baseMl: analysis.ink.baseMl, inventoryItemId: inkItemId }
+          ? { baseMl: analysis.ink.baseMl, selections: inkSelections }
           : null,
       },
     };
-  }, [analysis, inputs, inkItemId]);
+  }, [analysis, inputs, inkSelections]);
 
   const payloadKey = payload ? JSON.stringify(payload) : null;
   useEffect(() => {
@@ -200,7 +215,12 @@ export function useArtistAiAnalysis(
     retry: false,
   });
 
-  const result = (analysis && repriceQuery.data) || analysis;
+  const result = useMemo(() => {
+    const latest = (analysis && repriceQuery.data) || analysis;
+    return latest && analysis
+      ? { ...latest, detected: analysis.detected }
+      : latest;
+  }, [analysis, repriceQuery.data]);
   const isDebouncing =
     !!payloadKey && payloadKey !== JSON.stringify(debouncedPayload);
 
@@ -215,22 +235,39 @@ export function useArtistAiAnalysis(
     formData.append("bodyPart", inputs.bodyPart.trim());
     formData.append("sizeWidthCm", inputs.sizeWidthCm);
     formData.append("sizeHeightCm", inputs.sizeHeightCm);
-    if (inkItemId) formData.append("inkItemId", inkItemId);
+    if (inkTouched)
+      formData.append("inkSelections", JSON.stringify(inkSelections));
     analyzeMutation.mutate(formData);
   };
 
   const reset = () => {
     setAnalysis(null);
     setDebouncedPayload(null);
-    setInkItemId(null);
+    setInkSelections([]);
+    setInkTouched(false);
+  };
+
+  const toggleInk = (inventoryItemId: string) => {
+    setInkTouched(true);
+    setInkSelections((prev) => {
+      if (prev.some((s) => s.inventoryItemId === inventoryItemId))
+        return prev.filter((s) => s.inventoryItemId !== inventoryItemId);
+      const share =
+        prev.length > 0
+          ? Math.round(
+              (prev.reduce((sum, s) => sum + s.share, 0) / prev.length) * 10,
+            ) / 10
+          : 100;
+      return [...prev, { inventoryItemId, share }];
+    });
   };
 
   return {
     result,
     analyze,
     reset,
-    inkItemId,
-    setInkItemId,
+    inkSelections,
+    toggleInk,
     isAnalyzing: analyzeMutation.isPending,
     isRecalculating: !!analysis && (isDebouncing || repriceQuery.isFetching),
     staleReason: analysis ? invalidReason : undefined,
@@ -255,10 +292,7 @@ function payloadFor(result: aiAnalysisResultInterface): RepricePayload {
     calibration: result.calibration,
     materials: result.baseMaterials,
     ink: result.ink
-      ? {
-          baseMl: result.ink.baseMl,
-          inventoryItemId: result.ink.inventoryItemId,
-        }
+      ? { baseMl: result.ink.baseMl, selections: inkSelectionsFrom(result) }
       : null,
   };
 }

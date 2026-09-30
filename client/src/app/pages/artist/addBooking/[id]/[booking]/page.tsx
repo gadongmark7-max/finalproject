@@ -306,10 +306,16 @@ export default function Page() {
   const [sizeHeightCm, setSizeHeightCm] = useState("");
   const [sizeFromScene, setSizeFromScene] = useState(false);
 
+  const modelBodyPart =
+    tattooData?.meshName && tattooData.meshName !== "Unknown"
+      ? tattooData.meshName
+      : null;
+
   // The 3D placement is the trusted source for body part and size.
   useEffect(() => {
     if (!tattooData) return;
-    setBodyPart(tattooData.meshName);
+    if (tattooData.meshName && tattooData.meshName !== "Unknown")
+      setBodyPart(tattooData.meshName);
     const { widthCm, heightCm } = tattooSizeCmFromScene(tattooData);
     setSizeWidthCm(String(widthCm));
     setSizeHeightCm(String(heightCm));
@@ -1022,6 +1028,7 @@ export default function Page() {
               missingMaterialNames={ai.missingMaterialNames}
               bodyPart={bodyPart}
               onBodyPartChange={setBodyPart}
+              modelBodyPart={modelBodyPart}
               hourlyRate={hourlyRate}
               hourlyRateLoading={settings.isLoading}
               price={price}
@@ -1031,8 +1038,8 @@ export default function Page() {
               sizeFromScene={sizeFromScene}
               analyzeDisabledReason={analyzeDisabledReason}
               onAnalyze={ai.analyze}
-              inkItemId={ai.inkItemId}
-              onInkItemChange={ai.setInkItemId}
+              inkSelections={ai.inkSelections}
+              onInkToggle={ai.toggleInk}
               onApply={() => ai.result && applyAiEstimate(ai.result)}
               applyTarget="booking"
             />

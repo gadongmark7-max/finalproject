@@ -11,6 +11,8 @@ export interface ModelBounds {
 interface BodyRegionProfile {
   referenceHeight: number;
   head: number;
+  neck: number;
+  neckMaxX: number;
   chestSplit: number;
   elbow: number;
   torsoBottom: number;
@@ -22,12 +24,14 @@ interface BodyRegionProfile {
 
 const LEGACY_PROFILE: BodyRegionProfile = {
   referenceHeight: 2.6218,
-  head: 2.1,
+  head: 2.3,
+  neck: 2.2,
+  neckMaxX: 0.14,
   chestSplit: 1.8,
   elbow: 1.8,
   torsoBottom: 1.5,
   knee: 1.0,
-  frontZ: 0.05,
+  frontZ: -0.08,
   legMaxX: 0.45,
   armInnerX: [[0, 0.25]],
 };
@@ -36,7 +40,9 @@ const BODY_REGION_PROFILES: Record<string, BodyRegionProfile> = {
   "/gltf/boy.glb": LEGACY_PROFILE,
   "/gltf/girl.glb": {
     referenceHeight: 2.7753,
-    head: 2.32,
+    head: 2.43,
+    neck: 2.32,
+    neckMaxX: 0.12,
     chestSplit: 1.88,
     elbow: 1.75,
     torsoBottom: 1.45,
@@ -92,6 +98,7 @@ export function detectBodyPart(
   const z = (point.z - bounds.centerZ) * scale;
 
   if (y > profile.head) return "Head";
+  if (y > profile.neck && x < profile.neckMaxX) return "Neck";
 
   if (y > profile.torsoBottom) {
     if (x > interpolate(profile.armInnerX, y)) {

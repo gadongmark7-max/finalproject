@@ -24,6 +24,7 @@ import {
   aiRepriceRequestSchema,
   clientEstimateRequestSchema,
   clientRepriceRequestSchema,
+  InkSelection,
   TattooCategory,
 } from "../validation/aiAnalysis.schema";
 
@@ -94,6 +95,17 @@ function inkOptionsFor(inventory: InventoryDoc[]) {
     });
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function uniqueInkSelections(selections: InkSelection[]) {
+  const seen = new Set<string>();
+  return selections.filter((s) => {
+    if (seen.has(s.inventoryItemId)) return false;
+    seen.add(s.inventoryItemId);
+    return true;
+  });
+}
+
 function buildArtistEstimate(params: {
   category: TattooCategory;
   complexity: number;
@@ -105,7 +117,7 @@ function buildArtistEstimate(params: {
   calibration: Calibration;
   baseMaterials: { inventoryItemId: string; quantity: number }[];
   inventory: InventoryDoc[];
-  ink: { baseMl: number; inventoryItemId: string | null } | null;
+  ink: { baseMl: number; selections: InkSelection[] | null } | null;
 }) {
   const inventoryById = new Map(
     params.inventory.map((item) => [item._id.toString(), item]),
@@ -159,41 +171,62 @@ function buildArtistEstimate(params: {
       work,
       calibration: params.calibration,
     });
-    const requestedId = params.ink.inventoryItemId;
-    if (requestedId && !inventoryById.has(requestedId)) {
-      missingMaterialIds.push(requestedId);
+    const requested = params.ink.selections;
+    for (const sel of requested ?? []) {
+      if (!inventoryById.has(sel.inventoryItemId))
+        missingMaterialIds.push(sel.inventoryItemId);
     }
-    const selected =
-      selectableInks.find((o) => o.inventoryItemId === requestedId) ??
-      (!requestedId && selectableInks.length === 1 ? selectableInks[0] : null);
+    const chosen = requested
+      ? uniqueInkSelections(requested).filter((sel) =>
+          selectableInks.some((o) => o.inventoryItemId === sel.inventoryItemId),
+        )
+      : selectableInks.length === 1
+        ? [{ inventoryItemId: selectableInks[0].inventoryItemId, share: 100 }]
+        : [];
+    const totalShare = chosen.reduce((sum, sel) => sum + sel.share, 0);
 
-    let line: MaterialLine | null = null;
-    if (selected) {
-      const item = inventoryById.get(selected.inventoryItemId)!;
-      line = PricingService.materialLine({
-        inventoryItemId: selected.inventoryItemId,
+    const selections = chosen.map((sel) => {
+      const option = selectableInks.find(
+        (o) => o.inventoryItemId === sel.inventoryItemId,
+      )!;
+      const item = inventoryById.get(sel.inventoryItemId)!;
+      const fraction = sel.share / totalShare;
+      const ml = round2(estimatedMl * fraction);
+      const line = PricingService.materialLine({
+        inventoryItemId: sel.inventoryItemId,
         name: item.item,
         category: item.category,
         unit: item.type,
         unitCost: item.price,
         estimatedQuantity: PricingService.inkQuantityInUnit(
-          estimatedMl,
+          ml,
           ML_PER_UNIT[item.type],
         ),
       });
-      materials.unshift(line);
-      inkCost = line.estimatedCost;
-    }
+      return {
+        line,
+        selection: {
+          inventoryItemId: sel.inventoryItemId,
+          name: item.item,
+          share: Math.round(fraction * 1000) / 10,
+          ml,
+          quantityInUnit: line.estimatedQuantity,
+          unit: line.unit,
+          pricePerMl: option.pricePerMl,
+          cost: line.estimatedCost,
+        },
+      };
+    });
+
+    materials.unshift(...selections.map((s) => s.line));
+    inkCost = round2(selections.reduce((sum, s) => sum + s.line.estimatedCost, 0));
 
     ink = {
       baseMl: params.ink.baseMl,
       estimatedMl,
-      inventoryItemId: selected?.inventoryItemId ?? null,
-      quantityInUnit: line?.estimatedQuantity ?? null,
-      unit: line?.unit ?? null,
-      pricePerMl: selected?.pricePerMl ?? null,
+      selections: selections.map((s) => s.selection),
       cost: inkCost,
-      needsSelection: !selected && selectableInks.length > 0,
+      needsSelection: selections.length === 0 && selectableInks.length > 0,
       options: inkOptions,
     };
   }
@@ -246,7 +279,8 @@ export class AiAnalysisController {
       });
       return;
     }
-    const { bodyPart, sizeWidthCm, sizeHeightCm, inkItemId } = parsed.data;
+    const { bodyPart, sizeWidthCm, sizeHeightCm, inkSelections } =
+      parsed.data;
     const hourlyRate = await resolveHourlyRate(request, parsed.data.hourlyRate);
     if (hourlyRate === null) {
       response.status(400).json({ error: HOURLY_RATE_NOT_SET_MESSAGE });
@@ -261,19 +295,35 @@ export class AiAnalysisController {
       const inventory = await InventoryService.getByAccount(
         request.account!._id,
       );
+      const toOption = (item: InventoryDoc) => ({
+        id: item._id.toString(),
+        name: item.item,
+        category: item.category,
+        unit: item.type,
+      });
+      const inks = inventory.filter(isMeasuredInkItem).map(toOption);
 
       const ai = await TattooAnalysisService.analyze({
         image: { data: request.file.buffer, mimeType: request.file.mimetype },
         trusted: { bodyPart, widthCm: sizeWidthCm, heightCm: sizeHeightCm },
         inventory: inventory
           .filter((item) => !isMeasuredInkItem(item))
-          .map((item) => ({
-            id: item._id.toString(),
-            name: item.item,
-            category: item.category,
-            unit: item.type,
-          })),
+          .map(toOption),
+        inks,
       });
+
+      const aiInkSelections = uniqueInkSelections(
+        ai.inkUsage
+          .filter((usage) => inks.some((ink) => ink.id === usage.inkItemId))
+          .map((usage) => ({
+            inventoryItemId: usage.inkItemId,
+            share: usage.percent,
+          })),
+      );
+      const detectedBodyPart =
+        ai.detectedBodyPart && ai.detectedBodyPart !== "Unknown"
+          ? ai.detectedBodyPart
+          : null;
 
       const calibration = PricingService.buildCalibration({
         aiHours: ai.estimatedHours,
@@ -287,8 +337,8 @@ export class AiAnalysisController {
         },
       });
 
-      response.json(
-        buildArtistEstimate({
+      response.json({
+        ...buildArtistEstimate({
           category: ai.category,
           complexity: ai.complexity,
           isColored: ai.isColored,
@@ -306,11 +356,17 @@ export class AiAnalysisController {
             ai.estimatedInkMl !== undefined
               ? {
                   baseMl: PricingService.clampInkMl(ai.estimatedInkMl),
-                  inventoryItemId: inkItemId,
+                  selections:
+                    inkSelections ??
+                    (aiInkSelections.length > 0 ? aiInkSelections : null),
                 }
               : null,
         }),
-      );
+        detected: {
+          bodyPart: detectedBodyPart,
+          inkItemIds: aiInkSelections.map((sel) => sel.inventoryItemId),
+        },
+      });
     } catch (error) {
       sendError(response, error, "AI tattoo analysis");
     }
@@ -352,7 +408,7 @@ export class AiAnalysisController {
           ink: body.ink
             ? {
                 baseMl: PricingService.clampInkMl(body.ink.baseMl),
-                inventoryItemId: body.ink.inventoryItemId,
+                selections: body.ink.selections,
               }
             : null,
         }),

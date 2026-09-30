@@ -965,8 +965,8 @@ export default function Page() {
               sizeFromScene={sizeFromScene}
               analyzeDisabledReason={analyzeDisabledReason}
               onAnalyze={ai.analyze}
-              inkItemId={ai.inkItemId}
-              onInkItemChange={ai.setInkItemId}
+              inkSelections={ai.inkSelections}
+              onInkToggle={ai.toggleInk}
               onApply={() => ai.result && applyAiEstimate(ai.result)}
             />
           </aside>
