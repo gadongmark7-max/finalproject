@@ -8,7 +8,6 @@ import { postInterface } from "@/app/types/post.type";
 import ImgCard from "./components/imgCard";
 import Link from "next/link";
 import { ChangeProfile } from "./components/changeProfile";
-import MapLocation from "./components/location";
 import { ArtistCalendar } from "./components/artistCalendar";
 import { Button } from "@/components/ui/button";
 import ReviewsComponent from "./components/reviews";
@@ -23,6 +22,18 @@ import {
   Pencil,
   ArrowLeftRight,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+
+const MapLocation = dynamic(() => import("./components/location"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[220px] sm:h-[200px] lg:h-[216px] border border-border bg-surface-alt flex items-center justify-center">
+      <span className="text-[10px] uppercase tracking-[0.2em] text-text-dim">
+        Loading map…
+      </span>
+    </div>
+  ),
+});
 
 export default function Page() {
   const { user } = useUserStore();
@@ -254,12 +265,10 @@ export default function Page() {
                   Studio Location
                 </span>
               </div>
-              <div className="h-[240px] sm:h-[260px] overflow-hidden">
-                <MapLocation
-                  artistInfo={artistInfo}
-                  setArtistInfo={setArtistInfo}
-                />
-              </div>
+              <MapLocation
+                artistInfo={artistInfo}
+                setArtistInfo={setArtistInfo}
+              />
             </div>
           </div>
         </div>

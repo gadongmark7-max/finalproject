@@ -606,7 +606,7 @@ export default function LoginPage() {
                       emailField.ref(el);
                       emailInputRef.current = el;
                     }}
-                    placeholder="you@example.com"
+                    placeholder="you@gmail.com"
                     readOnly={accessCodeStep}
                     aria-invalid={!!errors.email}
                     className={`w-full pl-10 pr-3.5 py-3 bg-primary border text-text text-sm font-light outline-none transition-all duration-200 placeholder:text-text-dim placeholder:text-[0.82rem] focus:border-gold focus:shadow-[0_0_0_1px_rgba(201,168,76,0.15)] disabled:opacity-40 ${errors.email ? "border-danger" : "border-border"}`}
@@ -679,12 +679,18 @@ export default function LoginPage() {
                       type="button"
                       onClick={() => setShowAccessCode((prev) => !prev)}
                       disabled={isLocked}
-                      aria-label={showAccessCode ? "Hide access code" : "Show access code"}
+                      aria-label={
+                        showAccessCode ? "Hide access code" : "Show access code"
+                      }
                       aria-pressed={showAccessCode}
                       aria-controls="login-access-code"
                       className="absolute right-1.5 z-10 text-text-muted hover:text-gold transition-colors duration-200 p-2 disabled:opacity-40"
                     >
-                      {showAccessCode ? <EyeOff size={14} /> : <Eye size={14} />}
+                      {showAccessCode ? (
+                        <EyeOff size={14} />
+                      ) : (
+                        <Eye size={14} />
+                      )}
                     </button>
                     <input
                       id="login-access-code"
@@ -709,7 +715,8 @@ export default function LoginPage() {
                   <FieldError>{accessCodeError}</FieldError>
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="text-[0.66rem] text-text-muted font-light tracking-[0.03em]">
-                      Enter the access code issued to you or the one you set in Settings.
+                      Enter the access code issued to you or the one you set in
+                      Settings.
                     </p>
                     <button
                       type="button"
