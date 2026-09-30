@@ -1,21 +1,21 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import * as maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
-import { Clock, MapPin, Navigation, Star } from "lucide-react"
+import { maplibregl } from "@/app/utils/maplibre"
+import { AlertTriangle, Clock, LoaderCircle, MapPin, Navigation, Star } from "lucide-react"
 import { artistInfoInterface } from "@/app/types/accounts.type"
 import {
-  createOsmStyle,
   createStudioMarkerElement,
   DEFAULT_PROFILE_IMAGE,
 } from "@/app/utils/mapMarker"
+import { isValidCoordinate } from "@/app/utils/routing"
+import { OsmMapCanvas, useOsmMap } from "@/app/components/map/osmMap"
 
 interface ArtistMapProps {
   mapArtistInfo: artistInfoInterface[]
+  loading?: boolean
+  error?: boolean
 }
-
-const DEFAULT_CENTER: [number, number] = [120.9842, 14.5995]
 
 const WEEK_DAYS = [
   "Monday",
@@ -212,56 +212,30 @@ function ArtistCard({
   )
 }
 
-export default function ArtistMap({ mapArtistInfo }: ArtistMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<maplibregl.Map | null>(null)
-  const [map, setMap] = useState<maplibregl.Map | null>(null)
+export default function ArtistMap({ mapArtistInfo, loading, error }: ArtistMapProps) {
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const artistsWithLocation = useMemo(
     () =>
-      mapArtistInfo.filter(
-        (a) =>
-          a?.artist?.location?.lat != null &&
-          a?.artist?.location?.long != null
+      mapArtistInfo.filter((a) =>
+        isValidCoordinate(a?.artist?.location?.lat, a?.artist?.location?.long)
       ),
     [mapArtistInfo]
   )
 
-  const center: [number, number] = useMemo(() => {
-    if (artistsWithLocation.length > 0) {
-      const first = artistsWithLocation[0]
-      return [first.artist.location!.long!, first.artist.location!.lat!]
-    }
-    return DEFAULT_CENTER
+  const center: [number, number] | null = useMemo(() => {
+    if (artistsWithLocation.length === 0) return null
+    const first = artistsWithLocation[0]
+    return [first.artist.location!.long!, first.artist.location!.lat!]
   }, [artistsWithLocation])
 
   const hasLocations = artistsWithLocation.length > 0
 
-  useEffect(() => {
-    if (!hasLocations || !containerRef.current || mapInstanceRef.current) return
-
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: createOsmStyle(),
-      center,
-      zoom: 15,
-    })
-
-    instance.addControl(new maplibregl.NavigationControl(), "top-right")
-    const observer = new ResizeObserver(() => instance.resize())
-    observer.observe(containerRef.current)
-    mapInstanceRef.current = instance
-    setMap(instance)
-
-    return () => {
-      observer.disconnect()
-      instance.remove()
-      mapInstanceRef.current = null
-      setMap(null)
-    }
-  }, [hasLocations])
+  const { containerRef, map, status } = useOsmMap({
+    center: center ? { lat: center[1], lng: center[0] } : null,
+    zoom: 15,
+  })
 
   useEffect(() => {
     if (!map) return
@@ -285,7 +259,7 @@ export default function ArtistMap({ mapArtistInfo }: ArtistMapProps) {
       markersRef.current.set(a._id, marker)
     })
 
-    map.setCenter(center)
+    if (center) map.setCenter(center)
   }, [map, artistsWithLocation, center])
 
   const selectArtist = (a: artistInfoInterface) => {
@@ -307,10 +281,29 @@ export default function ArtistMap({ mapArtistInfo }: ArtistMapProps) {
 
   if (!hasLocations) {
     return (
-      <div className="h-[420px] bg-surface-alt border border-border flex items-center justify-center">
-        <p className="text-sm text-text-dim tracking-wider">
-          No studio location set yet
-        </p>
+      <div className="h-[420px] bg-surface-alt border border-border flex items-center justify-center px-4">
+        {loading ? (
+          <div className="flex flex-col items-center gap-3 text-text-dim">
+            <LoaderCircle className="w-5 h-5 text-gold animate-spin" />
+            <span className="text-[10px] uppercase tracking-[0.2em]">
+              Loading studio location…
+            </span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <AlertTriangle className="w-5 h-5 text-gold" />
+            <p className="text-sm text-text-dim tracking-wider">
+              Couldn&apos;t load the studio location. Please refresh the page.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 text-center">
+            <MapPin className="w-5 h-5 text-gold" />
+            <p className="text-sm text-text-dim tracking-wider">
+              No studio location set yet
+            </p>
+          </div>
+        )}
       </div>
     )
   }
@@ -328,7 +321,7 @@ export default function ArtistMap({ mapArtistInfo }: ArtistMapProps) {
             {artistsWithLocation.length === 1 ? "location" : "locations"}
           </span>
         </div>
-        <div ref={containerRef} className="absolute inset-0" />
+        <OsmMapCanvas containerRef={containerRef} status={status} />
       </div>
 
       <div className="order-1 lg:order-2 flex flex-col gap-4 lg:max-h-[560px] lg:overflow-y-auto">

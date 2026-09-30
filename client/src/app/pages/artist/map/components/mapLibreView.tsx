@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useRef } from "react";
+import { maplibregl } from "@/app/utils/maplibre";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import {
   createAvatarMarkerElement,
-  OSM_ATTRIBUTION,
-  OSM_TILE_URL,
+  createStudioMarkerElement,
 } from "@/app/utils/mapMarker";
+import { isValidCoordinate } from "@/app/utils/routing";
+import type { LatLng } from "@/app/hooks/locationHooks";
+import {
+  OsmMapCanvas,
+  useAutoCenter,
+  useOsmMap,
+} from "@/app/components/map/osmMap";
 
 interface ArtistMapViewProps {
-  currentLocation: { lat: number; lng: number };
+  currentLocation: LatLng | null;
+  studioLocation: LatLng | null;
   userProfile: string;
   bussinessInfo?: bussinessInfoInterface[];
 }
@@ -46,50 +52,38 @@ function buildBusinessPopupContent(b: bussinessInfoInterface): HTMLDivElement {
 
 export default function ArtistMapView({
   currentLocation,
+  studioLocation,
   userProfile,
   bussinessInfo,
 }: ArtistMapViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
-  const [map, setMap] = useState<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const currentMarkerRef = useRef<maplibregl.Marker | null>(null);
+
+  const { containerRef, map, status } = useOsmMap({
+    center: currentLocation ?? studioLocation,
+  });
+
+  useAutoCenter(map, [currentLocation, studioLocation]);
 
   useEffect(() => {
-    if (!containerRef.current || mapInstanceRef.current) return;
+    if (!map || !studioLocation) return;
 
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: [OSM_TILE_URL],
-            tileSize: 256,
-            attribution: OSM_ATTRIBUTION,
-          },
-        },
-        layers: [{ id: "osm-tiles", type: "raster", source: "osm" }],
-      },
-      center: [currentLocation.lng, currentLocation.lat],
-      zoom: 13,
-    });
-
-    instance.addControl(new maplibregl.NavigationControl(), "top-right");
-    mapInstanceRef.current = instance;
-    setMap(instance);
+    const marker = new maplibregl.Marker({
+      element: createStudioMarkerElement(userProfile),
+      anchor: "bottom",
+    })
+      .setLngLat([studioLocation.lng, studioLocation.lat])
+      .setPopup(
+        new maplibregl.Popup({ offset: 50 }).setHTML("<h1>Your Studio</h1>"),
+      )
+      .addTo(map);
 
     return () => {
-      instance.remove();
-      mapInstanceRef.current = null;
-      setMap(null);
+      marker.remove();
     };
-  }, []);
+  }, [map, studioLocation?.lat, studioLocation?.lng, userProfile]);
 
   useEffect(() => {
-    if (!map) return;
-    if (currentMarkerRef.current) currentMarkerRef.current.remove();
+    if (!map || !currentLocation) return;
 
     const el = createAvatarMarkerElement(userProfile);
     const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
@@ -101,12 +95,10 @@ export default function ArtistMapView({
       )
       .addTo(map);
 
-    currentMarkerRef.current = marker;
-
     return () => {
       marker.remove();
     };
-  }, [map, currentLocation.lat, currentLocation.lng, userProfile]);
+  }, [map, currentLocation?.lat, currentLocation?.lng, userProfile]);
 
   useEffect(() => {
     if (!map) return;
@@ -117,11 +109,11 @@ export default function ArtistMapView({
     bussinessInfo?.forEach((b) => {
       if (!b.bussiness.location) return;
       const { lat, long } = b.bussiness.location;
-      if (lat == null || long == null) return;
+      if (!isValidCoordinate(lat, long)) return;
 
       const el = createAvatarMarkerElement("/shop-logo.jpg");
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat([long, lat])
+        .setLngLat([long!, lat!])
         .setPopup(
           new maplibregl.Popup({ offset: 32 }).setDOMContent(
             buildBusinessPopupContent(b),
@@ -133,5 +125,5 @@ export default function ArtistMapView({
     });
   }, [map, bussinessInfo]);
 
-  return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
+  return <OsmMapCanvas containerRef={containerRef} status={status} />;
 }

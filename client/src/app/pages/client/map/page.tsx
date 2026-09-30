@@ -27,8 +27,6 @@ import {
   MapPin,
   Navigation,
   RotateCcw,
-  Star,
-  User,
   Users,
   X,
 } from "lucide-react";
@@ -119,7 +117,7 @@ const App: React.FC = () => {
     }[]
   >([]);
 
-  const { data: artistInfo } = useQuery({
+  const { data: artistInfo, isError: artistInfoError } = useQuery({
     queryKey: ["map_info_artist"],
     queryFn: async (): Promise<artistInfoInterface[]> => {
       const response = await axiosInstance.get(`/account/artistInfo`);
@@ -193,26 +191,7 @@ const App: React.FC = () => {
     }
   }, [currentLocation, artistInfo, bussinessInfo]);
 
-  if (!currentLocation && locationError) {
-    return (
-      <div className="h-dvh w-full flex items-center justify-center bg-primary px-4">
-        <div className="max-w-md w-full bg-secondary border border-border p-6 space-y-4 text-center">
-          <AlertTriangle className="w-6 h-6 text-gold mx-auto" />
-          <p className="text-sm text-text">
-            {LOCATION_ERROR_MESSAGES[locationError]}
-          </p>
-          <button
-            onClick={() => refreshLocation().catch(() => {})}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-border-gold text-gold text-xs uppercase tracking-[0.18em] hover:bg-gold/10 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentLocation || !user) return <LoadingScreen />;
+  if (!user) return <LoadingScreen />;
 
   const selectProfile = (
     userProfile: artistInfoInterface | bussinessInfoInterface,
@@ -225,7 +204,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-dvh w-full relative">
+    <div className="h-[calc(100dvh-80px)] md:h-dvh w-full relative">
       <div className="absolute top-6 left-15 z-[1100]">
         <button
           onClick={() => setShowNearby((prev) => !prev)}
@@ -269,6 +248,46 @@ const App: React.FC = () => {
         )}
       </div>
 
+      {(!currentLocation || artistInfoError) && (
+        <div
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-[1050] w-[calc(100%-2rem)] max-w-md bg-secondary border border-border shadow-lg px-4 py-3"
+          role="status"
+          aria-live="polite"
+        >
+          {artistInfoError ? (
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-danger-light shrink-0 mt-0.5" />
+              <p className="text-xs text-text">
+                Couldn&apos;t load artist locations. Refresh the page to try
+                again.
+              </p>
+            </div>
+          ) : locationError ? (
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-4 h-4 text-gold shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0 space-y-2">
+                <p className="text-xs text-text">
+                  {LOCATION_ERROR_MESSAGES[locationError]}
+                </p>
+                <button
+                  onClick={() => refreshLocation().catch(() => {})}
+                  className="inline-flex items-center gap-1.5 text-xs text-gold hover:underline"
+                >
+                  <RotateCcw className="w-3 h-3" /> Try again
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <LoaderCircle className="w-4 h-4 text-gold animate-spin shrink-0" />
+              <p className="text-xs text-text-muted">
+                Finding your current location…
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {account && userProfile && (
         <ProfileOverview
           key={userProfile._id}
@@ -291,7 +310,7 @@ const App: React.FC = () => {
       />
       {routeStatus && routeDestination && (
         <div
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1100] w-[calc(100%-2rem)] max-w-md bg-secondary border border-border shadow-lg p-4"
+          className="absolute bottom-40 lg:bottom-6 left-1/2 -translate-x-1/2 z-[1100] w-[calc(100%-2rem)] max-w-md bg-secondary border border-border shadow-lg p-4"
           role="status"
           aria-live="polite"
         >

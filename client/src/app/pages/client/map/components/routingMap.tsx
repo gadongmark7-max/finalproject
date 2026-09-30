@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import * as maplibregl from "maplibre-gl";
+import { maplibregl } from "@/app/utils/maplibre";
 import { fetchRoute, RouteError, RouteResult } from "@/app/utils/routing";
 
 const ROUTE_SOURCE_ID = "client-route";
@@ -141,8 +141,11 @@ const RoutingControl: React.FC<RoutingLayerProps> = ({
       );
       const { clientWidth, clientHeight } = map.getContainer();
       const side = Math.min(80, Math.max(24, clientWidth * 0.1));
-      const top = Math.min(90, Math.max(40, clientHeight * 0.1));
-      const bottom = Math.min(180, Math.max(top, clientHeight * 0.25));
+      const top = Math.min(130, Math.max(80, clientHeight * 0.14));
+      const bottom =
+        clientWidth < 1024
+          ? Math.min(300, Math.max(top, clientHeight * 0.4))
+          : Math.min(180, Math.max(top, clientHeight * 0.25));
       map.fitBounds(bounds, {
         padding: { top, bottom, left: side, right: side },
         maxZoom: 16,
@@ -174,12 +177,10 @@ const RoutingControl: React.FC<RoutingLayerProps> = ({
       }
     };
 
-    if (map.isStyleLoaded()) run();
-    else map.once("load", run);
+    run();
 
     return () => {
       controller.abort();
-      map.off("load", run);
       removeRoute(map);
     };
   }, [map, from.lat, from.lng, to.lat, to.lng]);

@@ -9,17 +9,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import React, { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { maplibregl } from "@/app/utils/maplibre";
 import { MapPin, Pencil, ExternalLink } from "lucide-react";
 import { artistInfoInterface } from "@/app/types/accounts.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
-import {
-  createOsmStyle,
-  createStudioMarkerElement,
-} from "@/app/utils/mapMarker";
+import { createStudioMarkerElement } from "@/app/utils/mapMarker";
+import { isValidCoordinate } from "@/app/utils/routing";
+import { OsmMapCanvas, useOsmMap } from "@/app/components/map/osmMap";
 
 type LatLong = { lat: number; long: number };
 
@@ -43,48 +41,31 @@ const DEFAULT_POSITION: LatLong = {
 function toLatLong(
   location: artistInfoInterface["artist"]["location"],
 ): LatLong | null {
-  if (location?.lat == null || location?.long == null) return null;
-  return { lat: location.lat, long: location.long };
+  if (!isValidCoordinate(location?.lat, location?.long)) return null;
+  return { lat: location!.lat!, long: location!.long! };
 }
 
 function StudioMap({ position, profile, interactive, onPick }: StudioMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
+  const start = position ?? DEFAULT_POSITION;
+
+  const { containerRef, map, status } = useOsmMap({
+    center: { lat: start.lat, lng: start.long },
+    zoom: position ? 15 : 13,
+    interactive,
+  });
 
   useEffect(() => {
-    if (!containerRef.current) return;
-    const start = position ?? DEFAULT_POSITION;
-
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: createOsmStyle(),
-      center: [start.long, start.lat],
-      zoom: position ? 15 : 13,
-      interactive,
-      attributionControl: { compact: true },
-    });
-
-    if (interactive) {
-      instance.addControl(new maplibregl.NavigationControl(), "top-right");
-      instance.on("click", (e) =>
-        onPickRef.current?.({ lat: e.lngLat.lat, long: e.lngLat.lng }),
-      );
-    }
-
-    const observer = new ResizeObserver(() => instance.resize());
-    observer.observe(containerRef.current);
-    setMap(instance);
-
+    if (!map || !interactive) return;
+    const handleClick = (e: maplibregl.MapMouseEvent) =>
+      onPickRef.current?.({ lat: e.lngLat.lat, long: e.lngLat.lng });
+    map.on("click", handleClick);
     return () => {
-      observer.disconnect();
-      instance.remove();
-      markerRef.current = null;
-      setMap(null);
+      map.off("click", handleClick);
     };
-  }, [interactive]);
+  }, [map, interactive]);
 
   useEffect(() => {
     if (!map) return;
@@ -112,7 +93,7 @@ function StudioMap({ position, profile, interactive, onPick }: StudioMapProps) {
     markerRef.current = marker;
   }, [map, position?.lat, position?.long, profile, interactive]);
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return <OsmMapCanvas containerRef={containerRef} status={status} />;
 }
 
 const MapLocation: React.FC<ClickableMapProps> = ({
