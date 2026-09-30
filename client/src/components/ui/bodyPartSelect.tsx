@@ -16,6 +16,7 @@ export const bodyParts = [
   "Hand",    // 1.4
   "Chest",   // 1.5
   "Back",    // 1.6
+  "Neck",    // 1.9
   "Head",    // 2.0
 ] as const;
 

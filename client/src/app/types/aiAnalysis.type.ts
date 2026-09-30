@@ -25,13 +25,24 @@ export interface aiInkOptionInterface {
   selectable: boolean;
 }
 
+export interface aiInkSelectionInterface {
+  inventoryItemId: string;
+  share: number;
+}
+
+export interface aiInkUsageInterface extends aiInkSelectionInterface {
+  name: string;
+  ml: number;
+  quantityInUnit: number;
+  unit: string;
+  pricePerMl: number | null;
+  cost: number;
+}
+
 export interface aiInkEstimateInterface {
   baseMl: number;
   estimatedMl: number;
-  inventoryItemId: string | null;
-  quantityInUnit: number | null;
-  unit: string | null;
-  pricePerMl: number | null;
+  selections: aiInkUsageInterface[];
   cost: number;
   needsSelection: boolean;
   options: aiInkOptionInterface[];
@@ -56,6 +67,10 @@ export interface aiAnalysisResultInterface {
   ink: aiInkEstimateInterface | null;
   materials: aiAnalysisMaterialInterface[];
   missingMaterialIds: string[];
+  detected?: {
+    bodyPart: string | null;
+    inkItemIds: string[];
+  };
   pricing: {
     hourlyRate: number;
     laborCost: number;

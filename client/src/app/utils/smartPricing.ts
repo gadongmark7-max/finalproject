@@ -44,6 +44,7 @@ export const smartPricing = (data: {
       case "Hand":   bodyPartMultiplier = 1.6; break;
       case "Chest":  bodyPartMultiplier = 1.7; break;
       case "Back":   bodyPartMultiplier = 1.8; break;
+      case "Neck":   bodyPartMultiplier = 1.9; break;
       case "Head":   bodyPartMultiplier = 2.0; break;
       default: bodyPartMultiplier = 1.0;
     }

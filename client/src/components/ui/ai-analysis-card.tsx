@@ -31,13 +31,9 @@ import { BODY_PART_MAX_LENGTH } from "@/lib/validation/schemas/post";
 import { AiProgressSteps } from "@/components/ui/ai-progress-steps";
 import { formatPeso } from "@/app/utils/customFunction";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
+  aiAnalysisResultInterface,
+  aiInkSelectionInterface,
+} from "@/app/types/aiAnalysis.type";
 
 export function profitAtPrice(
   price: string,
@@ -92,8 +88,8 @@ interface AiAnalysisCardProps {
   onPriceChange: (value: string) => void;
   priceError?: string;
 
-  inkItemId: string | null;
-  onInkItemChange: (id: string) => void;
+  inkSelections: aiInkSelectionInterface[];
+  onInkToggle: (id: string) => void;
 
   analyzeDisabledReason?: string;
   onAnalyze: () => void;
@@ -130,7 +126,7 @@ export function AiAnalysisCard(props: AiAnalysisCardProps) {
 
       <div className="p-5 space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="ai-body-part">Body Part</Label>
+          <Label htmlFor="ai-body-part">Tattoo Placement</Label>
           <Input
             id="ai-body-part"
             value={props.bodyPart}
@@ -269,8 +265,8 @@ export function AiAnalysisCard(props: AiAnalysisCardProps) {
           price={props.price}
           onPriceChange={props.onPriceChange}
           priceError={props.priceError}
-          inkItemId={props.inkItemId}
-          onInkItemChange={props.onInkItemChange}
+          inkSelections={props.inkSelections}
+          onInkToggle={props.onInkToggle}
           onApply={props.onApply}
           applyTarget={props.applyTarget ?? "post"}
         />
@@ -288,14 +284,14 @@ function Result({
   price,
   onPriceChange,
   priceError,
-  inkItemId,
-  onInkItemChange,
+  inkSelections,
+  onInkToggle,
   onApply,
   applyTarget,
 }: {
   result: aiAnalysisResultInterface;
-  inkItemId: string | null;
-  onInkItemChange: (id: string) => void;
+  inkSelections: aiInkSelectionInterface[];
+  onInkToggle: (id: string) => void;
   isRecalculating: boolean;
   staleReason?: string;
   recalcError?: string;
@@ -306,7 +302,7 @@ function Result({
   onApply: () => void;
   applyTarget: string;
 }) {
-  const { analysis, size, materials, pricing, ink } = result;
+  const { analysis, size, materials, pricing, ink, detected } = result;
   const dim = isRecalculating || !!staleReason;
   const atPrice = profitAtPrice(price, pricing);
   const suggestedRounded = Math.round(pricing.suggestedPrice);
@@ -382,7 +378,12 @@ function Result({
 
       <Section title="Tattoo Details">
         <div className="grid grid-cols-2 gap-4">
-          <Stat icon={MapPin} label="Body Part" value={analysis.bodyPart} />
+          <Stat icon={MapPin} label="Placement" value={analysis.bodyPart} />
+          <Stat
+            icon={Sparkles}
+            label="AI Detected Position"
+            value={detected?.bodyPart ?? "Not detected"}
+          />
           <Stat
             icon={Ruler}
             label="Size"
@@ -430,8 +431,9 @@ function Result({
       {ink && (
         <InkSection
           ink={ink}
-          inkItemId={inkItemId}
-          onInkItemChange={onInkItemChange}
+          aiInkItemIds={detected?.inkItemIds ?? []}
+          inkSelections={inkSelections}
+          onInkToggle={onInkToggle}
           dim={dim}
         />
       )}
@@ -492,9 +494,11 @@ function Result({
           />
           {ink && (
             <Row
-              label={`Estimated Ink Cost${ink.inventoryItemId ? ` (${formatMl(ink.estimatedMl)})` : ""}`}
+              label={`Estimated Ink Cost${ink.selections.length > 0 ? ` (${formatMl(ink.estimatedMl)})` : ""}`}
               value={
-                ink.inventoryItemId ? formatPeso(pricing.inkCost) : "Select ink"
+                ink.selections.length > 0
+                  ? formatPeso(pricing.inkCost)
+                  : "Select ink"
               }
             />
           )}
@@ -560,19 +564,24 @@ const formatMl = (ml: number) =>
 
 function InkSection({
   ink,
-  inkItemId,
-  onInkItemChange,
+  aiInkItemIds,
+  inkSelections,
+  onInkToggle,
   dim,
 }: {
   ink: NonNullable<aiAnalysisResultInterface["ink"]>;
-  inkItemId: string | null;
-  onInkItemChange: (id: string) => void;
+  aiInkItemIds: string[];
+  inkSelections: aiInkSelectionInterface[];
+  onInkToggle: (id: string) => void;
   dim: boolean;
 }) {
-  const selectable = ink.options.filter((o) => o.selectable);
-  const priced = ink.inventoryItemId
-    ? ink.options.find((o) => o.inventoryItemId === ink.inventoryItemId)
-    : undefined;
+  const selectedIds = new Set(inkSelections.map((s) => s.inventoryItemId));
+  const usageById = new Map(
+    ink.selections.map((s) => [s.inventoryItemId, s] as const),
+  );
+  const allFromAi =
+    ink.selections.length > 0 &&
+    ink.selections.every((s) => aiInkItemIds.includes(s.inventoryItemId));
 
   return (
     <Section title="Ink" icon={Droplet}>
@@ -585,7 +594,7 @@ function InkSection({
         <Stat
           icon={Wallet}
           label="Ink Cost"
-          value={ink.inventoryItemId ? formatPeso(ink.cost) : "—"}
+          value={ink.selections.length > 0 ? formatPeso(ink.cost) : "—"}
         />
       </div>
 
@@ -596,54 +605,82 @@ function InkSection({
         </p>
       ) : (
         <div className="space-y-1.5">
-          <Label htmlFor="ai-ink-item">Ink used</Label>
-          <Select
-            value={inkItemId ?? undefined}
-            onValueChange={onInkItemChange}
+          <Label>Inks used</Label>
+          <div
+            role="group"
+            aria-label="Inks used"
+            className={`space-y-1.5 transition-opacity ${dim ? "opacity-60" : ""}`}
           >
-            <SelectTrigger id="ai-ink-item" className="w-full">
-              <SelectValue placeholder="Select the ink for this tattoo" />
-            </SelectTrigger>
-            <SelectContent>
-              {ink.options.map((o) => (
-                <SelectItem
+            {ink.options.map((o) => {
+              const selected = selectedIds.has(o.inventoryItemId);
+              const usage = usageById.get(o.inventoryItemId);
+              return (
+                <button
                   key={o.inventoryItemId}
-                  value={o.inventoryItemId}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
                   disabled={!o.selectable}
+                  onClick={() => onInkToggle(o.inventoryItemId)}
+                  className={`w-full flex items-start gap-2.5 border px-3 py-2 text-left text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    selected
+                      ? "border-border-gold bg-surface-alt"
+                      : "border-border bg-surface hover:border-border-gold"
+                  }`}
                 >
-                  {o.name}
-                  {o.selectable
-                    ? ` · ${formatPeso(o.pricePerMl ?? 0)}/ml`
-                    : ` · set unit to ml or L (${o.unit})`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {ink.needsSelection && (
-            <p className="text-[11px] text-gold" role="status">
-              {selectable.length > 1
-                ? "You have several inks — select the one used so its price is applied."
-                : "Select the ink used to include its cost."}
+                  <span
+                    className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center border ${
+                      selected ? "border-gold bg-gold text-primary" : "border-border"
+                    }`}
+                  >
+                    {selected && <Check className="h-3 w-3" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-text truncate">{o.name}</span>
+                      {aiInkItemIds.includes(o.inventoryItemId) && (
+                        <Sparkles
+                          className="w-3 h-3 shrink-0 text-gold"
+                          aria-label="Detected by AI"
+                        />
+                      )}
+                    </span>
+                    <span className="block text-[11px] text-text-muted">
+                      {o.selectable
+                        ? `${formatPeso(o.pricePerMl ?? 0)}/ml`
+                        : `set unit to ml or L (${o.unit})`}
+                      {usage &&
+                        ` · ${usage.share}% · ${formatMl(usage.ml)} × ${formatPeso(usage.pricePerMl ?? 0)}/ml = ${formatPeso(usage.cost)}`}
+                    </span>
+                    {usage && o.availableMl !== null && (
+                      <span className="block text-[11px] text-text-muted">
+                        {formatMl(Math.max(0, o.availableMl - usage.ml))} left of{" "}
+                        {formatMl(o.availableMl)} after this tattoo
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {allFromAi && (
+            <p className="flex items-center gap-1.5 text-[11px] text-text-muted">
+              <Sparkles className="w-3 h-3 shrink-0 text-gold" />
+              {ink.selections.length > 1
+                ? "Inks matched by AI from your inventory — tick or untick to change them."
+                : "Matched by AI from your inventory — tick another ink if more colors are used."}
             </p>
           )}
-          {priced && ink.quantityInUnit !== null && (
-            <p className="text-[11px] text-text-muted">
-              {formatMl(ink.estimatedMl)} × {formatPeso(priced.pricePerMl ?? 0)}
-              /ml = {formatPeso(ink.cost)}
-              {priced.availableMl !== null && (
-                <>
-                  {" "}
-                  · {formatMl(Math.max(0, priced.availableMl - ink.estimatedMl))}{" "}
-                  left of {formatMl(priced.availableMl)} after this tattoo
-                </>
-              )}
+          {ink.needsSelection && (
+            <p className="text-[11px] text-gold" role="status">
+              Select every ink used in this tattoo so their prices are applied.
             </p>
           )}
         </div>
       )}
       <p className="text-[11px] text-text-muted">
-        The AI estimates the ink volume only; the cost uses your inventory
-        price.
+        The AI estimates the ink volume and each color&apos;s share; the cost
+        uses your inventory prices.
       </p>
     </Section>
   );

@@ -25,8 +25,11 @@ export const MODEL_BODY_PARTS = [
   "Hand",
   "Chest",
   "Back",
+  "Neck",
   "Head",
 ] as const;
+
+export const DETECTED_BODY_PARTS = [...MODEL_BODY_PARTS, "Unknown"] as const;
 
 export const MAX_SIZE_CM = 100;
 
@@ -54,13 +57,29 @@ const optionalHourlyRate = z.preprocess(
 
 const inventoryIdField = z.string().trim().min(1).max(64);
 
-const optionalInkItemId = z.preprocess(
-  (v) => (v === "" || v === undefined ? null : v),
-  inventoryIdField.nullable(),
-);
+const inkSelectionsField = z
+  .array(
+    z.object({
+      inventoryItemId: inventoryIdField,
+      share: z.number().positive().max(100),
+    }),
+  )
+  .max(20);
+
+export type InkSelection = z.infer<typeof inkSelectionsField>[number];
+
+const optionalInkSelections = z.preprocess((v) => {
+  if (v === "" || v === undefined || v === null) return null;
+  if (typeof v !== "string") return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+}, inkSelectionsField.nullable());
 
 export const aiAnalysisRequestSchema = z.object({
-  inkItemId: optionalInkItemId,
+  inkSelections: optionalInkSelections,
   bodyPart: bodyPartField,
   hourlyRate: optionalHourlyRate,
   sizeWidthCm: sizeCm("width"),
@@ -100,7 +119,7 @@ export const aiRepriceRequestSchema = z.object({
   ink: z
     .object({
       baseMl: z.number().positive().max(1000),
-      inventoryItemId: optionalInkItemId,
+      selections: optionalInkSelections.default(null),
     })
     .nullable()
     .default(null),
@@ -159,6 +178,17 @@ export const geminiAnalysisSchema = z.object({
     )
     .max(30)
     .default([]),
+  detectedBodyPart: z.enum(DETECTED_BODY_PARTS).optional().catch(undefined),
+  inkUsage: z
+    .array(
+      z.object({
+        inkItemId: z.string().min(1),
+        percent: z.number().positive().max(100),
+      }),
+    )
+    .max(20)
+    .default([])
+    .catch([]),
 });
 
 export type GeminiAnalysis = z.infer<typeof geminiAnalysisSchema>;

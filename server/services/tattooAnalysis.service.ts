@@ -1,5 +1,6 @@
 import { ApiError, GoogleGenAI, Type } from "@google/genai";
 import {
+  DETECTED_BODY_PARTS,
   GeminiAnalysis,
   MAX_SIZE_CM,
   TATTOO_CATEGORIES,
@@ -36,9 +37,10 @@ export interface AnalyzeTattooParams {
     heightCm?: number;
   };
   inventory?: InventoryOption[];
+  inks?: InventoryOption[];
 }
 
-function buildPrompt({ trusted, inventory }: AnalyzeTattooParams) {
+function buildPrompt({ trusted, inventory, inks }: AnalyzeTattooParams) {
   const knowsSize =
     trusted.widthCm !== undefined && trusted.heightCm !== undefined;
   const facts = [
@@ -58,13 +60,21 @@ ${inventory.length > 0 ? JSON.stringify(inventory) : "(empty — return items: [
 `
     : "";
 
+  const inkSection =
+    inks && inks.length > 0
+      ? `
+INK INVENTORY (tattoo inks the shop stocks, by name; use the exact "id"):
+${JSON.stringify(inks.map(({ id, name }) => ({ id, name })))}
+`
+      : "";
+
   return `
 You are a tattoo analysis assistant. Analyze the tattoo image together with
 trusted data from the application.
 
 TRUSTED APPLICATION DATA (use as fact, do not re-guess):
 ${facts}
-${inventorySection}
+${inventorySection}${inkSection}
 TASK:
 1. isTattooDesign: false only if the image is clearly not a tattoo or tattoo
    design (e.g. a random photo with no artwork); otherwise true.
@@ -98,6 +108,21 @@ ${
    consumed for this design at this size, based on the inked area, how much of
    it is solid fill or shading versus line work, and color. This is a volume
    only, not a price.
+10. detectedBodyPart: judge only from what is visible in the image, ignoring
+   the trusted body part above. If the tattoo is shown on a person's body,
+   the body part it is on, choosing ONE of: ${DETECTED_BODY_PARTS.filter((p) => p !== "Unknown").join(", ")}.
+   If the image is a flat design, stencil or drawing with no body visible, or
+   the body part cannot be identified, return "Unknown".
+${
+  inks && inks.length > 0
+    ? `11. inkUsage: every ink color visible in this tattoo that matches an ink in
+   INK INVENTORY by name (e.g. black linework and an ink named black, red
+   roses and an ink named red). For each, the "id" as inkItemId and percent:
+   its approximate share of the total ink volume (all percents together about
+   100). Skip a color if no ink name clearly matches it, or if two or more
+   inks match that color equally well. Return [] if nothing clearly matches.`
+    : "11. inkUsage: return an empty array."
+}
 
 RULES:
 - Never calculate any price, cost, or currency amount.
@@ -105,7 +130,10 @@ RULES:
 `;
 }
 
-function buildResponseSchema(inventory?: InventoryOption[]) {
+function buildResponseSchema(
+  inventory?: InventoryOption[],
+  inks?: InventoryOption[],
+) {
   const itemsSchema =
     inventory && inventory.length > 0
       ? {
@@ -141,6 +169,21 @@ function buildResponseSchema(inventory?: InventoryOption[]) {
       estimatedSessions: { type: Type.INTEGER, minimum: 1 },
       estimatedInkMl: { type: Type.NUMBER, minimum: 0.1, maximum: 500 },
       items: itemsSchema,
+      detectedBodyPart: { type: Type.STRING, enum: [...DETECTED_BODY_PARTS] },
+      inkUsage:
+        inks && inks.length > 0
+          ? {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  inkItemId: { type: Type.STRING, enum: inks.map((i) => i.id) },
+                  percent: { type: Type.NUMBER, minimum: 1, maximum: 100 },
+                },
+                required: ["inkItemId", "percent"],
+              },
+            }
+          : { type: Type.ARRAY, items: { type: Type.STRING }, maxItems: "0" },
     },
     required: [
       "isTattooDesign",
@@ -153,6 +196,8 @@ function buildResponseSchema(inventory?: InventoryOption[]) {
       "estimatedSessions",
       "estimatedInkMl",
       "items",
+      "detectedBodyPart",
+      "inkUsage",
     ],
   };
 }
@@ -184,7 +229,7 @@ export class TattooAnalysisService {
         config: {
           abortSignal: controller.signal,
           responseMimeType: "application/json",
-          responseSchema: buildResponseSchema(params.inventory),
+          responseSchema: buildResponseSchema(params.inventory, params.inks),
         },
       });
 
