@@ -18,6 +18,9 @@
 /.next/
 /out/
 
+# generated maplibre worker
+/public/maplibre/
+
 # production
 /build
 

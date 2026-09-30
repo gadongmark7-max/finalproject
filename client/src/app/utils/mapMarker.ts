@@ -2,27 +2,26 @@ import type { StyleSpecification } from "maplibre-gl";
 
 export const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
+export const OSM_SOURCE_ID = "osm";
+
 export const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
 
-export function createAvatarMarkerElement(url: string): HTMLDivElement {
+export function createAvatarMarkerElement(url?: string | null): HTMLDivElement {
   const el = document.createElement("div");
   el.style.width = "32px";
   el.style.height = "32px";
   el.style.cursor = "pointer";
-  el.innerHTML = `
-    <img
-      src="${url}"
-      style="
-        display:block;
-        width:32px;
-        height:32px;
-        border-radius:50%;
-        object-fit:cover;
-        border:2px solid #C6A55C;
-      "
-    />
-  `;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.style.cssText =
+    "display:block;width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid #C6A55C;background:#1a1a2e;";
+  img.src = url || DEFAULT_PROFILE_IMAGE;
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = DEFAULT_PROFILE_IMAGE;
+  };
+  el.appendChild(img);
   return el;
 }
 
@@ -32,14 +31,14 @@ export function createOsmStyle(): StyleSpecification {
   return {
     version: 8,
     sources: {
-      osm: {
+      [OSM_SOURCE_ID]: {
         type: "raster",
         tiles: [OSM_TILE_URL],
         tileSize: 256,
         attribution: OSM_ATTRIBUTION,
       },
     },
-    layers: [{ id: "osm-tiles", type: "raster", source: "osm" }],
+    layers: [{ id: "osm-tiles", type: "raster", source: OSM_SOURCE_ID }],
   };
 }
 

@@ -1,11 +1,9 @@
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import {
   artistInfoInterface,
@@ -17,7 +15,6 @@ import axiosInstance from "@/app/utils/axios";
 import { accountInterface } from "@/app/types/accounts.type";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { MessageCircle, User, Route, Star } from "lucide-react";
 import useUserStore from "@/app/store/useUserStore";
 import { errorAlert } from "@/app/utils/alert";

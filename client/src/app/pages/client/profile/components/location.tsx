@@ -4,39 +4,39 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   MapContainer,
   TileLayer,
   Marker,
-  Popup,
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { artistInfoInterface } from "@/app/types/accounts.type";
 import { useMutation } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
 import { mapIcon } from "@/app/utils/customFunction";
+import { isValidCoordinate } from "@/app/utils/routing";
 import useUserStore from "@/app/store/useUserStore";
 
 const MapLocation = () => {
   const { user, setUser } = useUserStore();
-
-  if (!user) return null;
 
   const location = user?.location;
 
   const [mapLocation, setMapLocation] = useState<{
     lat: number;
     long: number;
-  } | null>(location);
+  } | null>(
+    isValidCoordinate(location?.lat, location?.long)
+      ? { lat: location!.lat!, long: location!.long! }
+      : null,
+  );
 
   const [open, setOpen] = useState(false);
 
@@ -67,6 +67,8 @@ const MapLocation = () => {
     },
     onError: () => errorAlert("error occur"),
   });
+
+  if (!user) return null;
 
   const handleUpdateLocation = () => {
     if (!mapLocation) return errorAlert("please select location");

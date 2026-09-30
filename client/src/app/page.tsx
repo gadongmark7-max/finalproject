@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   MapPin,
-  Phone,
   Mail,
   Clock,
-  Instagram,
   Sun,
   Moon,
   ChevronDown,
@@ -115,7 +113,11 @@ export default function Page() {
     ? postsData.data
     : [];
 
-  const { data: mapArtistInfo } = useQuery({
+  const {
+    data: mapArtistInfo,
+    isPending: mapArtistLoading,
+    isError: mapArtistError,
+  } = useQuery({
     queryKey: ["landing_map_artist"],
     queryFn: async (): Promise<artistInfoInterface[]> => {
       const response = await axiosInstance.get(`/account/artistInfo`);
@@ -840,7 +842,11 @@ export default function Page() {
                 Come find us in person. Every tattoo starts with a conversation.
               </p>
             </div>
-            <MapWithNoSSR mapArtistInfo={mapArtistInfo ?? []} />
+            <MapWithNoSSR
+              mapArtistInfo={mapArtistInfo ?? []}
+              loading={mapArtistLoading}
+              error={mapArtistError}
+            />
           </div>
         </section>
 
@@ -934,7 +940,7 @@ export default function Page() {
                     Ready to get inked?
                   </h2>
                   <p className="mt-4 text-base leading-relaxed text-text-muted">
-                    Come visit us or reach out to start your consultation. We'd
+                    Come visit us or reach out to start your consultation. We&apos;d
                     love to hear your idea.
                   </p>
                   <ul className="mt-8 space-y-5 text-sm text-text-muted">

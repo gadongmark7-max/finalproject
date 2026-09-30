@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { useEffect, useMemo, useRef } from "react";
+import { maplibregl } from "@/app/utils/maplibre";
 import {
   accountInterface,
   artistInfoInterface,
   bussinessInfoInterface,
 } from "@/app/types/accounts.type";
+import { createAvatarMarkerElement } from "@/app/utils/mapMarker";
+import { isValidCoordinate } from "@/app/utils/routing";
 import {
-  createAvatarMarkerElement,
-  OSM_ATTRIBUTION,
-  OSM_TILE_URL,
-} from "@/app/utils/mapMarker";
+  OsmMapCanvas,
+  useAutoCenter,
+  useOsmMap,
+} from "@/app/components/map/osmMap";
 import RoutingLayer, { RouteStatus } from "./routingMap";
 
 interface ClientMapViewProps {
-  currentLocation: { lat: number; lng: number };
+  currentLocation: { lat: number; lng: number } | null;
   userProfile: string;
   artistInfo?: artistInfoInterface[];
   bussinessInfo?: bussinessInfoInterface[];
@@ -41,47 +42,25 @@ export default function ClientMapView({
   onRouteStatusChange,
   onSelectProfile,
 }: ClientMapViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
-  const [map, setMap] = useState<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const currentMarkerRef = useRef<maplibregl.Marker | null>(null);
+
+  const firstArtistLocation = useMemo(() => {
+    const found = artistInfo?.find((a) =>
+      isValidCoordinate(a.artist?.location?.lat, a.artist?.location?.long),
+    );
+    return found
+      ? { lat: found.artist.location!.lat!, lng: found.artist.location!.long! }
+      : null;
+  }, [artistInfo]);
+
+  const { containerRef, map, styleReady, status } = useOsmMap({
+    center: currentLocation ?? firstArtistLocation,
+  });
+
+  useAutoCenter(map, [currentLocation, firstArtistLocation]);
 
   useEffect(() => {
-    if (!containerRef.current || mapInstanceRef.current) return;
-
-    const instance = new maplibregl.Map({
-      container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: [OSM_TILE_URL],
-            tileSize: 256,
-            attribution: OSM_ATTRIBUTION,
-          },
-        },
-        layers: [{ id: "osm-tiles", type: "raster", source: "osm" }],
-      },
-      center: [currentLocation.lng, currentLocation.lat],
-      zoom: 13,
-    });
-
-    instance.addControl(new maplibregl.NavigationControl(), "top-right");
-    mapInstanceRef.current = instance;
-    setMap(instance);
-
-    return () => {
-      instance.remove();
-      mapInstanceRef.current = null;
-      setMap(null);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!map) return;
-    if (currentMarkerRef.current) currentMarkerRef.current.remove();
+    if (!map || !currentLocation) return;
 
     const el = createAvatarMarkerElement(userProfile);
     const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
@@ -93,12 +72,10 @@ export default function ClientMapView({
       )
       .addTo(map);
 
-    currentMarkerRef.current = marker;
-
     return () => {
       marker.remove();
     };
-  }, [map, currentLocation.lat, currentLocation.lng, userProfile]);
+  }, [map, currentLocation?.lat, currentLocation?.lng, userProfile]);
 
   useEffect(() => {
     if (!map) return;
@@ -109,7 +86,7 @@ export default function ClientMapView({
     artistInfo?.forEach((artist) => {
       if (!artist.artist?.location) return;
       const { lat, long } = artist.artist.location;
-      if (lat == null || long == null) return;
+      if (!isValidCoordinate(lat, long)) return;
 
       const el = createAvatarMarkerElement(artist.artist.profile);
       el.addEventListener("click", () =>
@@ -117,7 +94,7 @@ export default function ClientMapView({
       );
 
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat([long, lat])
+        .setLngLat([long!, lat!])
         .addTo(map);
 
       markersRef.current.push(marker);
@@ -126,7 +103,7 @@ export default function ClientMapView({
     bussinessInfo?.forEach((bussiness) => {
       if (!bussiness.bussiness?.location) return;
       const { lat, long } = bussiness.bussiness.location;
-      if (lat == null || long == null) return;
+      if (!isValidCoordinate(lat, long)) return;
 
       const el = createAvatarMarkerElement("/shop-logo.jpg");
       el.addEventListener("click", () =>
@@ -134,7 +111,7 @@ export default function ClientMapView({
       );
 
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
-        .setLngLat([long, lat])
+        .setLngLat([long!, lat!])
         .addTo(map);
 
       markersRef.current.push(marker);
@@ -143,11 +120,11 @@ export default function ClientMapView({
 
   return (
     <>
-      <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
+      <OsmMapCanvas containerRef={containerRef} status={status} />
       {route && (
         <RoutingLayer
           key={route.id}
-          map={map}
+          map={styleReady ? map : null}
           from={route.from}
           to={route.to}
           onStatusChange={onRouteStatusChange}

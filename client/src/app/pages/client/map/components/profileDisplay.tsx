@@ -1,6 +1,6 @@
 "use client"
 import { accountInterface, bussinessInfoInterface, artistInfoInterface } from "@/app/types/accounts.type"
-import { User, MapPin, ChevronRight } from "lucide-react"
+import { MapPin, ChevronRight } from "lucide-react"
 import { StarReviews } from "@/components/ui/starRating"
 
 export function ProfileDisplay({ callback, userProfile, account, distance }: { distance: number, callback: () => void, userProfile: bussinessInfoInterface | artistInfoInterface, account: accountInterface }) {
