@@ -530,9 +530,9 @@ export default function Page() {
                   sub: "Every one unique",
                 },
                 {
-                  num: "3",
+                  num: "1",
                   label: "Resident Artists",
-                  sub: "Specialists in dark art",
+                  sub: "Owner & Tattoo Artist",
                 },
               ].map((s, i) => (
                 <div key={i} className="stat-num text-center py-10 px-6 group">
