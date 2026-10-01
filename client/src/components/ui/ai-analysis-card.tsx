@@ -258,6 +258,7 @@ export function AiAnalysisCard(props: AiAnalysisCardProps) {
       {!isAnalyzing && result && (
         <Result
           result={result}
+          bodyPart={props.bodyPart}
           isRecalculating={isRecalculating}
           staleReason={staleReason}
           recalcError={recalcError}
@@ -277,6 +278,7 @@ export function AiAnalysisCard(props: AiAnalysisCardProps) {
 
 function Result({
   result,
+  bodyPart,
   isRecalculating,
   staleReason,
   recalcError,
@@ -290,6 +292,7 @@ function Result({
   applyTarget,
 }: {
   result: aiAnalysisResultInterface;
+  bodyPart: string;
   inkSelections: aiInkSelectionInterface[];
   onInkToggle: (id: string) => void;
   isRecalculating: boolean;
@@ -378,11 +381,15 @@ function Result({
 
       <Section title="Tattoo Details">
         <div className="grid grid-cols-2 gap-4">
-          <Stat icon={MapPin} label="Placement" value={analysis.bodyPart} />
+          <Stat
+            icon={MapPin}
+            label="Body Position"
+            value={bodyPart.trim() || "Not selected"}
+          />
           <Stat
             icon={Sparkles}
             label="AI Detected Position"
-            value={detected?.bodyPart ?? "Not detected"}
+            value={detected?.bodyPart ?? (bodyPart.trim() || "Not detected")}
           />
           <Stat
             icon={Ruler}

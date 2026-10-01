@@ -452,7 +452,7 @@ export default function Page() {
       ? type === "workPost"
         ? "Could not load this work's image for AI analysis."
         : "Select a tattoo image first."
-      : !bodyPart
+      : !bodyPart.trim()
         ? "Place the tattoo on the 3D body or select a body part."
         : settings.isLoading
           ? "Loading your hourly rate…"
