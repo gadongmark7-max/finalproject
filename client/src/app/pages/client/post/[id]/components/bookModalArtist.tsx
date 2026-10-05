@@ -33,6 +33,7 @@ import {
   bookingDurationHours,
   insufficientDurationMessage,
   requiredSessionHours,
+  toWholeSessionHours,
   type PaymentMethod,
 } from "@/lib/validation/schemas/booking";
 
@@ -138,7 +139,7 @@ export function ArtistBookModal({
       artist: artistId,
       client: user!._id,
       tattooImg: post.postImg,
-      sessions: post.sessions,
+      sessions: post.sessions.map(toWholeSessionHours),
       session: 1,
       date: date!.toLocaleDateString("en-US").toString(),
       time: selectedtime,

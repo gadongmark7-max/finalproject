@@ -22,7 +22,15 @@ const corsOrigins = (process.env.CORS_ORIGINS || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (request, _response, buffer) => {
+      if (request.url?.includes("/paymongo/webhook")) {
+        (request as Request & { rawBody?: Buffer }).rawBody = buffer;
+      }
+    },
+  }),
+);
 app.use(cors(corsOrigins.length ? { origin: corsOrigins } : undefined));
 
 app.get("/health", (request: Request, response: Response) => {

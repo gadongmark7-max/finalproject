@@ -191,7 +191,7 @@ export default function PendingBookings({
                   Payment
                 </p>
 
-                <p className="whitespace-nowrap text-right text-xs text-text-muted">
+                <p className="text-right text-xs text-text-muted">
                   {bookingPaymentLabel(booking)}
                 </p>
               </div>

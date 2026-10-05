@@ -2,11 +2,24 @@ export const BOOKING_DURATION_ERROR_CODE = "INSUFFICIENT_BOOKING_DURATION";
 
 const hoursLabel = (hours: number) => `${hours} ${hours === 1 ? "hour" : "hours"}`;
 
+export const toWholeSessionHours = (hours: number) =>
+  Math.ceil(Math.round(hours * 1e6) / 1e6);
+
 export const requiredSessionHours = (sessions: unknown, session = 1) => {
   if (!Array.isArray(sessions)) return null;
   const hours = Number(sessions[session - 1]);
-  return Number.isFinite(hours) && hours > 0 ? hours : null;
+  return Number.isFinite(hours) && hours > 0 ? toWholeSessionHours(hours) : null;
 };
+
+export const normalizeSessionHours = (sessions: unknown) =>
+  Array.isArray(sessions)
+    ? sessions.map((hours) => {
+        const value = Number(hours);
+        return Number.isFinite(value) && value > 0
+          ? toWholeSessionHours(value)
+          : hours;
+      })
+    : sessions;
 
 const toMinutes = (time: unknown) => {
   if (typeof time !== "string") return null;

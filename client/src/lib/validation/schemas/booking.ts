@@ -31,12 +31,25 @@ export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUSES)[number];
 
 export const AWAITING_PAYMENT_LABEL = "Awaiting Payment";
 
+export const BOOKING_PAYMENT_STATUS_LABELS: Record<BookingPaymentStatus, string> =
+  {
+    awaiting: AWAITING_PAYMENT_LABEL,
+    partial: "Partially Paid",
+    paid: "Paid",
+  };
+
 export function bookingPaymentLabel(booking: {
+  status?: string;
   paymentStatus?: BookingPaymentStatus;
   paymentMethod?: PaymentMethod;
 }): string {
-  if (booking.paymentStatus === "awaiting") return AWAITING_PAYMENT_LABEL;
-  return PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"];
+  if (booking.status === "refund") return "Refunded";
+  if (booking.status === "appointment") return "Not Billed Yet";
+  if (!booking.paymentStatus || booking.paymentStatus === "awaiting") {
+    return AWAITING_PAYMENT_LABEL;
+  }
+  const method = PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"];
+  return `${BOOKING_PAYMENT_STATUS_LABELS[booking.paymentStatus]} · ${method}`;
 }
 
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS, {
@@ -46,9 +59,12 @@ export const paymentMethodSchema = z.enum(PAYMENT_METHODS, {
 const hoursLabel = (hours: number) =>
   `${hours} ${hours === 1 ? "hour" : "hours"}`;
 
+export const toWholeSessionHours = (hours: number) =>
+  Math.ceil(Math.round(hours * 1e6) / 1e6);
+
 export const requiredSessionHours = (sessions: number[], session = 1) => {
   const hours = Number(sessions?.[session - 1]);
-  return Number.isFinite(hours) && hours > 0 ? hours : null;
+  return Number.isFinite(hours) && hours > 0 ? toWholeSessionHours(hours) : null;
 };
 
 const toMinutes = (time: unknown) => {

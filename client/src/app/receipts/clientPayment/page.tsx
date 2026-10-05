@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { downloadReceiptPdf } from "@/app/utils/downloadReceipt";
 import { errorAlert } from "@/app/utils/alert";
 
+const PENDING_PAYMENT_RETRIES = 4;
+const PENDING_PAYMENT_RETRY_MS = 3000;
+
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
 
@@ -31,27 +34,49 @@ function PaymentSuccessContent() {
   const [sessionMissing, setSessionMissing] = useState(false);
 
   const paymentMutation = useMutation({
-    mutationFn: (data: { checkoutSessionId: string }) =>
-      axiosInstance.post("/booking/payment", data),
+    mutationFn: async (data: {
+      checkoutSessionId?: string;
+      bookingId: string;
+    }) => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          return await axiosInstance.post("/booking/payment", data);
+        } catch (err) {
+          if (
+            (err as { response?: { status?: number } })?.response?.status !==
+              402 ||
+            attempt >= PENDING_PAYMENT_RETRIES
+          ) {
+            throw err;
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, PENDING_PAYMENT_RETRY_MS),
+          );
+        }
+      }
+    },
     onSuccess: () => {
       if (sessionKey) localStorage.removeItem(sessionKey);
     },
     onError: (err: any) =>
       errorAlert(
-        typeof err?.response?.data === "string"
-          ? err.response.data
-          : "Could not record your payment",
+        err?.response?.status === 402
+          ? "PayMongo hasn't confirmed this payment yet. Your booking will update automatically once it is confirmed."
+          : typeof err?.response?.data === "string"
+            ? err.response.data
+            : "Could not record your payment",
       ),
   });
 
   const recordPayment = () => {
-    const checkoutSessionId = sessionKey && localStorage.getItem(sessionKey);
-    if (!checkoutSessionId) {
+    const checkoutSessionId =
+      (sessionKey && localStorage.getItem(sessionKey)) || undefined;
+    if (!checkoutSessionId && !bookingId) {
       setSessionMissing(true);
       return;
     }
     setSessionMissing(false);
-    paymentMutation.mutate({ checkoutSessionId });
+    paymentMutation.mutate({ checkoutSessionId, bookingId: bookingId! });
   };
 
   const isRecording = paymentMutation.isPending;
@@ -155,7 +180,7 @@ function PaymentSuccessContent() {
             {isRecording
               ? "Verifying your payment with the payment provider…"
               : recordFailed
-                ? "We could not confirm this payment yet. Nothing was recorded on your booking."
+                ? "We could not confirm this payment yet. If PayMongo completed it, your booking will update automatically once the payment is confirmed."
                 : "Your booking payment has been securely processed and confirmed."}
           </p>
           {recordFailed && !sessionMissing && (

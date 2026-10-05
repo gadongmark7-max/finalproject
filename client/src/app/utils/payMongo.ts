@@ -1,3 +1,5 @@
+import axiosInstance from "@/app/utils/axios";
+
 export async function payMongoBooking(
   amountInput: string,
   sender: string,
@@ -40,6 +42,13 @@ export async function payMongoBooking(
     if (data.checkoutUrl) {
       if (data.checkoutSessionId) {
         localStorage.setItem(`paymongo_session_${referenceId}`, data.checkoutSessionId);
+        await axiosInstance
+          .post(`/booking/${bookingId}/checkout-session`, {
+            checkoutSessionId: data.checkoutSessionId,
+          })
+          .catch((error) =>
+            console.error("Failed to register checkout session:", error),
+          );
       }
       window.location.href = data.checkoutUrl;
     } else {

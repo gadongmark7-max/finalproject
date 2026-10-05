@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "crypto";
+
 const PAYMONGO_API = "https://api.paymongo.com/v1";
 
 export class PaymentError extends Error {
@@ -15,15 +17,22 @@ export interface PaidCheckout {
   metadata: Record<string, string>;
 }
 
-export const getPaidCheckout = async (
+export interface CheckoutSessionInfo {
+  id: string;
+  status: string;
+  metadata: Record<string, string>;
+  paid: PaidCheckout | null;
+}
+
+export const getCheckoutSession = async (
   sessionId: unknown,
-): Promise<PaidCheckout | null> => {
+): Promise<CheckoutSessionInfo> => {
   const secret = process.env.PAYMONGO_SECRET_KEY;
   if (!secret) {
     console.error("PAYMONGO_SECRET_KEY is not set; cannot verify payments");
     throw new PaymentError(500, "payment verification is not configured");
   }
-  if (typeof sessionId !== "string" || !/^cs_[A-Za-z0-9]+$/.test(sessionId)) {
+  if (!isCheckoutSessionId(sessionId)) {
     throw new PaymentError(400, "invalid checkout session");
   }
 
@@ -48,14 +57,51 @@ export const getPaidCheckout = async (
 
   const { data } = (await response.json()) as { data: any };
   const attributes = data?.attributes ?? {};
+  const metadata = attributes.metadata ?? {};
   const paidPayment = (attributes.payments ?? []).find(
     (payment: any) => payment?.attributes?.status === "paid",
   );
-  if (!paidPayment) return null;
 
   return {
-    refId: String(attributes.reference_number ?? ""),
-    amount: Number(paidPayment.attributes.amount) / 100,
-    metadata: attributes.metadata ?? {},
+    id: sessionId,
+    status: String(attributes.status ?? ""),
+    metadata,
+    paid: paidPayment
+      ? {
+          refId: String(attributes.reference_number ?? ""),
+          amount: Number(paidPayment.attributes.amount) / 100,
+          metadata,
+        }
+      : null,
   };
+};
+
+export const getPaidCheckout = async (
+  sessionId: unknown,
+): Promise<PaidCheckout | null> => (await getCheckoutSession(sessionId)).paid;
+
+export const isCheckoutSessionId = (value: unknown): value is string =>
+  typeof value === "string" && /^cs_[A-Za-z0-9]+$/.test(value);
+
+export const verifyWebhookSignature = (
+  rawBody: Buffer | undefined,
+  header: unknown,
+  secret: string,
+) => {
+  if (!rawBody || typeof header !== "string") return false;
+  const parts = Object.fromEntries(
+    header.split(",").map((part) => {
+      const [key, ...rest] = part.trim().split("=");
+      return [key, rest.join("=")];
+    }),
+  );
+  const timestamp = parts.t;
+  if (!timestamp) return false;
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody.toString("utf8")}`)
+    .digest("hex");
+  return [parts.te, parts.li].some((signature) => {
+    if (!signature || signature.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  });
 };

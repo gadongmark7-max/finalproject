@@ -69,6 +69,22 @@ const InventoryConsumptionSchema = new Schema(
   { _id: false },
 );
 
+export const CHECKOUT_SESSION_STATUSES = ["pending", "paid", "expired"] as const;
+
+const CheckoutSessionSchema = new Schema(
+  {
+    sessionId: { type: String, required: true },
+    status: {
+      type: String,
+      enum: CHECKOUT_SESSION_STATUSES,
+      default: "pending",
+    },
+    createdAt: { type: Date, default: Date.now },
+    checkedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const BookingSchema = new Schema({
   bussiness: { type: mongoose.Schema.Types.ObjectId, ref: "Accounts" },
   artist: {
@@ -110,6 +126,11 @@ const BookingSchema = new Schema({
   inventoryConsumption: {
     type: InventoryConsumptionSchema,
     default: null,
+  },
+  checkoutSessions: {
+    type: [CheckoutSessionSchema],
+    default: [],
+    select: false,
   },
 }, {
   toJSON: { virtuals: ["paymentStatus"] },
