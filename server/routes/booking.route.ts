@@ -24,6 +24,8 @@ route.delete("/appointment/:id", authenticateJWT, BookingController.completeAppo
 route.post("/bookNextSession", authenticateJWT, BookingController.bookNextSession)
 route.post("/resched", authenticateJWT, BookingController.ReschedBooking)
 route.post("/payment", authenticateJWT, BookingController.bookingPayment)
+route.post("/paymongo/webhook", BookingController.paymongoWebhook)
+route.post("/:id/checkout-session", authenticateJWT, BookingController.registerCheckoutSession)
 route.post("/cashPayment", authenticateJWT, BookingController.bookingCashPayment)
 
 export default route

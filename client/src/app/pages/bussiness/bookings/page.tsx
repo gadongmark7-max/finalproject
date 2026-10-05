@@ -121,20 +121,25 @@ export default function Page() {
 
   const handleRefund = (booking: bookingInterface) => {
     confirmAlert("you want to Refund this Booking?", "Refund", () => {
-      updateStatusMutation.mutate({
-        id: booking._id,
-        status: "refund",
-        reason: "none",
-        clientId: booking.client._id,
-      });
       setIsLoading(true);
-      setTimeout(() => {
-        payMongoRefund(
-          (booking.originalPrice - booking.balance).toString(),
-          booking.bussiness ? booking.bussiness._id : booking.artist._id,
-          booking.client._id,
-        );
-      }, 2000);
+      updateStatusMutation.mutate(
+        {
+          id: booking._id,
+          status: "refund",
+          reason: "none",
+          clientId: booking.client._id,
+        },
+        {
+          onSuccess: () => {
+            payMongoRefund(
+              (booking.originalPrice - booking.balance).toString(),
+              booking.bussiness ? booking.bussiness._id : booking.artist._id,
+              booking.client._id,
+            );
+          },
+          onError: () => setIsLoading(false),
+        },
+      );
     });
   };
 

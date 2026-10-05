@@ -25,6 +25,67 @@ export class BookingService {
     return booking;
   }
 
+  static async getRaw(id: string) {
+    return await BookingModel.findById(id);
+  }
+
+  static async addCheckoutSession(id: string, sessionId: string) {
+    await BookingModel.updateOne(
+      { _id: id, "checkoutSessions.sessionId": { $ne: sessionId } },
+      { $push: { checkoutSessions: { sessionId, status: "pending" } } },
+    );
+  }
+
+  static async setCheckoutSessionStatus(
+    id: string,
+    sessionId: string,
+    status: "pending" | "paid" | "expired",
+  ) {
+    const now = new Date();
+    const updated = await BookingModel.updateOne(
+      { _id: id, "checkoutSessions.sessionId": sessionId },
+      {
+        $set: {
+          "checkoutSessions.$.status": status,
+          "checkoutSessions.$.checkedAt": now,
+        },
+      },
+    );
+    if (updated.matchedCount === 0) {
+      await BookingModel.updateOne(
+        { _id: id, "checkoutSessions.sessionId": { $ne: sessionId } },
+        {
+          $push: {
+            checkoutSessions: { sessionId, status, checkedAt: now },
+          },
+        },
+      );
+    }
+  }
+
+  static async getPendingCheckouts(
+    filter: Record<string, unknown>,
+    recheckAfterMs: number,
+  ) {
+    const bookings = await BookingModel.find({
+      ...filter,
+      "checkoutSessions.status": "pending",
+    }).select("+checkoutSessions");
+    const cutoff = Date.now() - recheckAfterMs;
+    return bookings.flatMap((booking) =>
+      (booking.checkoutSessions ?? [])
+        .filter(
+          (session) =>
+            session.status === "pending" &&
+            (!session.checkedAt || session.checkedAt.getTime() < cutoff),
+        )
+        .map((session) => ({
+          bookingId: booking._id.toString(),
+          sessionId: session.sessionId,
+        })),
+    );
+  }
+
   static async getByStatusAndStatusLenght(id: string, status: string) {
     const booking = await BookingModel.find({ bussiness: id, status: status });
     return booking.length;

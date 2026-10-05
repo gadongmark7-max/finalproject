@@ -46,6 +46,8 @@ export function downloadArtistReportPdf(
     styles: { fontSize: 9 },
     head: [["Metric", "Value"]],
     body: [
+      ["Gross Payments", peso(s.grossRevenue)],
+      ["Refunds", peso(s.totalRefunds)],
       ["Total Revenue", peso(s.totalRevenue)],
       ["Total Expenses", peso(s.totalExpenses)],
       ["Net Revenue", peso(s.netRevenue)],
@@ -79,12 +81,13 @@ export function downloadArtistReportPdf(
       theme: "grid",
       headStyles: { fillColor: [201, 168, 76], textColor: [20, 20, 20] },
       styles: { fontSize: 8 },
-      head: [["Date", "Client", "Method", "Ref ID", "Amount"]],
+      head: [["Date", "Client", "Method", "Ref ID", "Status", "Amount"]],
       body: report.transactions.map((t) => [
         t.date,
         t.client,
         t.paymentMethod,
         t.refId,
+        t.status === "refunded" ? "Refunded" : "Paid",
         peso(t.amount),
       ]),
     });
@@ -176,6 +179,8 @@ export function downloadArtistReportExcel(
     ["Generated", new Date().toLocaleString()],
     [],
     ["Metric", "Value"],
+    ["Gross Payments", s.grossRevenue],
+    ["Refunds", s.totalRefunds],
     ["Total Revenue", s.totalRevenue],
     ["Total Expenses", s.totalExpenses],
     ["Net Revenue", s.netRevenue],
@@ -198,6 +203,7 @@ export function downloadArtistReportExcel(
       Client: t.client,
       Method: t.paymentMethod,
       "Reference ID": t.refId,
+      Status: t.status === "refunded" ? "Refunded" : "Paid",
       Amount: t.amount,
     })),
   );

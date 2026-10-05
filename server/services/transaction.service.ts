@@ -9,6 +9,8 @@ import {
 const BOOKING_LIST_FIELDS =
   "tattooImg originalPrice balance date time duration status session paymentMethod";
 
+export const PAYMENT_FILTER = { type: { $ne: "refund" } };
+
 export class TransactionService {
   static async create(data: transactionInterfaceInput) {
     return await TransactionModel.create(data);
@@ -16,7 +18,12 @@ export class TransactionService {
 
   static async getTotalByBooking(bookingId: string) {
     const [result] = await TransactionModel.aggregate([
-      { $match: { bookingId: new mongoose.Types.ObjectId(bookingId) } },
+      {
+        $match: {
+          bookingId: new mongoose.Types.ObjectId(bookingId),
+          ...PAYMENT_FILTER,
+        },
+      },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
     return result?.total ?? 0;
@@ -42,7 +49,9 @@ export class TransactionService {
   }
 
   static async getBySender(sender: string) {
-    return await TransactionModel.find({ sender })
+    return await TransactionModel.find({
+      $or: [{ sender }, { receiver: sender, type: "refund" }],
+    })
       .populate("sender")
       .populate("receiver")
       .populate("bookingId", BOOKING_LIST_FIELDS)

@@ -5,26 +5,82 @@ import cloudinary from "../utils/cloudinary";
 import fs from "fs";
 import { TransactionService } from "../services/transaction.service";
 import { getDate, getTime } from "../utils/customFunction";
-import { getPaidCheckout, PaymentError } from "../utils/payMongo";
+import {
+  getCheckoutSession,
+  isCheckoutSessionId,
+  PaymentError,
+  verifyWebhookSignature,
+} from "../utils/payMongo";
 import { NotificationService } from "../services/notifications.service";
 import { AccountService } from "../services/acccount.service";
 import { sendEmail, sendNewClientAccountEmail } from "../utils/customFunction";
 import { generateSecurePassword } from "../utils/password";
 import { Console } from "console";
 import { ClientDirectoryService } from "../services/clientDirectory.service";
+import { PostService } from "../services/post.service";
+import { isValidObjectId } from "mongoose";
+import { getBookingPaymentStatus } from "../model/booking.model";
+import {
+  BOOKING_DURATION_ERROR_CODE,
+  normalizeSessionHours,
+  validateBookingDuration,
+} from "../utils/bookingDuration";
 import {
   BookingCompletionError,
   BookingCompletionService,
 } from "../services/bookingCompletion.service";
+import {
+  BookingRefundError,
+  BookingRefundService,
+} from "../services/bookingRefund.service";
+
+const CHECKOUT_RECHECK_MS = 15 * 1000;
 
 export class BookingController {
   static createBooking = async (request: AuthRequest, response: Response) => {
     try {
       const account = request.account;
-      const { booking } = request.body;
+      const { booking, postId } = request.body;
+
+      if (!booking || typeof booking !== "object") {
+        response.status(400).json({ error: "Invalid booking" });
+        return;
+      }
+
+      let sessions = booking.sessions;
+      if (postId !== undefined) {
+        const post =
+          typeof postId === "string" && isValidObjectId(postId)
+            ? await PostService.get(postId)
+            : null;
+        if (!post) {
+          response.status(404).json({ error: "Tattoo post not found" });
+          return;
+        }
+        sessions = post.sessions;
+      }
+      sessions = normalizeSessionHours(sessions);
+
+      const duration = validateBookingDuration({
+        sessions,
+        session: 1,
+        time: booking.time,
+      });
+      if (!duration.ok) {
+        response.status(400).json({
+          error: duration.message,
+          code: BOOKING_DURATION_ERROR_CODE,
+          requiredHours: duration.requiredHours,
+          selectedHours: duration.selectedHours,
+        });
+        return;
+      }
 
       const data = await BookingService.create({
         ...booking,
+        sessions,
+        session: 1,
+        duration: duration.selectedHours,
         status: "pending",
       });
       sendEmail(
@@ -62,6 +118,9 @@ export class BookingController {
   ) => {
     try {
       const { id } = request.params;
+      if (isValidObjectId(id)) {
+        await BookingController.syncPendingCheckouts({ artist: id });
+      }
       const bookings = await BookingService.getByArtist(id);
       response.send(bookings);
     } catch (e) {
@@ -73,6 +132,9 @@ export class BookingController {
   static getBooking = async (request: AuthRequest, response: Response) => {
     try {
       const { id } = request.params;
+      if (isValidObjectId(id)) {
+        await BookingController.syncPendingCheckouts({ _id: id });
+      }
       const booking = await BookingService.get(id);
       response.send(booking);
     } catch (e) {
@@ -101,6 +163,9 @@ export class BookingController {
   ) => {
     try {
       const { id } = request.params;
+      if (isValidObjectId(id)) {
+        await BookingController.syncPendingCheckouts({ client: id });
+      }
       const bookings = await BookingService.getByClient(id);
       response.send(bookings);
     } catch (e) {
@@ -129,6 +194,9 @@ export class BookingController {
   ) => {
     try {
       const { id } = request.params;
+      if (isValidObjectId(id)) {
+        await BookingController.syncPendingCheckouts({ bussiness: id });
+      }
       const bookings = await BookingService.getByBussiness(id);
       response.send(bookings);
     } catch (e) {
@@ -213,46 +281,250 @@ export class BookingController {
     return "recorded";
   };
 
-  static bookingPayment = async (request: AuthRequest, response: Response) => {
-    try {
-      const paid = await getPaidCheckout(request.body.checkoutSessionId);
-      if (!paid) {
-        response.status(402).send("payment not completed");
-        return;
-      }
+  private static recordCheckout = async (
+    sessionId: string,
+    expectedBookingId?: string,
+  ): Promise<"recorded" | "duplicate" | "pending" | "expired"> => {
+    const session = await getCheckoutSession(sessionId);
+    const bookingId = session.metadata.bookingId;
+    if (expectedBookingId && bookingId !== expectedBookingId) {
+      throw new PaymentError(409, "checkout session belongs to another booking");
+    }
 
-      const { sender, receiver, bookingId } = paid.metadata;
-      if (
-        !paid.refId ||
-        !sender ||
-        !receiver ||
-        !bookingId ||
-        !(paid.amount > 0)
-      ) {
-        response
-          .status(422)
-          .send("checkout session is missing payment details");
-        return;
-      }
-
-      await BookingController.recordBookingPayment(
-        {
-          sender,
-          receiver,
+    if (!session.paid) {
+      if (session.status === "expired" && bookingId) {
+        await BookingService.setCheckoutSessionStatus(
           bookingId,
-          amount: paid.amount,
-          refId: paid.refId,
-          paymentMethod: "online",
-        },
-        { requireSufficientBalance: false },
+          sessionId,
+          "expired",
+        );
+        return "expired";
+      }
+      if (bookingId) {
+        await BookingService.setCheckoutSessionStatus(
+          bookingId,
+          sessionId,
+          "pending",
+        );
+      }
+      return "pending";
+    }
+
+    const { sender, receiver } = session.metadata;
+    const paid = session.paid;
+    if (!paid.refId || !sender || !receiver || !bookingId || !(paid.amount > 0)) {
+      throw new PaymentError(422, "checkout session is missing payment details");
+    }
+
+    const result = await BookingController.recordBookingPayment(
+      {
+        sender,
+        receiver,
+        bookingId,
+        amount: paid.amount,
+        refId: paid.refId,
+        paymentMethod: "online",
+      },
+      { requireSufficientBalance: false },
+    );
+    await BookingService.setCheckoutSessionStatus(bookingId, sessionId, "paid");
+    return result;
+  };
+
+  private static syncPendingCheckouts = async (
+    filter: Record<string, unknown>,
+  ) => {
+    try {
+      const pending = await BookingService.getPendingCheckouts(
+        filter,
+        CHECKOUT_RECHECK_MS,
       );
-      response.send("success");
+      for (const { bookingId, sessionId } of pending) {
+        try {
+          await BookingController.recordCheckout(sessionId, bookingId);
+        } catch (e) {
+          if (e instanceof PaymentError && (e.status === 404 || e.status === 409)) {
+            await BookingService.setCheckoutSessionStatus(
+              bookingId,
+              sessionId,
+              "expired",
+            );
+            continue;
+          }
+          console.error("checkout sync failed for booking", bookingId, e);
+        }
+      }
+    } catch (e) {
+      console.error("checkout sync failed", e);
+    }
+  };
+
+  static registerCheckoutSession = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const { id } = request.params;
+      const { checkoutSessionId } = request.body;
+      if (!isCheckoutSessionId(checkoutSessionId)) {
+        response.status(400).send("invalid checkout session");
+        return;
+      }
+
+      const booking = await BookingService.get(id);
+      if (!booking) {
+        response.status(404).send("booking not found");
+        return;
+      }
+      if (booking.client._id.toString() !== request.account?._id) {
+        response
+          .status(403)
+          .send("you are not authorized to pay for this booking");
+        return;
+      }
+
+      const session = await getCheckoutSession(checkoutSessionId);
+      if (session.metadata.bookingId !== id) {
+        response
+          .status(409)
+          .send("checkout session belongs to another booking");
+        return;
+      }
+
+      await BookingService.addCheckoutSession(id, checkoutSessionId);
+      response.send({ status: "registered" });
     } catch (e) {
       if (e instanceof PaymentError) {
         response.status(e.status).send(e.message);
         return;
       }
       console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static bookingPayment = async (request: AuthRequest, response: Response) => {
+    try {
+      const { checkoutSessionId, bookingId } = request.body;
+
+      if (isCheckoutSessionId(checkoutSessionId)) {
+        const result = await BookingController.recordCheckout(
+          checkoutSessionId,
+          typeof bookingId === "string" ? bookingId : undefined,
+        );
+        if (result === "pending" || result === "expired") {
+          response.status(402).send("payment not completed");
+          return;
+        }
+        response.send({ status: result });
+        return;
+      }
+
+      if (typeof bookingId !== "string" || !isValidObjectId(bookingId)) {
+        response.status(400).send("invalid checkout session");
+        return;
+      }
+
+      const booking = await BookingService.get(bookingId);
+      if (!booking) {
+        response.status(404).send("booking not found");
+        return;
+      }
+      const callerId = request.account?._id;
+      const parties = [booking.client, booking.artist, booking.bussiness]
+        .filter(Boolean)
+        .map((party: any) => party._id.toString());
+      if (!callerId || !parties.includes(callerId)) {
+        response
+          .status(403)
+          .send("you are not authorized to view this booking");
+        return;
+      }
+
+      const pending = await BookingService.getPendingCheckouts(
+        { _id: booking._id },
+        0,
+      );
+      let recorded = false;
+      for (const { sessionId } of pending) {
+        try {
+          const result = await BookingController.recordCheckout(
+            sessionId,
+            bookingId,
+          );
+          if (result === "recorded" || result === "duplicate") recorded = true;
+        } catch (e) {
+          if (e instanceof PaymentError && (e.status === 404 || e.status === 409)) {
+            await BookingService.setCheckoutSessionStatus(
+              bookingId,
+              sessionId,
+              "expired",
+            );
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      const latest = await BookingService.get(bookingId);
+      const paymentStatus = latest
+        ? getBookingPaymentStatus(latest.originalPrice, latest.balance)
+        : null;
+      if (!recorded && paymentStatus === "awaiting") {
+        response.status(402).send("payment not completed");
+        return;
+      }
+      response.send({ status: "synced", paymentStatus });
+    } catch (e) {
+      if (e instanceof PaymentError) {
+        response.status(e.status).send(e.message);
+        return;
+      }
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static paymongoWebhook = async (request: AuthRequest, response: Response) => {
+    const secret = process.env.PAYMONGO_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error("PAYMONGO_WEBHOOK_SECRET is not set; ignoring webhook");
+      response.status(503).send("webhook not configured");
+      return;
+    }
+    if (
+      !verifyWebhookSignature(
+        (request as any).rawBody,
+        request.headers["paymongo-signature"],
+        secret,
+      )
+    ) {
+      response.status(401).send("invalid signature");
+      return;
+    }
+
+    const event = request.body?.data?.attributes;
+    if (event?.type !== "checkout_session.payment.paid") {
+      response.send({ received: true });
+      return;
+    }
+
+    const sessionId = event?.data?.id;
+    if (!isCheckoutSessionId(sessionId)) {
+      response.status(400).send("invalid checkout session");
+      return;
+    }
+
+    try {
+      const result = await BookingController.recordCheckout(sessionId);
+      response.send({ received: true, status: result });
+    } catch (e) {
+      if (e instanceof PaymentError && e.status < 500) {
+        console.error("PayMongo webhook rejected:", e.message);
+        response.send({ received: true, status: "ignored" });
+        return;
+      }
+      console.error("PayMongo webhook failed:", e);
       response.status(500).send("error occur");
     }
   };
@@ -391,6 +663,38 @@ export class BookingController {
         return;
       }
 
+      if (status == "refund") {
+        const raw = await BookingService.getRaw(id);
+        if (raw && raw.status !== "refund") {
+          try {
+            await BookingController.reconcileBookingPayment(raw);
+          } catch (e) {
+            console.error("payment reconciliation failed for booking", id, e);
+          }
+        }
+        const result = await BookingRefundService.refund(id, {
+          id: acccount._id,
+        });
+        if (!result.alreadyRefunded) {
+          const refundClientId = result.booking.client.toString();
+          const refundClient = await AccountService.get(refundClientId);
+          const refundAmount = Number(result.transaction?.amount ?? 0);
+          const refundMessage = `Your booking payment of ₱${refundAmount.toLocaleString()} has been refunded.`;
+          await NotificationService.create({
+            account: refundClientId,
+            date: getDate(),
+            time: getTime(),
+            message: refundMessage,
+            type: "success",
+            isSeen: false,
+          });
+          sendEmail(refundClient?.email!, "Booking Refunded", refundMessage);
+        }
+        const bookings = await BookingService.getByArtist(acccount._id);
+        response.send(bookings);
+        return;
+      }
+
       const booking = await BookingService.updateStatus(id, status);
 
       const client = await AccountService.get(clientId);
@@ -428,22 +732,15 @@ export class BookingController {
           "Booking Rejected",
           `Artist Reject your Booking. reason : ${reason}`,
         );
-      } else if (status == "refund" && booking) {
-        await NotificationService.create({
-          account: clientId,
-          date: getDate(),
-          time: getTime(),
-          message: `Refund Sucessfully`,
-          type: "success",
-          isSeen: false,
-        });
-        sendEmail(client?.email!, "Booking Refunded", `Refund Sucessfully`);
       }
 
       const bookings = await BookingService.getByArtist(acccount?._id!);
       response.send(bookings);
     } catch (e) {
-      if (e instanceof BookingCompletionError) {
+      if (
+        e instanceof BookingCompletionError ||
+        e instanceof BookingRefundError
+      ) {
         response.status(e.status).json({ error: e.message });
         return;
       }

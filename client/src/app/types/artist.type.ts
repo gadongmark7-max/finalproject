@@ -48,6 +48,9 @@ export interface dashboardStatsInterface {
   completedBookings: number;
   rejectedBookings: number;
   totalRevenue: number;
+  grossRevenue: number;
+  totalRefunds: number;
+  refundedPayments: number;
   totalPayments: number;
   pendingPayments: number;
   totalExpenses: number;
@@ -64,6 +67,9 @@ export interface dashboardDataInterface {
 
 export interface reportSummaryInterface {
   totalRevenue: number;
+  grossRevenue: number;
+  totalRefunds: number;
+  refundedTransactions: number;
   totalTransactions: number;
   totalExpenses: number;
   netRevenue: number;
@@ -92,6 +98,8 @@ export interface reportDataInterface {
     paymentMethod: string;
     client: string;
     bookingId: string | null;
+    status: "paid" | "refunded";
+    refundedAt: string | null;
   }[];
   bookings: {
     date: string;

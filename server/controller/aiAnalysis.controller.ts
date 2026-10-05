@@ -20,6 +20,12 @@ import {
 import { AI_RATE_LIMIT_MESSAGE, consumeAiQuota } from "../utils/aiRateLimit";
 import { ArtistInfoService } from "../services/artistInfo.service";
 import {
+  AiEstimatorUsageService,
+  EstimatorUsageStatus,
+  ESTIMATOR_ATTEMPT_LIMIT,
+  formatCooldown,
+} from "../services/aiEstimatorUsage.service";
+import {
   aiAnalysisRequestSchema,
   aiRepriceRequestSchema,
   clientEstimateRequestSchema,
@@ -444,8 +450,32 @@ export class AiAnalysisController {
       response.status(503).json({ error: PRICING_UNAVAILABLE_MESSAGE });
       return;
     }
-    if (!consumeAiQuota(request.account?._id ?? request.ip ?? "anonymous")) {
-      response.status(429).json({ error: AI_RATE_LIMIT_MESSAGE });
+    const accountId = request.account?._id;
+    if (!accountId) {
+      response.status(401).json({ error: "unauthorized" });
+      return;
+    }
+
+    let usage: EstimatorUsageStatus;
+    try {
+      const attempt = await AiEstimatorUsageService.consume(accountId);
+      usage = attempt.status;
+      if (!attempt.allowed) {
+        response.status(429).json({
+          error: estimatorLimitMessage(usage),
+          code: ESTIMATOR_LIMIT_CODE,
+          usage,
+        });
+        return;
+      }
+    } catch (error) {
+      sendError(response, error, "Client AI estimate usage");
+      return;
+    }
+
+    if (!consumeAiQuota(accountId)) {
+      usage = await AiEstimatorUsageService.release(accountId);
+      response.status(429).json({ error: AI_RATE_LIMIT_MESSAGE, usage });
       return;
     }
 
@@ -459,6 +489,7 @@ export class AiAnalysisController {
         response.status(422).json({
           error:
             "This image doesn't look like a tattoo design. Please upload a clear photo of a tattoo or design.",
+          usage,
         });
         return;
       }
@@ -487,8 +518,8 @@ export class AiAnalysisController {
         },
       });
 
-      response.json(
-        buildClientEstimate({
+      response.json({
+        ...buildClientEstimate({
           analysis: {
             style: ai.category,
             complexity: ai.complexity,
@@ -501,9 +532,37 @@ export class AiAnalysisController {
           sizeSource,
           hourlyRate,
         }),
-      );
+        usage,
+      });
     } catch (error) {
+      if (shouldReleaseAttempt(error)) {
+        try {
+          usage = await AiEstimatorUsageService.release(accountId);
+        } catch (releaseError) {
+          console.error("Releasing estimator attempt failed:", releaseError);
+        }
+      }
+      if (error instanceof AiAnalysisError) {
+        response.status(error.status).json({ error: error.message, usage });
+        return;
+      }
       sendError(response, error, "Client AI estimate");
+    }
+  };
+
+  static getEstimatorUsage = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    const accountId = request.account?._id;
+    if (!accountId) {
+      response.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    try {
+      response.json(await AiEstimatorUsageService.getStatus(accountId));
+    } catch (error) {
+      sendError(response, error, "Client AI estimate usage");
     }
   };
 
@@ -555,6 +614,20 @@ export class AiAnalysisController {
       sendError(response, error, "Client AI reprice");
     }
   };
+}
+
+const ESTIMATOR_LIMIT_CODE = "ESTIMATOR_LIMIT_REACHED";
+
+function estimatorLimitMessage(usage: EstimatorUsageStatus) {
+  const wait = usage.cooldownRemainingMs
+    ? ` You can try again in ${formatCooldown(usage.cooldownRemainingMs)}.`
+    : "";
+  return `You've used all ${ESTIMATOR_ATTEMPT_LIMIT} AI estimator tests.${wait}`;
+}
+
+function shouldReleaseAttempt(error: unknown) {
+  if (!(error instanceof AiAnalysisError)) return true;
+  return error.status >= 500 || error.status === 429;
 }
 
 const PRICING_UNAVAILABLE_MESSAGE =

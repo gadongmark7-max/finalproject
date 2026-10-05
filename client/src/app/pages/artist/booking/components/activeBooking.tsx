@@ -4,7 +4,7 @@ import { useState, useEffect, useContext } from "react";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
 import { bookingInterface } from "@/app/types/booking.type";
-import { convertToAmPm } from "@/app/utils/customFunction";
+import { apiErrorMessage, convertToAmPm } from "@/app/utils/customFunction";
 import {
   User,
   Calendar,
@@ -72,25 +72,29 @@ export default function ActiveBookings({
     onSuccess: (response) => {
       setBookings(response.data);
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const handleRefund = (booking: bookingInterface) => {
     confirmAlert("you want to Refund this Booking?", "Refund", () => {
-      refundMutation.mutate({
-        id: booking._id,
-        status: "refund",
-        reason: "none",
-        clientId: booking.client._id,
-      });
-      setIsLoading(true);
-      setTimeout(() => {
-        payMongoRefund(
-          (booking.originalPrice - booking.balance).toString(),
-          booking.bussiness ? booking.bussiness._id : booking.artist._id,
-          booking.client._id,
-        );
-      }, 2000);
+      refundMutation.mutate(
+        {
+          id: booking._id,
+          status: "refund",
+          reason: "none",
+          clientId: booking.client._id,
+        },
+        {
+          onSuccess: () => {
+            setIsLoading(true);
+            payMongoRefund(
+              (booking.originalPrice - booking.balance).toString(),
+              booking.bussiness ? booking.bussiness._id : booking.artist._id,
+              booking.client._id,
+            );
+          },
+        },
+      );
     });
   };
 

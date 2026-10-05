@@ -940,8 +940,8 @@ export default function Page() {
                     Ready to get inked?
                   </h2>
                   <p className="mt-4 text-base leading-relaxed text-text-muted">
-                    Come visit us or reach out to start your consultation. We&apos;d
-                    love to hear your idea.
+                    Come visit us or reach out to start your consultation.
+                    We&apos;d love to hear your idea.
                   </p>
                   <ul className="mt-8 space-y-5 text-sm text-text-muted">
                     {/* Location */}
@@ -1145,30 +1145,31 @@ export default function Page() {
               },
               {
                 heading: "Legal",
-                links: [{ label: "Contact", href: "#contact" }],
+                links: [
+                  {
+                    label: "Contact Developer",
+                    href: "mailto:inkofbaphomet@gmail.com",
+                  },
+                ],
               },
             ].map((col) => (
               <div key={col.heading}>
-                {" "}
                 <h4 className="mb-4 font-semibold text-[10px] tracking-[0.24em] uppercase text-text">
-                  {" "}
-                  {col.heading}{" "}
-                </h4>{" "}
+                  {col.heading}
+                </h4>
+
                 <ul className="space-y-3 text-sm text-text-muted">
-                  {" "}
                   {col.links.map((link) => (
                     <li key={link.label}>
-                      {" "}
                       <a
                         href={link.href}
                         className="tracking-wide transition-colors duration-200 hover:text-gold"
                       >
-                        {" "}
-                        {link.label}{" "}
-                      </a>{" "}
+                        {link.label}
+                      </a>
                     </li>
-                  ))}{" "}
-                </ul>{" "}
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
