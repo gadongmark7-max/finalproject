@@ -94,6 +94,16 @@ export interface clientTattooEstimateInterface {
   sessions: { min: number; max: number };
   price: { min: number; max: number; currency: "PHP" };
   estimateToken: string;
+  usage?: estimatorUsageInterface;
+}
+
+export interface estimatorUsageInterface {
+  limit: number;
+  used: number;
+  remaining: number;
+  cooldownUntil: string | null;
+  cooldownRemainingMs: number;
+  serverTime: string;
 }
 
 export interface aiEstimateSnapshotInterface {

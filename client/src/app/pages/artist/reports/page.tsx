@@ -227,6 +227,10 @@ export default function Page() {
                         value: data.summary.totalRevenue,
                         php: true,
                         icon: Wallet,
+                        note:
+                          data.summary.totalRefunds > 0
+                            ? `₱${data.summary.totalRefunds.toLocaleString()} refunded · excluded`
+                            : undefined,
                       },
                       {
                         label: "Total Expenses",
@@ -264,6 +268,11 @@ export default function Page() {
                           {s.php && <span className="text-gold mr-1">₱</span>}
                           {s.value.toLocaleString()}
                         </p>
+                        {"note" in s && s.note && (
+                          <p className="text-[10px] uppercase tracking-[0.15em] text-text-dim">
+                            {s.note}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -299,6 +308,7 @@ export default function Page() {
                       <TableHead>Client</TableHead>
                       <TableHead>Method</TableHead>
                       <TableHead>Ref ID</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-end">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -313,7 +323,18 @@ export default function Page() {
                         <TableCell className="text-text-dim">
                           {t.refId}
                         </TableCell>
-                        <TableCell className="text-end">
+                        <TableCell
+                          className={
+                            t.status === "refunded"
+                              ? "text-danger-light"
+                              : "text-text-muted"
+                          }
+                        >
+                          {t.status === "refunded" ? "Refunded" : "Paid"}
+                        </TableCell>
+                        <TableCell
+                          className={`text-end ${t.status === "refunded" ? "line-through text-text-muted" : ""}`}
+                        >
                           ₱{t.amount.toLocaleString()}
                         </TableCell>
                       </TableRow>

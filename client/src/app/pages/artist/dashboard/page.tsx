@@ -121,7 +121,18 @@ export default function Page() {
             <div className="h-px flex-1 bg-border" />
           </div>
           <div className="grid md:grid-cols-4 grid-cols-1 gap-px bg-border">
-            <StatCard title="Total Revenue" value={stats.totalRevenue} hasPhp icon={Wallet} tone="success" />
+            <StatCard
+              title="Total Revenue"
+              value={stats.totalRevenue}
+              hasPhp
+              icon={Wallet}
+              tone="success"
+              note={
+                stats.totalRefunds > 0
+                  ? `₱${stats.totalRefunds.toLocaleString()} refunded · excluded`
+                  : undefined
+              }
+            />
             <StatCard title="Total Expenses" value={stats.totalExpenses} hasPhp icon={Receipt} tone="danger" />
             <StatCard
               title="Net Revenue"

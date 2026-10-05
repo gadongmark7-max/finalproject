@@ -620,7 +620,15 @@ export class AccountController {
       }
 
       const requesterId = request.account?._id;
-      if (!requesterId || transaction.sender._id.toString() !== requesterId) {
+      const partyIds = [
+        transaction.sender?._id,
+        transaction.receiver?._id,
+        transaction.bookingId?.artist,
+        transaction.bookingId?.bussiness,
+      ]
+        .filter(Boolean)
+        .map((value: any) => value.toString());
+      if (!requesterId || !partyIds.includes(requesterId)) {
         response
           .status(403)
           .send("You are not authorized to view this receipt");

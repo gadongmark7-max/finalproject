@@ -23,6 +23,11 @@ route.post(
   aiImageUpload,
   AiAnalysisController.estimateForClient,
 );
+route.get(
+  "/ai-estimate/usage",
+  authenticateJWT,
+  AiAnalysisController.getEstimatorUsage,
+);
 route.post(
   "/ai-estimate/reprice",
   authenticateJWT,

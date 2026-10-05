@@ -9,6 +9,8 @@ export interface transactionInterfaceInput {
     amount : number,
     bookingId? : string,
     paymentMethod? : "online" | "counter",
+    type? : "payment" | "refund",
+    refundedAt? : Date | null,
 }
 
 
@@ -22,4 +24,6 @@ export interface transactionInterface {
     amount : number,
     bookingId? : string,
     paymentMethod? : "online" | "counter",
+    type? : "payment" | "refund",
+    refundedAt? : Date | null,
 }

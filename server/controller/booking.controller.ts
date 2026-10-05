@@ -12,19 +12,65 @@ import { sendEmail, sendNewClientAccountEmail } from "../utils/customFunction";
 import { generateSecurePassword } from "../utils/password";
 import { Console } from "console";
 import { ClientDirectoryService } from "../services/clientDirectory.service";
+import { PostService } from "../services/post.service";
+import { isValidObjectId } from "mongoose";
+import {
+  BOOKING_DURATION_ERROR_CODE,
+  validateBookingDuration,
+} from "../utils/bookingDuration";
 import {
   BookingCompletionError,
   BookingCompletionService,
 } from "../services/bookingCompletion.service";
+import {
+  BookingRefundError,
+  BookingRefundService,
+} from "../services/bookingRefund.service";
 
 export class BookingController {
   static createBooking = async (request: AuthRequest, response: Response) => {
     try {
       const account = request.account;
-      const { booking } = request.body;
+      const { booking, postId } = request.body;
+
+      if (!booking || typeof booking !== "object") {
+        response.status(400).json({ error: "Invalid booking" });
+        return;
+      }
+
+      let sessions = booking.sessions;
+      if (postId !== undefined) {
+        const post =
+          typeof postId === "string" && isValidObjectId(postId)
+            ? await PostService.get(postId)
+            : null;
+        if (!post) {
+          response.status(404).json({ error: "Tattoo post not found" });
+          return;
+        }
+        sessions = post.sessions;
+      }
+
+      const duration = validateBookingDuration({
+        sessions,
+        session: 1,
+        time: booking.time,
+      });
+      if (!duration.ok) {
+        response.status(400).json({
+          error: duration.message,
+          code: BOOKING_DURATION_ERROR_CODE,
+          requiredHours: duration.requiredHours,
+          selectedHours: duration.selectedHours,
+        });
+        return;
+      }
 
       const data = await BookingService.create({
         ...booking,
+        sessions,
+        session: 1,
+        duration: duration.selectedHours,
         status: "pending",
       });
       sendEmail(
@@ -391,6 +437,38 @@ export class BookingController {
         return;
       }
 
+      if (status == "refund") {
+        const raw = await BookingService.getRaw(id);
+        if (raw && raw.status !== "refund") {
+          try {
+            await BookingController.reconcileBookingPayment(raw);
+          } catch (e) {
+            console.error("payment reconciliation failed for booking", id, e);
+          }
+        }
+        const result = await BookingRefundService.refund(id, {
+          id: acccount._id,
+        });
+        if (!result.alreadyRefunded) {
+          const refundClientId = result.booking.client.toString();
+          const refundClient = await AccountService.get(refundClientId);
+          const refundAmount = Number(result.transaction?.amount ?? 0);
+          const refundMessage = `Your booking payment of ₱${refundAmount.toLocaleString()} has been refunded.`;
+          await NotificationService.create({
+            account: refundClientId,
+            date: getDate(),
+            time: getTime(),
+            message: refundMessage,
+            type: "success",
+            isSeen: false,
+          });
+          sendEmail(refundClient?.email!, "Booking Refunded", refundMessage);
+        }
+        const bookings = await BookingService.getByArtist(acccount._id);
+        response.send(bookings);
+        return;
+      }
+
       const booking = await BookingService.updateStatus(id, status);
 
       const client = await AccountService.get(clientId);
@@ -428,22 +506,15 @@ export class BookingController {
           "Booking Rejected",
           `Artist Reject your Booking. reason : ${reason}`,
         );
-      } else if (status == "refund" && booking) {
-        await NotificationService.create({
-          account: clientId,
-          date: getDate(),
-          time: getTime(),
-          message: `Refund Sucessfully`,
-          type: "success",
-          isSeen: false,
-        });
-        sendEmail(client?.email!, "Booking Refunded", `Refund Sucessfully`);
       }
 
       const bookings = await BookingService.getByArtist(acccount?._id!);
       response.send(bookings);
     } catch (e) {
-      if (e instanceof BookingCompletionError) {
+      if (
+        e instanceof BookingCompletionError ||
+        e instanceof BookingRefundError
+      ) {
         response.status(e.status).json({ error: e.message });
         return;
       }

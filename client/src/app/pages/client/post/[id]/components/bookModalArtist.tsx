@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
-import { convertToAmPm } from "@/app/utils/customFunction";
+import { apiErrorMessage, convertToAmPm } from "@/app/utils/customFunction";
 import { postInterface } from "@/app/types/post.type";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
@@ -29,7 +29,12 @@ import { CalendarIcon } from "lucide-react";
 import { TattooDataInterface } from "@/app/types/threejs.type";
 import { SetTattoo3DModal } from "@/app/3d/3dTattooModal";
 import LoadingScreen from "@/components/ui/loadingScreen";
-import type { PaymentMethod } from "@/lib/validation/schemas/booking";
+import {
+  bookingDurationHours,
+  insufficientDurationMessage,
+  requiredSessionHours,
+  type PaymentMethod,
+} from "@/lib/validation/schemas/booking";
 
 export function ArtistBookModal({
   post,
@@ -50,7 +55,11 @@ export function ArtistBookModal({
 
   const router = useRouter();
 
-  const sessionTime = post.sessions[0];
+  const sessionTime = requiredSessionHours(post.sessions) ?? 0;
+
+  const [durationError, setDurationError] = useState<string | null>(
+    sessionTime ? null : "This tattoo has no valid session duration.",
+  );
 
   const [open, setOpen] = useState(false);
 
@@ -83,7 +92,7 @@ export function ArtistBookModal({
 
   const bookMutation = useMutation({
     mutationFn: (booking: bookingInterfaceInput) =>
-      axiosInstance.post("/booking", { booking }),
+      axiosInstance.post("/booking", { booking, postId: post._id }),
     onSuccess: (response, variables) => {
       const bookingId: string = response.data.bookingId;
       setOpen(false);
@@ -111,7 +120,7 @@ export function ArtistBookModal({
         });
       }
     },
-    onError: () => errorAlert("error occur"),
+    onError: (error) => errorAlert(apiErrorMessage(error, "error occur")),
   });
 
   const validateBookings = () => {
@@ -145,17 +154,23 @@ export function ArtistBookModal({
   };
 
   const selectStartTime = (index: number) => {
-    const selectedItem = [];
+    if (!sessionTime) return;
+    const selectedItem = times.slice(index, index + sessionTime + 1);
+    const coveredHours = bookingDurationHours(selectedItem);
 
-    for (let i = index; i <= sessionTime + index; i++) {
-      try {
-        selectedItem.push(times[i]);
-      } catch (e) {
-        errorAlert("invalid");
-        return;
-      }
+    if (coveredHours === null || coveredHours < sessionTime) {
+      setStartTime(null);
+      setEndTime(null);
+      setSelectedTime([]);
+      setDurationError(
+        coveredHours === null
+          ? "The artist's schedule isn't continuous after this start time. Please choose another start time."
+          : `${insufficientDurationMessage(sessionTime, coveredHours, post.sessions.length)} Please choose an earlier start time.`,
+      );
+      return;
     }
 
+    setDurationError(null);
     setStartTime(times[index]);
     setEndTime(times[index + sessionTime]);
     setSelectedTime(selectedItem);
@@ -176,6 +191,7 @@ export function ArtistBookModal({
     !selectStartTime ||
     !user ||
     validateBookings() ||
+    !!durationError ||
     selectedtime.length == 0;
 
   if (isLoading)
@@ -237,6 +253,15 @@ export function ArtistBookModal({
                       } | ${convertToAmPm(startTime)} - ${convertToAmPm(endTime)}`
                     : `Date: ${date.toLocaleDateString("en-US")}`}
                 </p>
+
+                {durationError && (
+                  <p
+                    role="alert"
+                    className="text-xs leading-relaxed text-red-600 border border-red-300 bg-red-50 px-3 py-2"
+                  >
+                    {durationError}
+                  </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {times.map((item, index) => (

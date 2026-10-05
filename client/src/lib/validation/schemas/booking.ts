@@ -42,3 +42,43 @@ export function bookingPaymentLabel(booking: {
 export const paymentMethodSchema = z.enum(PAYMENT_METHODS, {
   errorMap: () => ({ message: "Please select a payment method." }),
 });
+
+const hoursLabel = (hours: number) =>
+  `${hours} ${hours === 1 ? "hour" : "hours"}`;
+
+export const requiredSessionHours = (sessions: number[], session = 1) => {
+  const hours = Number(sessions?.[session - 1]);
+  return Number.isFinite(hours) && hours > 0 ? hours : null;
+};
+
+const toMinutes = (time: unknown) => {
+  if (typeof time !== "string") return null;
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  return hours * 60 + minutes;
+};
+
+export const bookingDurationHours = (times: unknown[]) => {
+  if (times.length < 2) return 0;
+  const minutes = times.map(toMinutes);
+  if (minutes.some((m) => m === null)) return null;
+  for (let i = 1; i < minutes.length; i++) {
+    if (minutes[i]! - minutes[i - 1]! !== 60) return null;
+  }
+  return times.length - 1;
+};
+
+export const insufficientDurationMessage = (
+  requiredHours: number,
+  selectedHours: number,
+  totalSessions: number,
+) => {
+  const subject =
+    totalSessions > 1
+      ? `Session 1 of this tattoo (${totalSessions} sessions total) requires ${hoursLabel(requiredHours)}`
+      : `This tattoo requires ${hoursLabel(requiredHours)}`;
+  return `${subject}, so the booking duration must be at least ${hoursLabel(requiredHours)}. The selected time only covers ${hoursLabel(selectedHours)}.`;
+};

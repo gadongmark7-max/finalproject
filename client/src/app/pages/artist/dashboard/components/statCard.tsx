@@ -6,12 +6,14 @@ export const StatCard = ({
   hasPhp,
   icon: Icon,
   tone = "gold",
+  note,
 }: {
   title: string;
   value: number;
   hasPhp?: boolean;
   icon: LucideIcon;
   tone?: "gold" | "success" | "danger" | "warning";
+  note?: string;
 }) => {
   const toneClasses: Record<string, string> = {
     gold: "text-gold border-border",
@@ -44,6 +46,11 @@ export const StatCard = ({
           {hasPhp && <span className="text-gold mr-1">₱</span>}
           {value.toLocaleString()}
         </p>
+        {note && (
+          <p className="text-[10px] uppercase tracking-[0.15em] text-text-dim mt-1">
+            {note}
+          </p>
+        )}
       </div>
     </div>
   );

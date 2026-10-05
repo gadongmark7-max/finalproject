@@ -25,6 +25,10 @@ export class BookingService {
     return booking;
   }
 
+  static async getRaw(id: string) {
+    return await BookingModel.findById(id);
+  }
+
   static async getByStatusAndStatusLenght(id: string, status: string) {
     const booking = await BookingModel.find({ bussiness: id, status: status });
     return booking.length;

@@ -6,6 +6,11 @@ import axiosInstance from "@/app/utils/axios";
 import { errorAlert } from "@/app/utils/alert";
 import { apiErrorMessage } from "@/app/utils/customFunction";
 import { clientTattooEstimateInterface } from "@/app/types/aiAnalysis.type";
+import {
+  ESTIMATOR_USAGE_QUERY_KEY,
+  usageFromError,
+  withClockOffset,
+} from "./useEstimatorUsage";
 
 const RECALC_DEBOUNCE_MS = 400;
 
@@ -39,16 +44,32 @@ export function useClientEstimate(current: {
         sizeHeightCm: data.size.heightCm,
       };
       queryClient.setQueryData(["client-ai-reprice", seed], data);
+      if (data.usage) {
+        queryClient.setQueryData(
+          ESTIMATOR_USAGE_QUERY_KEY,
+          withClockOffset(data.usage),
+        );
+      }
       setDebounced(seed);
       setAnalysis(data);
     },
-    onError: (error) =>
+    onError: (error) => {
+      const usage = usageFromError(error);
+      if (usage) {
+        queryClient.setQueryData(
+          ESTIMATOR_USAGE_QUERY_KEY,
+          withClockOffset(usage),
+        );
+      } else {
+        queryClient.invalidateQueries({ queryKey: ESTIMATOR_USAGE_QUERY_KEY });
+      }
       errorAlert(
         apiErrorMessage(
           error,
           "Could not estimate this tattoo right now. Please try again.",
         ),
-      ),
+      );
+    },
   });
 
   const payload: RepricePayload | null =

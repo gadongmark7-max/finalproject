@@ -1,5 +1,8 @@
 import mongoose, { Schema } from "mongoose";
 
+export const TRANSACTION_TYPES = ["payment", "refund"] as const;
+export type TransactionType = (typeof TRANSACTION_TYPES)[number];
+
 const TransactionSchema = new Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -25,6 +28,12 @@ const TransactionSchema = new Schema({
     enum: ["online", "counter"],
     required: false,
   },
+  type: {
+    type: String,
+    enum: TRANSACTION_TYPES,
+    default: "payment",
+  },
+  refundedAt: { type: Date, default: null },
 });
 
 export default mongoose.model("Transactions", TransactionSchema);

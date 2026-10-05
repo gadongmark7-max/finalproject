@@ -61,6 +61,19 @@ const last6MonthKeys = () => {
   return keys;
 };
 
+type TransactionLike = {
+  amount?: number | null;
+  type?: string | null;
+  refundedAt?: Date | null;
+};
+
+const isRefundRecord = (t: TransactionLike) => t.type === "refund";
+const isRefundedPayment = (t: TransactionLike) =>
+  !isRefundRecord(t) && !!t.refundedAt;
+const sumAmounts = (items: TransactionLike[]) =>
+  items.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 export interface ReportRange {
   from: Date | null;
   to: Date | null;
@@ -77,13 +90,14 @@ export class ArtistAnalyticsService {
   }
 
   static async getDashboard(artistId: string) {
-    const { bookings, transactions, expenses } =
+    const { bookings, transactions: allTransactions, expenses } =
       await this.loadArtistData(artistId);
 
-    const totalRevenue = transactions.reduce(
-      (sum, t) => sum + Number(t.amount || 0),
-      0,
-    );
+    const payments = allTransactions.filter((t) => !isRefundRecord(t));
+    const transactions = payments.filter((t) => !isRefundedPayment(t));
+    const grossRevenue = sumAmounts(payments);
+    const totalRefunds = sumAmounts(payments.filter(isRefundedPayment));
+    const totalRevenue = sumAmounts(transactions);
     const totalExpenses = expenses.reduce(
       (sum, e) => sum + Number(e.cost || 0),
       0,
@@ -156,11 +170,14 @@ export class ArtistAnalyticsService {
         activeBookings: statusCounts["active"] || 0,
         completedBookings: statusCounts["completed"] || 0,
         rejectedBookings: statusCounts["rejected"] || 0,
-        totalRevenue,
+        totalRevenue: round2(totalRevenue),
+        grossRevenue: round2(grossRevenue),
+        totalRefunds: round2(totalRefunds),
+        refundedPayments: payments.length - transactions.length,
         totalPayments: transactions.length,
         pendingPayments,
         totalExpenses,
-        netRevenue: totalRevenue - totalExpenses,
+        netRevenue: round2(totalRevenue - totalExpenses),
       },
       revenueTrend: monthKeys.map((k) => ({
         month: monthLabel(k),
@@ -192,15 +209,17 @@ export class ArtistAnalyticsService {
     const { from, to } = range;
 
     const bookingsInRange = bookings.filter((b) => inRange(b.date, from, to));
-    const transactionsInRange = transactions.filter((t) =>
-      inRange(t.date, from, to),
+    const paymentsInRange = transactions.filter(
+      (t) => !isRefundRecord(t) && inRange(t.date, from, to),
+    );
+    const transactionsInRange = paymentsInRange.filter(
+      (t) => !isRefundedPayment(t),
     );
     const expensesInRange = expenses.filter((e) => inRange(e.date, from, to));
 
-    const totalRevenue = transactionsInRange.reduce(
-      (sum, t) => sum + Number(t.amount || 0),
-      0,
-    );
+    const grossRevenue = sumAmounts(paymentsInRange);
+    const totalRefunds = sumAmounts(paymentsInRange.filter(isRefundedPayment));
+    const totalRevenue = sumAmounts(transactionsInRange);
     const totalExpenses = expensesInRange.reduce(
       (sum, e) => sum + Number(e.cost || 0),
       0,
@@ -279,8 +298,11 @@ export class ArtistAnalyticsService {
         to: to ? dayKey(to) : null,
       },
       summary: {
-        totalRevenue: Math.round(totalRevenue * 100) / 100,
-        totalTransactions: transactionsInRange.length,
+        totalRevenue: round2(totalRevenue),
+        grossRevenue: round2(grossRevenue),
+        totalRefunds: round2(totalRefunds),
+        refundedTransactions: paymentsInRange.length - transactionsInRange.length,
+        totalTransactions: paymentsInRange.length,
         totalExpenses: Math.round(totalExpenses * 100) / 100,
         netRevenue: Math.round((totalRevenue - totalExpenses) * 100) / 100,
         totalBookings: bookingsInRange.length,
@@ -310,7 +332,7 @@ export class ArtistAnalyticsService {
           amount: Math.round(amount * 100) / 100,
         }),
       ),
-      transactions: transactionsInRange
+      transactions: paymentsInRange
         .slice()
         .sort(
           (a, b) =>
@@ -324,7 +346,11 @@ export class ArtistAnalyticsService {
           amount: t.amount,
           paymentMethod: t.paymentMethod || "unspecified",
           client: (t.sender as any)?.name || "Unknown",
-          bookingId: t.bookingId ? String(t.bookingId) : null,
+          bookingId: t.bookingId
+            ? String((t.bookingId as any)?._id ?? t.bookingId)
+            : null,
+          status: isRefundedPayment(t) ? "refunded" : "paid",
+          refundedAt: t.refundedAt ? t.refundedAt.toISOString() : null,
         })),
       bookings: bookingsInRange
         .slice()

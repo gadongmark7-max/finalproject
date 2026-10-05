@@ -2,10 +2,17 @@
 
 import axiosInstance from "@/app/utils/axios";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight , Receipt} from "lucide-react";
-import { transactionReceiptInterface } from "@/app/types/transaction.type";
+import { ArrowDownLeft, ArrowUpRight, Eye, Receipt } from "lucide-react";
+import {
+  formatRefundDate,
+  isRefundedPayment,
+  isRefundRecord,
+  transactionReceiptInterface,
+} from "@/app/types/transaction.type";
 import { PAYMENT_METHOD_LABELS } from "@/lib/validation/schemas/booking";
 import useUserStore from "@/app/store/useUserStore";
+import Link from "next/link";
+import { DownloadReceiptButton } from "@/components/ui/transaction-receipt";
 
 export default function Page() {
 
@@ -55,60 +62,121 @@ export default function Page() {
         {/* Transaction List */}
         {transactionsData && transactionsData.length > 0 && (
           <div className="space-y-3">
-            {transactionsData.map((tx) => (
-              <div
-                key={tx._id}
-                className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold flex items-center justify-between gap-4 px-5 py-4"
-              >
-                {/* Gold bottom line reveal */}
-                <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
+            {transactionsData.map((tx) => {
+              const isRefund = isRefundRecord(tx);
+              const isRefunded = isRefundedPayment(tx);
+              const client = isRefund ? tx.receiver : tx.sender;
+              const refundDate = formatRefundDate(tx.refundedAt);
+              const method =
+                PAYMENT_METHOD_LABELS[
+                  tx.paymentMethod ?? tx.bookingId?.paymentMethod ?? "online"
+                ];
+              return (
+                <div
+                  key={tx._id}
+                  className="relative bg-surface border border-border group transition-all duration-500 hover:border-border-gold flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4"
+                >
+                  {/* Gold bottom line reveal */}
+                  <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-gold group-hover:w-full transition-all duration-700" />
 
-                {/* Left — Avatar + Info */}
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="relative flex-shrink-0">
-                    <img
-                      src={tx.sender?.profile}
-                      alt={tx.sender?.name ?? "Client"}
-                      width={44}
-                      height={44}
-                      className="w-11 h-11 object-cover border border-border"
-                    />
-                    <div className="absolute -bottom-px -right-px w-2.5 h-2.5 bg-gold opacity-0 group-hover:opacity-60 transition-opacity duration-300" />
+                  {/* Left — Avatar + Info */}
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={client?.profile}
+                        alt={client?.name ?? "Client"}
+                        width={44}
+                        height={44}
+                        className="w-11 h-11 object-cover border border-border"
+                      />
+                      <div className="absolute -bottom-px -right-px w-2.5 h-2.5 bg-gold opacity-0 group-hover:opacity-60 transition-opacity duration-300" />
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p
+                          className="text-text text-sm font-light truncate"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
+                          {isRefund ? "Refunded To" : "Sent By"}
+                          <span className="font-medium">
+                            {" "}
+                            {client?.name ?? "Unknown client"}
+                          </span>
+                        </p>
+                        {(isRefund || isRefunded) && (
+                          <span className="text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 border border-danger-border bg-danger-muted text-danger-light">
+                            Refunded
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted truncate">
+                        Ref: {tx.refId}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                        {tx.date} · {tx.time}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                        {isRefund ? `Original payment: ${method}` : method}
+                        {!isRefund &&
+                          tx.bookingId &&
+                          ` · Session ${tx.bookingId.session ?? 1}`}
+                      </p>
+                      {tx.bookingId && (
+                        <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted truncate">
+                          Booking: {tx.bookingId._id}
+                        </p>
+                      )}
+                      {isRefunded && refundDate && (
+                        <p className="text-[10px] uppercase tracking-[0.15em] text-danger-light">
+                          Refunded on {refundDate}
+                        </p>
+                      )}
+                      {(isRefund || isRefunded) && (
+                        <p className="text-[10px] tracking-[0.05em] text-text-dim">
+                          Not counted as earned revenue
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="min-w-0">
-                    <p
-                      className="text-text text-sm font-light mb-1 truncate"
-                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                    >
-                        Sent By
-                        <span className="font-medium">  {" "} {tx.sender?.name ?? "Unknown client"}</span>
-                    </p>
-                    <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted truncate">
-                      Ref: {tx.refId}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
-                      {tx.date} · {tx.time}
-                    </p>
-                    <p className="text-[10px] uppercase tracking-[0.15em] text-text-muted">
-                      {PAYMENT_METHOD_LABELS[tx.paymentMethod ?? tx.bookingId?.paymentMethod ?? "online"]}
-                      {tx.bookingId && ` · Session ${tx.bookingId.session ?? 1}`}
-                    </p>
+                  {/* Right — Amount + Download */}
+                  <div className="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      {isRefund ? (
+                        <ArrowDownLeft className="w-3.5 h-3.5 text-danger-light" />
+                      ) : (
+                        <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
+                      )}
+                      <p
+                        className={`text-lg font-light ${
+                          isRefund
+                            ? "text-danger-light"
+                            : isRefunded
+                              ? "text-text-muted line-through"
+                              : "text-gold"
+                        }`}
+                        style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                      >
+                        {isRefund && "-"}₱{tx.amount.toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/receipts/transaction/${tx._id}`}
+                        className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] text-text-muted hover:text-gold border border-border hover:border-border-gold px-2.5 py-1.5 transition-all duration-300"
+                        title="View Receipt"
+                      >
+                        <Eye className="w-3 h-3" />
+                        View
+                      </Link>
+                      <DownloadReceiptButton transaction={tx} viewer="artist" />
+                    </div>
                   </div>
                 </div>
-
-                {/* Right — Amount */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <ArrowUpRight className="w-3.5 h-3.5 text-gold" />
-                  <p
-                    className="text-gold text-lg font-light"
-                    style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                  >
-                    ₱{tx.amount.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

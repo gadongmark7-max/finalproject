@@ -19,6 +19,8 @@ import {
 } from "@/app/utils/tattooScale";
 import { EstimateResult } from "./components/EstimateResult";
 import { useClientEstimate } from "./components/useClientEstimate";
+import { useEstimatorUsage } from "./components/useEstimatorUsage";
+import { EstimatorUsageStatus } from "./components/EstimatorUsageStatus";
 
 const STEPS = [
   "Reading tattoo design",
@@ -73,6 +75,7 @@ export default function Page() {
       : undefined;
 
   const estimate = useClientEstimate({ bodyPart, size });
+  const usage = useEstimatorUsage();
 
   useEffect(() => {
     if (!tattooData) return;
@@ -128,7 +131,7 @@ export default function Page() {
   };
 
   const analyze = () => {
-    if (estimate.isAnalyzing) return;
+    if (estimate.isAnalyzing || usage.isBlocked) return;
     setTriedSubmit(true);
     if (!image.file || !bodyPart || widthError || heightError || pairError)
       return;
@@ -358,10 +361,19 @@ export default function Page() {
                 </p>
               </div>
 
+              <EstimatorUsageStatus
+                usage={usage.usage}
+                isLoading={usage.isLoading}
+                isError={usage.isError}
+                isBlocked={usage.isBlocked}
+                isCoolingDown={usage.isCoolingDown}
+                cooldownMs={usage.cooldownMs}
+              />
+
               <Button
                 className="w-full"
                 onClick={analyze}
-                disabled={estimate.isAnalyzing}
+                disabled={estimate.isAnalyzing || usage.isBlocked}
               >
                 {estimate.isAnalyzing ? (
                   <LoaderCircle className="w-4 h-4 animate-spin" />
@@ -370,9 +382,11 @@ export default function Page() {
                 )}
                 {estimate.isAnalyzing
                   ? "Analyzing…"
-                  : estimate.result
-                    ? "Re-analyze Tattoo"
-                    : "Analyze Tattoo"}
+                  : usage.isBlocked
+                    ? "No tests remaining"
+                    : estimate.result
+                      ? "Re-analyze Tattoo"
+                      : "Analyze Tattoo"}
               </Button>
               {estimate.result && !estimate.isAnalyzing && (
                 <p className="text-[11px] text-text-dim text-center">
