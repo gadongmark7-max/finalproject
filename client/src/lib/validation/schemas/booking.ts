@@ -42,11 +42,17 @@ export function bookingPaymentLabel(booking: {
   status?: string;
   paymentStatus?: BookingPaymentStatus;
   paymentMethod?: PaymentMethod;
+  closure?: { type: string } | null;
 }): string {
   if (booking.status === "refund") return "Refunded";
   if (booking.status === "appointment") return "Not Billed Yet";
   if (!booking.paymentStatus || booking.paymentStatus === "awaiting") {
-    return AWAITING_PAYMENT_LABEL;
+    return booking.status === "cancelled" || booking.closure
+      ? "No Payment"
+      : AWAITING_PAYMENT_LABEL;
+  }
+  if (booking.closure && booking.paymentStatus === "partial") {
+    return `Closed Early · ${PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"]}`;
   }
   const method = PAYMENT_METHOD_LABELS[booking.paymentMethod ?? "online"];
   return `${BOOKING_PAYMENT_STATUS_LABELS[booking.paymentStatus]} · ${method}`;

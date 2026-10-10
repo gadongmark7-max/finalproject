@@ -58,24 +58,34 @@ export class InventoryService {
     );
   }
 
-  static async deductForAccount(
+  static async getManyForAccount(
+    ids: string[],
+    account: string,
+    session?: ClientSession,
+  ) {
+    return await InventoryModel.find({ _id: { $in: ids }, account }).session(
+      session ?? null,
+    );
+  }
+
+  static async deductIfAvailable(
     id: string,
     account: string,
     qty: number,
     session?: ClientSession,
   ) {
-    const before = await InventoryModel.findOneAndUpdate(
-      { _id: id, account },
-      [{ $set: { stocks: { $round: [{ $max: [0, { $subtract: ["$stocks", qty] }] }, 2] } } }],
-      { new: false, session },
+    return await InventoryModel.findOneAndUpdate(
+      { _id: id, account, stocks: { $gte: qty } },
+      [{ $set: { stocks: { $round: [{ $subtract: ["$stocks", qty] }, 2] } } }],
+      { new: true, session },
     );
-    if (!before) return null;
-    return {
-      item: before.item,
-      unit: before.type,
-      unitCost: before.price,
-      stockBefore: before.stocks,
-      deducted: Math.round(Math.min(qty, Math.max(0, before.stocks)) * 100) / 100,
-    };
+  }
+
+  static async restoreForAccount(id: string, account: string, qty: number) {
+    return await InventoryModel.findOneAndUpdate(
+      { _id: id, account },
+      [{ $set: { stocks: { $round: [{ $add: ["$stocks", qty] }, 2] } } }],
+      { new: true },
+    );
   }
 }

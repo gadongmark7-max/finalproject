@@ -69,6 +69,58 @@ const InventoryConsumptionSchema = new Schema(
   { _id: false },
 );
 
+const SessionUsageSchema = new Schema(
+  {
+    session: { type: Number, required: true },
+    recordedAt: { type: Date, required: true },
+    recordedBy: { type: String, required: true },
+    items: [ConsumedItemSchema],
+    totalCost: { type: Number, required: true },
+    expense: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Expences",
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+const ClosureSchema = new Schema(
+  {
+    type: { type: String, enum: ["early"], required: true },
+    sessionsPerformed: { type: Number, required: true },
+    plannedSessions: { type: Number, required: true },
+    unpaidBalance: { type: Number, required: true },
+    reason: { type: String, default: "" },
+    closedAt: { type: Date, required: true },
+    closedBy: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const CancellationSchema = new Schema(
+  {
+    reason: { type: String, default: "" },
+    previousStatus: { type: String, required: true },
+    paidAmount: { type: Number, required: true },
+    sessionsPerformed: { type: Number, required: true },
+    cancelledAt: { type: Date, required: true },
+    cancelledBy: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+export const BOOKING_STATUSES = [
+  "appointment",
+  "pending",
+  "active",
+  "completed",
+  "rejected",
+  "refund",
+  "cancelled",
+] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
 export const CHECKOUT_SESSION_STATUSES = ["pending", "paid", "expired"] as const;
 
 const CheckoutSessionSchema = new Schema(
@@ -125,6 +177,18 @@ const BookingSchema = new Schema({
   },
   inventoryConsumption: {
     type: InventoryConsumptionSchema,
+    default: null,
+  },
+  sessionUsage: {
+    type: [SessionUsageSchema],
+    default: [],
+  },
+  closure: {
+    type: ClosureSchema,
+    default: null,
+  },
+  cancellation: {
+    type: CancellationSchema,
     default: null,
   },
   checkoutSessions: {

@@ -1,15 +1,7 @@
 import { BookingService } from "./booking.service";
 import { TransactionService } from "./transaction.service";
 import { ExpencesService } from "./expences.service";
-
-const BOOKING_STATUSES = [
-  "appointment",
-  "pending",
-  "active",
-  "completed",
-  "rejected",
-  "refund",
-];
+import { BOOKING_STATUSES } from "../model/booking.model";
 
 const parseDate = (value?: string | null): Date | null => {
   if (!value) return null;
@@ -170,6 +162,7 @@ export class ArtistAnalyticsService {
         activeBookings: statusCounts["active"] || 0,
         completedBookings: statusCounts["completed"] || 0,
         rejectedBookings: statusCounts["rejected"] || 0,
+        cancelledBookings: statusCounts["cancelled"] || 0,
         totalRevenue: round2(totalRevenue),
         grossRevenue: round2(grossRevenue),
         totalRefunds: round2(totalRefunds),
@@ -310,6 +303,7 @@ export class ArtistAnalyticsService {
         activeBookings: statusCounts["active"] || 0,
         completedBookings: statusCounts["completed"] || 0,
         rejectedBookings: statusCounts["rejected"] || 0,
+        cancelledBookings: statusCounts["cancelled"] || 0,
         totalClients: clientsInRange.size,
         newClients,
         returningClients,

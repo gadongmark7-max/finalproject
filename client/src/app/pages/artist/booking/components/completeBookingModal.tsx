@@ -1,13 +1,13 @@
 "use client";
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Check, LoaderCircle, Package } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, Check, LoaderCircle, LogOut } from "lucide-react";
 import axiosInstance from "@/app/utils/axios";
 import { successAlert, errorAlert } from "@/app/utils/alert";
-import { apiErrorMessage, formatPeso } from "@/app/utils/customFunction";
+import { apiErrorMessage, formatPesoCents } from "@/app/utils/customFunction";
 import { bookingInterface } from "@/app/types/booking.type";
-import { inventoryInterface } from "@/app/types/inventory.type";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  inventoryQueryKey,
+  SessionMaterialsPicker,
+  useSessionMaterials,
+} from "./sessionMaterialsPicker";
+import { amountPaid, isSessionRecorded, SessionUsageList } from "./bookingCard";
 
 export const isBookingFullyPaid = (booking: bookingInterface) =>
   Number(booking.balance) < 0.005;
+
+export const canCloseBooking = (booking: bookingInterface) =>
+  isBookingFullyPaid(booking) ||
+  booking.session < booking.sessions.length ||
+  (booking.session > 1 && !isSessionRecorded(booking, booking.session));
 
 export function CompleteBookingModal({
   booking,
@@ -29,145 +40,174 @@ export function CompleteBookingModal({
   setBookings: (data: bookingInterface[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const owner = booking.bussiness ?? booking.artist;
-  const isBusinessInventory = !!booking.bussiness;
+  const [performed, setPerformed] = useState(true);
+  const [reason, setReason] = useState("");
+  const queryClient = useQueryClient();
 
-  const { data: inventory, isLoading } = useQuery({
-    queryKey: ["inventoryData", owner._id],
-    queryFn: async (): Promise<inventoryInterface[]> =>
-      (await axiosInstance.get(`/inventory/${owner._id}`)).data,
-    enabled: open && booking.itemUsed.length > 0,
-  });
-
-  const lines = booking.itemUsed.map((used) => {
-    const item = inventory?.find((i) => i._id === used.itemId);
-    return {
-      key: used.itemId,
-      name: item?.item ?? used.item,
-      qty: used.qty,
-      unit: item?.type ?? "",
-      stock: item?.stocks,
-      cost: item ? used.qty * item.price : 0,
-      missing: !!inventory && !item,
-    };
-  });
-  const totalCost = lines.reduce((sum, l) => sum + l.cost, 0);
-  const hasShortage = lines.some(
-    (l) => l.missing || (l.stock !== undefined && l.stock < l.qty),
-  );
+  const recorded = isSessionRecorded(booking, booking.session);
+  const materials = useSessionMaterials(booking, open && !recorded);
+  const fullyPaid = isBookingFullyPaid(booking);
+  const planned = booking.sessions.length;
+  const canSkipCurrent = !recorded && booking.session > 1;
+  const currentPerformed = recorded || performed || !canSkipCurrent;
+  const performedCount = currentPerformed
+    ? booking.session
+    : booking.session - 1;
+  const closeEarly = performedCount < planned;
+  const blockedByBalance = !closeEarly && !fullyPaid;
+  const recordNow = !recorded && currentPerformed;
+  const materialsReady = !recordNow || materials.isValid;
 
   const mutation = useMutation({
     mutationFn: () =>
       axiosInstance.put<bookingInterface[]>(`/booking/status`, {
         id: booking._id,
         status: "completed",
+        materials: recordNow ? materials.payload : undefined,
+        closeEarly,
+        reason: closeEarly && reason.trim() ? reason.trim() : undefined,
       }),
     onSuccess: ({ data }) => {
       setBookings(data);
+      if (recordNow) {
+        queryClient.invalidateQueries({
+          queryKey: inventoryQueryKey(materials.owner._id),
+        });
+      }
       setOpen(false);
-      const consumption = data.find(
-        (b) => b._id === booking._id,
-      )?.inventoryConsumption;
+      materials.reset();
+      const updated = data.find((b) => b._id === booking._id);
+      const total = (updated?.sessionUsage ?? []).reduce(
+        (sum, u) => sum + Number(u.totalCost || 0),
+        0,
+      );
       successAlert(
-        consumption?.expense
-          ? `completed · ${formatPeso(consumption.totalCost)} inventory expense recorded`
-          : "booking completed",
+        updated?.closure
+          ? `booking closed after ${updated.closure.sessionsPerformed} of ${updated.closure.plannedSessions} sessions`
+          : total > 0
+            ? `completed · ${formatPesoCents(total)} materials recorded`
+            : "booking completed",
       );
     },
     onError: (error) =>
       errorAlert(apiErrorMessage(error, "Could not complete this booking")),
   });
 
+  const triggerLabel = fullyPaid ? "Mark as Complete" : "Close Booking Early";
+
   return (
     <Dialog open={open} onOpenChange={(v) => !mutation.isPending && setOpen(v)}>
       <DialogTrigger asChild>
-        <Button hoverText={"Mark as Complete"}>
-          <Check className="w-3.5 h-3.5" />
-        </Button>
+        {fullyPaid ? (
+          <Button hoverText={triggerLabel} aria-label={triggerLabel}>
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline">
+            <LogOut className="h-3.5 w-3.5" />
+            Close early
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Complete booking</DialogTitle>
+          <DialogTitle>
+            {closeEarly ? "Close booking early" : "Complete booking"}
+          </DialogTitle>
           <DialogDescription>
-            {booking.client.name} · the items used below will be deducted from{" "}
-            {isBusinessInventory ? `${owner.name}'s` : "your"} inventory.
-            {booking.session < booking.sessions.length &&
-              ` Session ${booking.session} of ${booking.sessions.length} — completing now ends the booking without the remaining planned sessions.`}
+            {booking.client.name} · session {booking.session} of {planned}.
           </DialogDescription>
         </DialogHeader>
 
-        {booking.itemUsed.length === 0 ? (
-          <p className="text-sm text-text-muted">
-            No inventory items were recorded for this booking, so nothing will
-            be deducted and no inventory expense will be created.
-          </p>
-        ) : isLoading ? (
-          <p className="flex items-center gap-2 text-sm text-text-muted">
-            <LoaderCircle className="w-4 h-4 animate-spin" /> Loading inventory…
-          </p>
-        ) : (
-          <div className="space-y-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[10px] uppercase tracking-[0.14em] text-text-dim">
-                  <th className="text-left font-normal pb-1.5">Item</th>
-                  <th className="text-right font-normal pb-1.5">Used</th>
-                  <th className="text-right font-normal pb-1.5">In stock</th>
-                  <th className="text-right font-normal pb-1.5">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l) => (
-                  <tr key={l.key} className="border-t border-border">
-                    <td className="py-1.5 pr-2 text-text">
-                      <span className="flex items-center gap-1.5">
-                        <Package className="w-3.5 h-3.5 text-gold shrink-0" />
-                        {l.name}
-                      </span>
-                    </td>
-                    <td className="py-1.5 text-right text-text-muted whitespace-nowrap">
-                      {l.qty} {l.unit}
-                    </td>
-                    <td
-                      className={`py-1.5 text-right whitespace-nowrap ${
-                        l.missing || (l.stock ?? 0) < l.qty
-                          ? "text-danger-light"
-                          : "text-text-muted"
-                      }`}
-                    >
-                      {l.missing ? "removed" : l.stock}
-                    </td>
-                    <td className="py-1.5 text-right text-text whitespace-nowrap">
-                      {l.missing ? "—" : formatPeso(l.cost)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {hasShortage && (
-              <p
-                className="flex items-start gap-1.5 text-[11px] text-danger-light"
-                role="alert"
-              >
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
-                Some items have less stock than was used (or were removed).
-                Their stock will be set to 0; removed items are skipped.
-              </p>
-            )}
-
-            <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
-              <span className="text-text-muted">Inventory cost</span>
-              <span className="text-gold">{formatPeso(totalCost)}</span>
-            </div>
-            <p className="text-[11px] text-text-dim">
-              {isBusinessInventory
-                ? "Business inventory purchases are already recorded as business expenses, so only the stock is deducted."
-                : totalCost > 0
-                  ? "An “Inventory Usage” expense for this amount will be added to your expenses automatically."
-                  : "These items have no price set, so no expense will be created."}
+        {canSkipCurrent && (
+          <div className="space-y-2">
+            <p className="text-sm text-text">
+              Was session {booking.session} performed?
             </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[true, false].map((value) => (
+                <button
+                  key={String(value)}
+                  type="button"
+                  onClick={() => setPerformed(value)}
+                  className={`border px-3 py-2 text-xs uppercase tracking-[0.14em] transition-colors ${
+                    performed === value
+                      ? "border-gold bg-surface-alt text-gold"
+                      : "border-border text-text-muted hover:border-border-gold"
+                  }`}
+                >
+                  {value ? "Yes, it was done" : "No, client stopped"}
+                </button>
+              ))}
+            </div>
           </div>
+        )}
+
+        {recorded ? (
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-text-dim">
+              Already recorded
+            </p>
+            <SessionUsageList
+              usage={(booking.sessionUsage ?? []).filter(
+                (u) => u.session === booking.session,
+              )}
+            />
+          </div>
+        ) : currentPerformed ? (
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-text-dim">
+              Materials used in session {booking.session}
+            </p>
+            <SessionMaterialsPicker booking={booking} state={materials} />
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">
+            Session {booking.session} won&apos;t be recorded and no materials
+            will be deducted for it.
+          </p>
+        )}
+
+        {closeEarly && !blockedByBalance && (
+          <div className="space-y-2 border border-border p-3">
+            <p className="text-sm text-text">
+              Closing after {performedCount} of {planned} planned sessions.
+            </p>
+            <ul className="space-y-1 text-xs text-text-muted">
+              <li>
+                Paid so far: {formatPesoCents(amountPaid(booking))} — kept as
+                recorded.
+              </li>
+              {!fullyPaid && (
+                <li>
+                  Remaining {formatPesoCents(booking.balance)} is not marked as
+                  paid and won&apos;t be charged for the sessions that
+                  didn&apos;t happen.
+                </li>
+              )}
+              <li>
+                Materials for the remaining sessions are not deducted.
+              </li>
+            </ul>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              placeholder="Reason (optional), e.g. client chose not to continue"
+              className="min-h-16"
+            />
+          </div>
+        )}
+
+        {blockedByBalance && (
+          <p
+            className="flex items-start gap-1.5 text-[11px] text-danger-light"
+            role="alert"
+          >
+            <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+            All planned sessions are done. Collect the remaining balance of{" "}
+            {formatPesoCents(booking.balance)} before completing.
+          </p>
         )}
 
         <DialogFooter>
@@ -181,13 +221,16 @@ export function CompleteBookingModal({
           <Button
             onClick={() => mutation.mutate()}
             disabled={
-              mutation.isPending || (booking.itemUsed.length > 0 && isLoading)
+              mutation.isPending ||
+              blockedByBalance ||
+              (recordNow && materials.isLoading) ||
+              !materialsReady
             }
           >
             {mutation.isPending && (
-              <LoaderCircle className="w-4 h-4 animate-spin" />
+              <LoaderCircle className="h-4 w-4 animate-spin" />
             )}
-            Complete booking
+            {closeEarly ? "Close booking" : "Complete booking"}
           </Button>
         </DialogFooter>
       </DialogContent>
