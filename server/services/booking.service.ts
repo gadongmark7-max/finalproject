@@ -141,6 +141,14 @@ export class BookingService {
     return booking;
   }
 
+  static async transitionStatus(id: string, from: string, to: string) {
+    return await BookingModel.findOneAndUpdate(
+      { _id: id, status: from },
+      { $set: { status: to } },
+      { new: true },
+    );
+  }
+
   static async deductBalance(id: string, amount: number) {
     const booking = await BookingModel.findByIdAndUpdate(id, {
       $inc: { balance: -amount },

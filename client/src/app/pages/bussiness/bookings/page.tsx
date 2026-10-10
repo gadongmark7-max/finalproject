@@ -38,6 +38,8 @@ const statusStyle: Record<string, string> = {
   pending: "bg-warning-muted text-warning-light border border-warning-border",
   completed: "bg-success-muted text-success-light border border-success-border",
   rejected: "bg-danger-muted text-danger-light border border-danger-border",
+  cancelled: "bg-danger-muted text-danger-light border border-danger-border",
+  refund: "bg-warning-muted text-warning-light border border-warning-border",
   active: "bg-info-muted text-info-light border border-info-border",
   appointment: "border border-border text-text-muted bg-surface-alt",
 };
@@ -59,7 +61,13 @@ export default function Page() {
 
   useEffect(() => {
     if (data?.data) {
-      setBookings(data.data.filter((e: bookingInterface) => e.status == type));
+      setBookings(
+        data.data.filter((e: bookingInterface) =>
+          type === "cancelled"
+            ? ["cancelled", "refund", "rejected"].includes(e.status)
+            : e.status == type,
+        ),
+      );
     }
   }, [data, type]);
 
@@ -208,7 +216,7 @@ export default function Page() {
           {/* Status Tabs + Add Appointment */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-6">
             <div className="flex flex-wrap gap-2">
-              {(["active", "appointment", "pending", "completed"] as const).map(
+              {(["active", "appointment", "pending", "completed", "cancelled"] as const).map(
                 (tab) => (
                   <button
                     key={tab}

@@ -271,6 +271,12 @@ export const formatPostSize = (post: {
 
 export const formatPeso = (n: number) => `₱${Math.round(n).toLocaleString()}`;
 
+export const formatPesoCents = (n: number) =>
+  `₱${(Math.round(n * 100) / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 export const apiErrorMessage = (error: unknown, fallback: string): string => {
   const data = (error as { response?: { data?: { error?: unknown } } })
     ?.response?.data;

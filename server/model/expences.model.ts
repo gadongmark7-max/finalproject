@@ -36,13 +36,26 @@ const ExpencesSchema = new Schema(
       ref: "Bookings",
       required: false,
     },
+    bookingSession: { type: Number, required: false },
   },
   { timestamps: true },
 );
 
 ExpencesSchema.index(
-  { booking: 1, source: 1 },
+  { booking: 1, source: 1, bookingSession: 1 },
   { unique: true, partialFilterExpression: { source: "booking_inventory" } },
 );
 
-export default mongoose.model("Expences", ExpencesSchema);
+const ExpencesModel = mongoose.model("Expences", ExpencesSchema);
+
+const LEGACY_BOOKING_EXPENSE_INDEX = "booking_1_source_1";
+
+export async function migrateExpenseIndexes() {
+  const indexes = await ExpencesModel.collection.indexes().catch(() => []);
+  if (indexes.some((index) => index.name === LEGACY_BOOKING_EXPENSE_INDEX)) {
+    await ExpencesModel.collection.dropIndex(LEGACY_BOOKING_EXPENSE_INDEX);
+  }
+  await ExpencesModel.createIndexes();
+}
+
+export default ExpencesModel;

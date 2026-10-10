@@ -20,12 +20,21 @@ import crypto from "crypto";
 import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
 
 
-const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
+const STATUS_TABS = ["active", "appointment", "pending", "completed", "cancelled"] as const;
+
+const CANCELLED_STATUSES = ["cancelled", "refund", "rejected"];
+
+const PAYABLE_STATUSES = ["pending", "active"];
+
+const matchesTab = (status: string, tab: string) =>
+  tab === "cancelled" ? CANCELLED_STATUSES.includes(status) : status === tab;
 
 const statusStyle: Record<string, string> = {
   pending:     "bg-warning-muted text-warning-light border border-warning-border",
   completed:   "bg-success-muted text-success-light border border-success-border",
   rejected:    "bg-danger-muted text-danger-light border border-danger-border",
+  cancelled:   "bg-danger-muted text-danger-light border border-danger-border",
+  refund:      "bg-warning-muted text-warning-light border border-warning-border",
   active:      "bg-info-muted text-info-light border border-info-border",
   appointment: "border border-border text-text-muted bg-surface-alt",
 };
@@ -42,7 +51,7 @@ export default function Page() {
 
   useEffect(() => {
     if (data?.data) {
-      setBookings(data.data.filter((e: bookingInterface) => e.status == type).reverse());
+      setBookings(data.data.filter((e: bookingInterface) => matchesTab(e.status, type)).reverse());
     }
   }, [data, type]);
 
@@ -138,7 +147,7 @@ export default function Page() {
 
                 {/* Status Badge */}
                 <span className={`flex-shrink-0 text-[9px] uppercase tracking-[0.15em] px-2.5 py-1 ${statusStyle[booking.status] ?? "border border-border text-text-muted"}`}>
-                  {booking.status}
+                  {booking.status === "refund" ? "refunded" : booking.status}
                 </span>
               </div>
 
@@ -263,17 +272,25 @@ export default function Page() {
                 </div>
               )}
 
+              {(booking.cancellation?.reason || booking.closure) && (
+                <p className="break-words border-t border-border px-5 py-3 text-xs text-text-muted">
+                  {booking.closure
+                    ? `Closed after ${booking.closure.sessionsPerformed} of ${booking.closure.plannedSessions} sessions${booking.closure.reason ? ` · ${booking.closure.reason}` : ""}`
+                    : `Cancelled · ${booking.cancellation!.reason}`}
+                </p>
+              )}
+
               {/* Card Footer — Actions */}
               {(
                 (booking.status === "completed" && !booking.isReviewed) ||
-                booking.balance !== 0 ||
+                (booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status)) ||
                 booking.tattooData
               ) && (
                 <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-border mt-auto">
                   {booking.status === "completed" && !booking.isReviewed && (
                     <ReviewModal key={booking._id} booking={booking} setBookings={setBookings} />
                   )}
-                  {booking.balance !== 0 && (
+                  {booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status) && (
                     <OnlinePayment key={booking._id} booking={booking} />
                   )}
                   {booking.tattooData && (

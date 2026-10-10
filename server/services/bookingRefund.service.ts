@@ -4,7 +4,7 @@ import TransactionModel from "../model/transactions.model";
 import { PAYMENT_FILTER } from "./transaction.service";
 import { getDate, getTime } from "../utils/customFunction";
 
-const REFUNDABLE_STATUSES = ["active"];
+const REFUNDABLE_STATUSES = ["active", "cancelled"];
 
 export class BookingRefundError extends Error {
   constructor(

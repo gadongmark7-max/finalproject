@@ -33,8 +33,40 @@ import {
   BookingRefundError,
   BookingRefundService,
 } from "../services/bookingRefund.service";
+import {
+  BookingCancellationError,
+  BookingCancellationService,
+} from "../services/bookingCancellation.service";
+import {
+  cancelBookingSchema,
+  completeBookingSchema,
+  recordSessionMaterialsSchema,
+} from "../validation/booking.schema";
 
 const CHECKOUT_RECHECK_MS = 15 * 1000;
+
+const STATUS_UPDATES = [
+  "active",
+  "rejected",
+  "completed",
+  "refund",
+  "cancelled",
+] as const;
+
+const PENDING_DECISIONS = ["active", "rejected"];
+
+const PAYABLE_STATUSES = ["pending", "active"];
+
+const firstIssue = (error: { issues: { message: string }[] }) =>
+  error.issues[0]?.message ?? "Invalid request";
+
+const isBookingParty = (
+  booking: { artist: any; bussiness?: any },
+  accountId: string,
+) =>
+  (booking.artist?._id ?? booking.artist)?.toString() === accountId ||
+  (!!booking.bussiness &&
+    (booking.bussiness._id ?? booking.bussiness).toString() === accountId);
 
 export class BookingController {
   static createBooking = async (request: AuthRequest, response: Response) => {
@@ -180,6 +212,21 @@ export class BookingController {
   ) => {
     try {
       const { id } = request.params;
+      const booking = isValidObjectId(id)
+        ? await BookingService.getRaw(id)
+        : null;
+      if (!booking) {
+        response.status(404).send("booking not found");
+        return;
+      }
+      if (!isBookingParty(booking, request.account?._id ?? "")) {
+        response.status(403).send("you are not authorized to update this booking");
+        return;
+      }
+      if (booking.status !== "appointment") {
+        response.status(409).send("only appointments can be marked as done");
+        return;
+      }
       await BookingService.delete(id);
       response.send("success");
     } catch (e) {
@@ -562,6 +609,12 @@ export class BookingController {
           .send("you are not authorized to update this booking");
         return;
       }
+      if (!PAYABLE_STATUSES.includes(booking.status)) {
+        response
+          .status(409)
+          .send(`a ${booking.status} booking can't receive payments`);
+        return;
+      }
 
       await BookingController.recordBookingPayment(
         {
@@ -619,10 +672,18 @@ export class BookingController {
   ) => {
     try {
       const acccount = request.account;
-      const { id, status, reason, clientId } = request.body;
+      const { id, status, reason } = request.body;
 
       if (!acccount) {
         response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      if (!(STATUS_UPDATES as readonly string[]).includes(status)) {
+        response.status(400).json({ error: "Invalid booking status" });
+        return;
+      }
+      if (typeof id !== "string" || !isValidObjectId(id)) {
+        response.status(400).json({ error: "Invalid booking" });
         return;
       }
       const existing = await BookingService.get(id);
@@ -630,33 +691,69 @@ export class BookingController {
         response.status(404).json({ error: "Booking not found" });
         return;
       }
-      const isBookingArtist = existing.artist._id.toString() === acccount._id;
-      const isBookingBusiness =
-        !!existing.bussiness &&
-        existing.bussiness._id.toString() === acccount._id;
-      if (!isBookingArtist && !isBookingBusiness) {
+      if (!isBookingParty(existing, acccount._id)) {
         response
           .status(403)
           .json({ error: "You are not authorized to update this booking" });
         return;
       }
+      const clientId = existing.client._id.toString();
+      const actor = { id: acccount._id, name: acccount.name };
 
       if (status == "completed") {
-        // Completion + inventory deduction + expense are handled together
-        // (and idempotently) by the completion service.
-        const result = await BookingCompletionService.complete(id, {
-          id: acccount._id,
-          name: acccount.name,
+        const parsed = completeBookingSchema.safeParse({
+          materials: request.body.materials,
+          closeEarly: request.body.closeEarly,
+          reason: typeof reason === "string" && reason !== "none" ? reason : undefined,
         });
+        if (!parsed.success) {
+          response.status(400).json({ error: firstIssue(parsed.error) });
+          return;
+        }
+        const result = await BookingCompletionService.complete(
+          id,
+          actor,
+          parsed.data,
+        );
         if (!result.alreadyCompleted) {
-          const client = await AccountService.get(
-            result.booking.client.toString(),
-          );
+          const client = await AccountService.get(clientId);
+          const closure = result.booking.closure;
           sendEmail(
             client?.email!,
             "Booking Completed",
-            `Thankyou For Trusting us!!`,
+            closure
+              ? `Your booking was closed after ${closure.sessionsPerformed} of ${closure.plannedSessions} sessions. Thank you for trusting us!`
+              : `Thankyou For Trusting us!!`,
           );
+        }
+        const bookings = await BookingService.getByArtist(acccount._id);
+        response.send(bookings);
+        return;
+      }
+
+      if (status == "cancelled") {
+        const parsed = cancelBookingSchema.safeParse({ reason });
+        if (!parsed.success) {
+          response.status(400).json({ error: firstIssue(parsed.error) });
+          return;
+        }
+        const result = await BookingCancellationService.cancel(
+          id,
+          actor,
+          parsed.data.reason,
+        );
+        if (!result.alreadyCancelled) {
+          const client = await AccountService.get(clientId);
+          const message = `Your booking on ${existing.date} was cancelled. Reason: ${parsed.data.reason}`;
+          await NotificationService.create({
+            account: clientId,
+            date: getDate(),
+            time: getTime(),
+            message,
+            type: "error",
+            isSeen: false,
+          });
+          sendEmail(client?.email!, "Booking Cancelled", message);
         }
         const bookings = await BookingService.getByArtist(acccount._id);
         response.send(bookings);
@@ -695,52 +792,98 @@ export class BookingController {
         return;
       }
 
-      const booking = await BookingService.updateStatus(id, status);
-
-      const client = await AccountService.get(clientId);
-
-      if (status == "active" && booking) {
-        try {
-          await BookingController.reconcileBookingPayment(booking);
-        } catch (e) {
-          console.error("payment reconciliation failed for booking", id, e);
+      if (PENDING_DECISIONS.includes(status) && existing.status !== status) {
+        const booking = await BookingService.transitionStatus(
+          id,
+          "pending",
+          status,
+        );
+        if (!booking) {
+          response.status(409).json({
+            error: `A ${existing.status} booking can't be ${status === "active" ? "approved" : "rejected"}`,
+          });
+          return;
         }
-        await NotificationService.create({
-          account: clientId,
-          date: getDate(),
-          time: getTime(),
-          message: `Artist Approve your Booking`,
-          type: "success",
-          isSeen: false,
-        });
-        sendEmail(
-          client?.email!,
-          "Booking Approved",
-          `date: ${booking.date} at ${booking.time[0]} to ${booking.time[booking.time.length - 1]}`,
-        );
-      } else if (status == "rejected" && booking) {
-        await NotificationService.create({
-          account: clientId,
-          date: getDate(),
-          time: getTime(),
-          message: `Artist Reject your Booking. reason : ${reason}`,
-          type: "error",
-          isSeen: false,
-        });
-        sendEmail(
-          client?.email!,
-          "Booking Rejected",
-          `Artist Reject your Booking. reason : ${reason}`,
-        );
+
+        const client = await AccountService.get(clientId);
+
+        if (status == "active") {
+          try {
+            await BookingController.reconcileBookingPayment(booking);
+          } catch (e) {
+            console.error("payment reconciliation failed for booking", id, e);
+          }
+          await NotificationService.create({
+            account: clientId,
+            date: getDate(),
+            time: getTime(),
+            message: `Artist Approve your Booking`,
+            type: "success",
+            isSeen: false,
+          });
+          sendEmail(
+            client?.email!,
+            "Booking Approved",
+            `date: ${booking.date} at ${booking.time[0]} to ${booking.time[booking.time.length - 1]}`,
+          );
+        } else {
+          await NotificationService.create({
+            account: clientId,
+            date: getDate(),
+            time: getTime(),
+            message: `Artist Reject your Booking. reason : ${reason}`,
+            type: "error",
+            isSeen: false,
+          });
+          sendEmail(
+            client?.email!,
+            "Booking Rejected",
+            `Artist Reject your Booking. reason : ${reason}`,
+          );
+        }
       }
 
-      const bookings = await BookingService.getByArtist(acccount?._id!);
+      const bookings = await BookingService.getByArtist(acccount._id);
       response.send(bookings);
     } catch (e) {
       if (
         e instanceof BookingCompletionError ||
-        e instanceof BookingRefundError
+        e instanceof BookingRefundError ||
+        e instanceof BookingCancellationError
       ) {
+        response.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static recordSessionMaterials = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const acccount = request.account;
+      if (!acccount) {
+        response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const parsed = recordSessionMaterialsSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response.status(400).json({ error: firstIssue(parsed.error) });
+        return;
+      }
+      const result = await BookingCompletionService.recordSessionMaterials(
+        String(request.params.id),
+        { id: acccount._id, name: acccount.name },
+        parsed.data.session,
+        parsed.data.materials,
+      );
+      const bookings = await BookingService.getByArtist(acccount._id);
+      response.send({ alreadyRecorded: result.alreadyRecorded, bookings });
+    } catch (e) {
+      if (e instanceof BookingCompletionError) {
         response.status(e.status).json({ error: e.message });
         return;
       }
@@ -753,7 +896,26 @@ export class BookingController {
     try {
       const acccount = request.account;
       const { newTime, newDate, id } = request.body;
-      //await BookingService.updateStatus(id, "completed")
+      const booking =
+        typeof id === "string" && isValidObjectId(id)
+          ? await BookingService.getRaw(id)
+          : null;
+      if (!booking) {
+        response.status(404).send("booking not found");
+        return;
+      }
+      if (!isBookingParty(booking, acccount?._id ?? "")) {
+        response.status(403).send("you are not authorized to update this booking");
+        return;
+      }
+      if (booking.status !== "active") {
+        response.status(409).send(`a ${booking.status} booking can't be scheduled`);
+        return;
+      }
+      if (booking.session >= booking.sessions.length) {
+        response.status(409).send("all planned sessions are already scheduled");
+        return;
+      }
       await BookingService.bookNextSessionV2(id, newTime, newDate);
       const bookings = await BookingService.getByArtist(acccount?._id!);
       response.send(bookings);

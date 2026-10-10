@@ -7,6 +7,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import "dotenv/config";
+import { migrateExpenseIndexes } from "./model/expences.model";
 
 dotenv.config();
 
@@ -42,7 +43,11 @@ app.get("/health", (request: Request, response: Response) => {
 
 app.use(routes);
 
-mongoose.connect(mongodb_uri);
+mongoose.connect(mongodb_uri).then(() =>
+  migrateExpenseIndexes().catch((e) =>
+    console.error("expense index migration failed", e),
+  ),
+);
 
 app.get("/", async (request: Request, response: Response) => {
   response.send("working server...........");

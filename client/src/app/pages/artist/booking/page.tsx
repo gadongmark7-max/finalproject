@@ -10,14 +10,26 @@ import PendingBookings from "./components/pendingBooking";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import AppointmentBookings from "./components/appointmentBooking";
+import CancelledBookings, {
+  CANCELLED_TAB_STATUSES,
+} from "./components/cancelledBooking";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import { isBussinessApproveArtistAppoitnment } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
 
 export const BookingContext = createContext<() => void>(() => {});
 
-const STATUS_TABS = ["active", "appointment", "pending", "completed"] as const;
+const STATUS_TABS = [
+  "active",
+  "appointment",
+  "pending",
+  "completed",
+  "cancelled",
+] as const;
 type StatusTab = typeof STATUS_TABS[number];
+
+const tabStatuses = (tab: StatusTab) =>
+  tab === "cancelled" ? CANCELLED_TAB_STATUSES : [tab];
 
 export default function Page() {
   const { user } = useUserStore();
@@ -43,8 +55,10 @@ export default function Page() {
 
   if (!artistBussinesses) return <LoadingScreen />;
 
-  const countOf = (status: StatusTab) =>
-    bookings.filter((b) => b.status === status).length;
+  const bookingsOf = (tab: StatusTab) =>
+    bookings.filter((b) => tabStatuses(tab).includes(b.status));
+
+  const countOf = (tab: StatusTab) => bookingsOf(tab).length;
 
   return (
     <BookingContext.Provider value={refetch}>
@@ -61,7 +75,7 @@ export default function Page() {
         {/* Ambient Gold Glow */}
         <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16 space-y-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-8 sm:space-y-10">
 
           {/* Page Header */}
           <div className="flex items-start justify-between gap-6 flex-wrap">
@@ -75,7 +89,7 @@ export default function Page() {
                 </span>
               </div>
               <h1
-                className="text-5xl font-light text-text tracking-[-0.02em]"
+                className="text-4xl sm:text-5xl font-light text-text tracking-[-0.02em]"
                 style={{ fontFamily: "'Cormorant Garamond', serif" }}
               >
                 My Bookings
@@ -86,14 +100,14 @@ export default function Page() {
             <div className="flex items-center gap-3 pt-2 flex-wrap">
               {isBussinessApproveArtistAppoitnment(artistBussinesses) && (
                 <Link href="/pages/artist/appointment">
-                  <button className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] px-5 py-3 border border-gold text-gold hover:bg-gold hover:text-primary transition-all duration-200">
+                  <button className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] px-4 sm:px-5 py-3 border border-gold text-gold hover:bg-gold hover:text-primary transition-all duration-200">
                     <Plus className="w-3.5 h-3.5" />
                     Add Appointment
                   </button>
                 </Link>
               )}
               <Link href="/pages/artist/addBooking/new/none">
-                <button className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] px-5 py-3 border border-border text-text-muted hover:border-border-gold hover:text-text transition-all duration-200">
+                <button className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] px-4 sm:px-5 py-3 border border-border text-text-muted hover:border-border-gold hover:text-text transition-all duration-200">
                   <Plus className="w-3.5 h-3.5" />
                   Add Sessions
                 </button>
@@ -102,15 +116,20 @@ export default function Page() {
           </div>
 
           {/* Status Tabs */}
-          <div className="flex flex-wrap gap-2 border-b border-border pb-6">
+          <div
+            role="tablist"
+            className="flex flex-wrap gap-2 border-b border-border pb-6"
+          >
             {STATUS_TABS.map((tab) => {
               const count = tab !== "completed" ? countOf(tab) : null;
               const isActive = type === tab;
               return (
                 <button
                   key={tab}
+                  role="tab"
+                  aria-selected={isActive}
                   onClick={() => setType(tab)}
-                  className={`flex items-center gap-2.5 text-[10px] uppercase tracking-[0.2em] px-5 py-2.5 border transition-all duration-200 ${
+                  className={`flex items-center gap-2 sm:gap-2.5 text-[10px] uppercase tracking-[0.16em] sm:tracking-[0.2em] px-3 sm:px-5 py-2.5 border transition-all duration-200 ${
                     isActive
                       ? "border-gold text-gold bg-surface-alt"
                       : "border-border text-text-muted hover:border-border-gold hover:text-text"
@@ -137,25 +156,31 @@ export default function Page() {
           {type === "active" && (
             <ActiveBookings
               setBookings={setBookings}
-              bookings={bookings.filter((b) => b.status === "active")}
+              bookings={bookingsOf("active")}
             />
           )}
           {type === "pending" && (
             <PendingBookings
               setBookings={setBookings}
-              bookings={bookings.filter((b) => b.status === "pending")}
+              bookings={bookingsOf("pending")}
             />
           )}
           {type === "completed" && (
             <CompletedBookings
               setBookings={setBookings}
-              bookings={bookings.filter((b) => b.status === "completed")}
+              bookings={bookingsOf("completed")}
             />
           )}
           {type === "appointment" && (
             <AppointmentBookings
               setBookings={setBookings}
-              bookings={bookings.filter((b) => b.status === "appointment")}
+              bookings={bookingsOf("appointment")}
+            />
+          )}
+          {type === "cancelled" && (
+            <CancelledBookings
+              setBookings={setBookings}
+              bookings={bookingsOf("cancelled")}
             />
           )}
 

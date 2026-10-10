@@ -52,6 +52,45 @@ export interface bookingInterface {
   paymentMethod?: PaymentMethod;
   paymentStatus?: BookingPaymentStatus;
   inventoryConsumption?: bookingInventoryConsumptionInterface | null;
+  sessionUsage?: bookingSessionUsageInterface[];
+  closure?: bookingClosureInterface | null;
+  cancellation?: bookingCancellationInterface | null;
+}
+
+export type bookingConsumedItemInterface =
+  bookingInventoryConsumptionInterface["items"][number];
+
+export interface bookingSessionUsageInterface {
+  session: number;
+  recordedAt: string;
+  recordedBy: string;
+  items: bookingConsumedItemInterface[];
+  totalCost: number;
+  expense: string | null;
+}
+
+export interface bookingClosureInterface {
+  type: "early";
+  sessionsPerformed: number;
+  plannedSessions: number;
+  unpaidBalance: number;
+  reason: string;
+  closedAt: string;
+  closedBy: string;
+}
+
+export interface bookingCancellationInterface {
+  reason: string;
+  previousStatus: string;
+  paidAmount: number;
+  sessionsPerformed: number;
+  cancelledAt: string;
+  cancelledBy: string;
+}
+
+export interface sessionMaterialInput {
+  itemId: string;
+  qty: number;
 }
 
 export interface bookingInventoryConsumptionInterface {
