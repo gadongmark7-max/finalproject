@@ -193,11 +193,11 @@ export default function Page() {
                     </div>
 
                     {/* Payment Method */}
-                    <div className="flex justify-between">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
+                    <div className="flex justify-between gap-3">
+                      <p className="flex-shrink-0 text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
                         <Wallet className="w-3 h-3 text-gold" /> Payment
                       </p>
-                      <p className="text-text-muted text-xs">
+                      <p className="min-w-0 break-words text-right text-text-muted text-xs">
                         {bookingPaymentLabel(booking)}
                       </p>
                     </div>
@@ -231,23 +231,23 @@ export default function Page() {
                     </div>
 
                     {/* Session Progress */}
-                    <div className="flex justify-between">
-                      <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
+                    <div className="flex justify-between items-start gap-3">
+                      <p className="flex-shrink-0 text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
                         <Layers className="w-3 h-3 text-gold" /> Session
                       </p>
-                 
-
-                    <div className="flex gap-2 ">
-                        {booking.sessions.map((_, index) => (
+                      <div className="flex min-w-0 flex-col items-end gap-1">
+                        <span className="text-text-muted text-xs">
+                          {Math.min(booking.session, booking.sessions.length)} / {booking.sessions.length}
+                        </span>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {booking.sessions.map((_, index) => (
                             <div
-                            key={index}
-                            className={`w-5 h-2 border border-gold 
-                                ${index < booking.session ? "bg-gold" : "bg-transparent"}
-                            `}
+                              key={index}
+                              className={`w-4 h-2 flex-shrink-0 border border-gold ${index < booking.session ? "bg-gold" : "bg-transparent"}`}
                             />
-                        ))}
-                    </div>
-
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                   </div>
