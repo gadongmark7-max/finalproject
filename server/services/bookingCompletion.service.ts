@@ -1,6 +1,7 @@
 import mongoose, { ClientSession, isValidObjectId } from "mongoose";
 import BookingModel from "../model/booking.model";
 import ExpencesModel from "../model/expences.model";
+import TransactionModel from "../model/transactions.model";
 import { isWholeNumberUnit } from "../model/inventory.model";
 import { InventoryService } from "./inventory.service";
 import { InventoryLogService } from "./inventoryLog.service";
@@ -172,6 +173,7 @@ async function recordUsage(
   actor: BookingActor,
   session: ClientSession | undefined,
   undo: UndoStep[],
+  requireCurrent = true,
 ) {
   const owner = inventoryOwnerOf(booking);
   const recordExpense = !booking.bussiness;
@@ -181,7 +183,7 @@ async function recordUsage(
     {
       _id: booking._id,
       status: { $in: ACTIVE_STATUSES },
-      session: sessionNo,
+      ...(requireCurrent ? { session: sessionNo } : {}),
       "sessionUsage.session": { $ne: sessionNo },
     },
     {
@@ -353,6 +355,7 @@ export class BookingCompletionService {
     actor: BookingActor,
     options: {
       materials?: SessionMaterialInput[];
+      sessions?: { session: number; materials: SessionMaterialInput[] }[];
       closeEarly?: boolean;
       reason?: string;
     } = {},
@@ -370,15 +373,71 @@ export class BookingCompletionService {
       );
     }
 
+    const refundInProgress = await TransactionModel.exists({
+      bookingId: booking._id,
+      type: "refund",
+      status: { $in: ["pending", "completed"] },
+    });
+    if (refundInProgress) {
+      throw new BookingCompletionError(
+        409,
+        "This booking has a refund in progress or already refunded, so it can't be completed",
+      );
+    }
+
     const closeEarly = !!options.closeEarly;
-    const sessionNo = booking.session;
     const plannedSessions = booking.sessions.length;
-    const willRecord =
-      options.materials !== undefined && !isSessionRecorded(booking, sessionNo);
-    const performed =
-      willRecord || isSessionRecorded(booking, sessionNo)
-        ? sessionNo
-        : Math.max(0, sessionNo - 1);
+    const recordedSessions = new Set(
+      (booking.sessionUsage ?? []).map((u) => u.session),
+    );
+
+    let toRecord: { session: number; materials: SessionMaterialInput[] }[];
+    let performed: number;
+    if (options.sessions) {
+      for (const s of options.sessions) {
+        if (s.session > plannedSessions) {
+          throw new BookingCompletionError(
+            400,
+            `This booking only has ${plannedSessions} planned ${plannedSessions === 1 ? "session" : "sessions"}`,
+          );
+        }
+        if (recordedSessions.has(s.session)) {
+          throw new BookingCompletionError(
+            409,
+            `Materials for session ${s.session} were already recorded. Please refresh and try again.`,
+          );
+        }
+      }
+      toRecord = [...options.sessions].sort((a, b) => a.session - b.session);
+      performed = new Set([
+        ...recordedSessions,
+        ...toRecord.map((s) => s.session),
+      ]).size;
+      if (performed < 1) {
+        throw new BookingCompletionError(
+          409,
+          "Select at least one session that was performed. If no session took place, the client can cancel the booking instead.",
+        );
+      }
+      if (!closeEarly && performed < plannedSessions) {
+        throw new BookingCompletionError(
+          409,
+          `Only ${performed} of ${plannedSessions} sessions are selected. Confirm closing the booking early to continue.`,
+        );
+      }
+    } else {
+      const sessionNo = booking.session;
+      const willRecord =
+        options.materials !== undefined &&
+        !isSessionRecorded(booking, sessionNo);
+      toRecord = willRecord
+        ? [{ session: sessionNo, materials: options.materials! }]
+        : [];
+      performed =
+        willRecord || isSessionRecorded(booking, sessionNo)
+          ? sessionNo
+          : Math.max(0, sessionNo - 1);
+    }
 
     if (closeEarly) {
       if (performed < 1) {
@@ -400,17 +459,29 @@ export class BookingCompletionService {
       );
     }
 
+    const requireCurrent = !options.sessions;
     const outcome = await runAtomically(async (session, undo) => {
-      const usage = willRecord
-        ? await recordUsage(
-            booking,
-            sessionNo,
-            options.materials!,
-            actor,
-            session,
-            undo,
-          )
-        : null;
+      const usages: { session: number; items: ConsumedItem[] }[] = [];
+      for (const entry of toRecord) {
+        const usage = await recordUsage(
+          booking,
+          entry.session,
+          entry.materials,
+          actor,
+          session,
+          undo,
+          requireCurrent,
+        );
+        if (!usage.recorded && options.sessions) {
+          throw new BookingCompletionError(
+            409,
+            `Materials for session ${entry.session} were already recorded. Please refresh and try again.`,
+          );
+        }
+        if (usage.recorded) {
+          usages.push({ session: entry.session, items: usage.items });
+        }
+      }
 
       const claimed = await BookingModel.findOneAndUpdate(
         {
@@ -442,19 +513,19 @@ export class BookingCompletionService {
         const latest = await BookingModel.findById(booking._id).session(
           session ?? null,
         );
-        if (latest?.status === "completed") {
-          return { booking: latest, alreadyCompleted: true as const, usage };
+        if (latest?.status === "completed" && toRecord.length === 0) {
+          return { booking: latest, alreadyCompleted: true as const, usages };
         }
         throw new BookingCompletionError(
           409,
           "This booking changed while completing it. Please refresh and try again.",
         );
       }
-      return { booking: claimed, alreadyCompleted: false as const, usage };
+      return { booking: claimed, alreadyCompleted: false as const, usages };
     });
 
-    if (outcome.usage?.recorded) {
-      logUsage(booking, sessionNo, outcome.usage.items, actor);
+    for (const usage of outcome.usages) {
+      logUsage(booking, usage.session, usage.items, actor);
     }
 
     return {

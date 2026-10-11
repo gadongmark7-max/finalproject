@@ -2,7 +2,9 @@ import { accountInterface } from "./accounts.type";
 import { TattooDataInterface } from "./threejs.type";
 import {
   BookingPaymentStatus,
+  CancellationReasonCode,
   PaymentMethod,
+  RefundMethod,
 } from "@/lib/validation/schemas/booking";
 
 export interface bookingInterfaceInput {
@@ -52,6 +54,7 @@ export interface bookingInterface {
   paymentMethod?: PaymentMethod;
   paymentStatus?: BookingPaymentStatus;
   inventoryConsumption?: bookingInventoryConsumptionInterface | null;
+  sessionMaterials?: plannedSessionMaterialsInterface[];
   sessionUsage?: bookingSessionUsageInterface[];
   closure?: bookingClosureInterface | null;
   cancellation?: bookingCancellationInterface | null;
@@ -81,6 +84,10 @@ export interface bookingClosureInterface {
 
 export interface bookingCancellationInterface {
   reason: string;
+  reasonCode?: CancellationReasonCode | null;
+  reasonDetails?: string;
+  requestedRefundMethod?: RefundMethod | null;
+  cancelledByRole?: "client" | "artist" | "business" | null;
   previousStatus: string;
   paidAmount: number;
   sessionsPerformed: number;
@@ -107,4 +114,69 @@ export interface bookingInventoryConsumptionInterface {
   }[];
   totalCost: number;
   expense: string | null;
+}
+
+export interface plannedMaterialInterface {
+  itemId: string;
+  item: string;
+  unit: string;
+  qty: number;
+}
+
+export interface plannedSessionMaterialsInterface {
+  session: number;
+  items: plannedMaterialInterface[];
+}
+
+export type RefundRecordStatus = "pending" | "completed" | "failed";
+
+export interface bookingRefundSummaryInterface {
+  bookingId: string;
+  status: string;
+  canRefund: boolean;
+  cancellation: bookingCancellationInterface | null;
+  payments: {
+    _id: string;
+    amount: number;
+    method: RefundMethod;
+    date: string;
+    time: string;
+    refId: string;
+    refunded: boolean;
+    refund: {
+      _id: string;
+      status: RefundRecordStatus;
+      method: RefundMethod;
+      amount: number;
+      date: string;
+      time: string;
+      providerRefundId: string | null;
+      failureReason: string | null;
+    } | null;
+  }[];
+  history: {
+    _id: string;
+    status: RefundRecordStatus;
+    method: RefundMethod;
+    amount: number;
+    date: string;
+    time: string;
+    failureReason: string | null;
+  }[];
+  totals: {
+    paid: number;
+    refunded: number;
+    pending: number;
+    refundable: number;
+    onlineRefundable: number;
+    cashRefundable: number;
+  };
+}
+
+export interface bookingRefundOutcomeInterface {
+  paymentId: string;
+  amount: number;
+  method: RefundMethod;
+  status: "completed" | "pending" | "failed" | "skipped";
+  message?: string;
 }

@@ -18,7 +18,6 @@ import {
   ScheduleRows,
   SessionRow,
 } from "./bookingCard";
-import { CancelBookingModal } from "./cancelBookingModal";
 
 export default function PendingBookings({
   bookings,
@@ -99,10 +98,6 @@ export default function PendingBookings({
                   approveCallback={handleApprove}
                 />
               )}
-              <CancelBookingModal
-                booking={booking}
-                setBookings={setBookings}
-              />
             </>
           }
         >

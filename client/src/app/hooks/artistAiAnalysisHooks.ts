@@ -33,43 +33,6 @@ export const distributeSessionHours = (
   return Array<number>(count).fill(perSession);
 };
 
-export type AiItemUsed = {
-  item: string;
-  qty: number;
-  itemId: string;
-  price: number;
-};
-
-export const itemsUsedFromMaterials = (
-  materials: aiAnalysisResultInterface["materials"],
-): AiItemUsed[] =>
-  materials.map((m) => ({
-    itemId: m.inventoryItemId,
-    item: m.name,
-    qty: m.estimatedQuantity,
-    price: m.unitCost,
-  }));
-
-export function useSyncAiItemsUsed(
-  result: aiAnalysisResultInterface | null,
-  setItemUsed: React.Dispatch<React.SetStateAction<AiItemUsed[]>>,
-  enabled = true,
-) {
-  const appliedIds = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!result || !enabled) return;
-    const next = itemsUsedFromMaterials(result.materials);
-    const nextIds = new Set(next.map((i) => i.itemId));
-    const previous = appliedIds.current;
-    setItemUsed((prev) => [
-      ...prev.filter((i) => !previous.has(i.itemId) && !nextIds.has(i.itemId)),
-      ...next,
-    ]);
-    appliedIds.current = nextIds;
-  }, [result, enabled, setItemUsed]);
-}
-
 interface Inputs {
   postImg: File | null;
   bodyPart: string;
@@ -79,7 +42,10 @@ interface Inputs {
   category: string;
   complexity: number;
   isColored: boolean;
+  materialOverrides?: MaterialOverride[] | null;
 }
+
+export type MaterialOverride = { inventoryItemId: string; quantity: number };
 
 type RepricePayload = {
   category: string;
@@ -91,6 +57,7 @@ type RepricePayload = {
   calibration: aiAnalysisResultInterface["calibration"];
   materials: aiAnalysisResultInterface["baseMaterials"];
   ink: { baseMl: number; selections: aiInkSelectionInterface[] } | null;
+  materialOverrides: MaterialOverride[] | null;
 };
 
 const inkSelectionsFrom = (
@@ -187,6 +154,7 @@ export function useArtistAiAnalysis(
         ink: analysis.ink
           ? { baseMl: analysis.ink.baseMl, selections: inkSelections }
           : null,
+        materialOverrides: inputs.materialOverrides ?? null,
       },
     };
   }, [analysis, inputs, inkSelections]);
@@ -223,6 +191,11 @@ export function useArtistAiAnalysis(
   }, [analysis, repriceQuery.data]);
   const isDebouncing =
     !!payloadKey && payloadKey !== JSON.stringify(debouncedPayload);
+
+  const aiMaterials = useMemo(
+    () => (result ? (result.aiMaterials ?? result.materials) : null),
+    [result],
+  );
 
   const missingMaterialNames = (result?.missingMaterialIds ?? []).map(
     (id) => materialNames.current.get(id) ?? "Unknown item",
@@ -264,6 +237,7 @@ export function useArtistAiAnalysis(
 
   return {
     result,
+    aiMaterials,
     analyze,
     reset,
     inkSelections,
@@ -294,5 +268,6 @@ function payloadFor(result: aiAnalysisResultInterface): RepricePayload {
     ink: result.ink
       ? { baseMl: result.ink.baseMl, selections: inkSelectionsFrom(result) }
       : null,
+    materialOverrides: null,
   };
 }

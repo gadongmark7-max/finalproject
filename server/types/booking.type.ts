@@ -20,7 +20,13 @@ export interface bookingInterfaceInput {
         qty : number,
     }[],
     tattooData : TattooDataInterface | null,
-    paymentMethod? : "online" | "counter"
+    paymentMethod? : "online" | "counter",
+    sessionMaterials? : PlannedSessionMaterials[]
+}
+
+export interface PlannedSessionMaterials {
+    session : number,
+    items : { itemId : string, item : string, unit : string, qty : number }[]
 }
 
 export interface bookingInterface{

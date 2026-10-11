@@ -23,7 +23,20 @@ export interface transactionInterface {
   paymentMethod?: PaymentMethod;
   type?: TransactionType;
   refundedAt?: string | null;
+  status?: TransactionStatus;
 }
+
+export type TransactionStatus = "pending" | "completed" | "failed";
+
+export const refundBadgeLabel = (transaction: {
+  type?: TransactionType;
+  status?: TransactionStatus;
+}) =>
+  isRefundRecord(transaction) && transaction.status === "pending"
+    ? "Refund processing"
+    : isRefundRecord(transaction) && transaction.status === "failed"
+      ? "Refund failed"
+      : "Refunded";
 
 export type TransactionType = "payment" | "refund";
 

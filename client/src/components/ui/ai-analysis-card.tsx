@@ -308,6 +308,14 @@ function Result({
   const { analysis, size, materials, pricing, ink, detected } = result;
   const dim = isRecalculating || !!staleReason;
   const atPrice = profitAtPrice(price, pricing);
+  const artistAdjusted = result.materialSource === "artist";
+  const aiMaterialCost =
+    Math.round(
+      (result.aiMaterials ?? materials).reduce(
+        (sum, m) => sum + m.estimatedCost,
+        0,
+      ) * 100,
+    ) / 100;
   const suggestedRounded = Math.round(pricing.suggestedPrice);
 
   return (
@@ -445,7 +453,10 @@ function Result({
         />
       )}
 
-      <Section title={`Materials · ${materials.length}`} icon={Package}>
+      <Section
+        title={`Materials · ${materials.length}${artistAdjusted ? " · artist-adjusted" : ""}`}
+        icon={Package}
+      >
         {materials.length === 0 ? (
           <p className="text-xs text-text-muted">
             No matching inventory items to recommend.
@@ -487,9 +498,25 @@ function Result({
             {missingMaterialNames.join(", ")}
           </p>
         )}
+        {artistAdjusted && (
+          <div className="mt-2 space-y-1 border-t border-border pt-2">
+            <Row
+              label="AI-estimated material cost"
+              value={formatPeso(aiMaterialCost)}
+              muted
+            />
+            <Row
+              label="Artist-adjusted material cost"
+              value={formatPeso(pricing.materialCost)}
+            />
+          </div>
+        )}
         <p className="text-[11px] text-text-muted mt-2">
-          Recommendations only — nothing is deducted from inventory until the
-          item is used.
+          {artistAdjusted
+            ? "Pricing uses your edited materials list and stored inventory prices. "
+            : "Split across sessions in Materials by Session, where you can edit it. "}
+          Estimates only — actual material expenses are recorded when each
+          session is completed.
         </p>
       </Section>
 
@@ -557,9 +584,9 @@ function Result({
           <Check className="w-4 h-4" /> Apply estimate to {applyTarget}
         </Button>
         <p className="text-[11px] text-text-muted leading-relaxed">
-          Fills the suggested price, sessions and items used so you can review
-          them. This is an AI-assisted estimate — the final price is always
-          yours to set.
+          Fills the suggested price, sessions and the AI materials per session
+          so you can review them. This replaces an edited materials list. This
+          is an AI-assisted estimate — the final price is always yours to set.
         </p>
       </div>
     </div>

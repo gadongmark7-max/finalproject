@@ -1,6 +1,10 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { Ban, CalendarX, PhilippinePeso, RotateCw } from "lucide-react";
+import {
+  cancellationReasonLabel,
+  REFUND_METHOD_LABELS,
+} from "@/lib/validation/schemas/booking";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
 import { bookingInterface } from "@/app/types/booking.type";
@@ -9,9 +13,8 @@ import {
   formatPesoCents,
   isBussinessApproveArtistPayment,
 } from "@/app/utils/customFunction";
-import { Button } from "@/components/ui/button";
 import LoadingScreen from "@/components/ui/loadingScreen";
-import { useBookingRefund } from "./useBookingRefund";
+import { RefundDialog } from "./refundDialog";
 import {
   amountPaid,
   BookingCard,
@@ -44,7 +47,6 @@ export default function CancelledBookings({
   setBookings: (data: bookingInterface[]) => void;
 }) {
   const { user } = useUserStore();
-  const { handleRefund, isRedirecting } = useBookingRefund(setBookings);
 
   const { data: bussinessInfos } = useQuery({
     queryKey: ["bussiness_Infos"],
@@ -52,7 +54,7 @@ export default function CancelledBookings({
       (await axiosInstance.get(`/account/artistBussiness/${user?._id}`)).data,
   });
 
-  if (!bussinessInfos || isRedirecting) return <LoadingScreen />;
+  if (!bussinessInfos) return <LoadingScreen />;
 
   if (bookings.length === 0) {
     return (
@@ -81,14 +83,7 @@ export default function CancelledBookings({
             booking={booking}
             actions={
               canRefund && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleRefund(booking)}
-                >
-                  <RotateCw className="h-3.5 w-3.5" />
-                  Refund {formatPesoCents(paid)}
-                </Button>
+                <RefundDialog booking={booking} setBookings={setBookings} />
               )
             }
           >
@@ -112,6 +107,13 @@ export default function CancelledBookings({
                     : "sessions"}
                 </DetailRow>
               )}
+              {booking.status === "cancelled" && paid > 0 && (
+                <DetailRow icon={RotateCw} label="Refund requested">
+                  {cancellation?.requestedRefundMethod
+                    ? REFUND_METHOD_LABELS[cancellation.requestedRefundMethod]
+                    : "Not specified"}
+                </DetailRow>
+              )}
               {(booking.sessionUsage?.length ?? 0) > 0 && (
                 <MaterialsRow booking={booking} />
               )}
@@ -121,7 +123,18 @@ export default function CancelledBookings({
                 <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.18em] text-text-dim">
                   <Ban className="h-3 w-3" /> Reason:
                 </span>{" "}
-                {cancellation.reason}
+                {cancellationReasonLabel(cancellation.reasonCode) ??
+                  cancellation.reason}
+                {cancellation.reasonDetails && (
+                  <span className="mt-1 block text-text-dim">
+                    “{cancellation.reasonDetails}”
+                  </span>
+                )}
+                {cancellation.cancelledByRole && (
+                  <span className="mt-1 block text-[10px] uppercase tracking-[0.14em] text-text-dim">
+                    Cancelled by {cancellation.cancelledByRole}
+                  </span>
+                )}
               </p>
             )}
             <BookingHistoryDetails booking={booking} />

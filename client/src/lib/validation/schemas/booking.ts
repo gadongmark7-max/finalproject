@@ -104,3 +104,67 @@ export const insufficientDurationMessage = (
       : `This tattoo requires ${hoursLabel(requiredHours)}`;
   return `${subject}, so the booking duration must be at least ${hoursLabel(requiredHours)}. The selected time only covers ${hoursLabel(selectedHours)}.`;
 };
+
+export const CANCELLATION_REASONS = [
+  { value: "change_of_plans", label: "Change of plans" },
+  { value: "unable_to_attend", label: "Unable to attend the scheduled appointment" },
+  { value: "financial", label: "Budget or financial reasons" },
+  { value: "health_personal", label: "Health or personal reasons" },
+  { value: "artist_schedule", label: "Artist or schedule-related concerns" },
+  { value: "other", label: "Others" },
+] as const;
+
+export type CancellationReasonCode = (typeof CANCELLATION_REASONS)[number]["value"];
+
+export const CANCELLATION_REASON_CODES = CANCELLATION_REASONS.map(
+  (r) => r.value,
+) as [CancellationReasonCode, ...CancellationReasonCode[]];
+
+export const cancellationReasonLabel = (code?: string | null) =>
+  CANCELLATION_REASONS.find((r) => r.value === code)?.label ?? null;
+
+export const REFUND_METHODS = ["cash", "online"] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
+  cash: "Cash",
+  online: "Original online payment method (PayMongo)",
+};
+
+export const CANCELLATION_DETAILS_MAX = 500;
+
+export const clientCancelBookingSchemaFor = (requiresRefundMethod: boolean) =>
+  z
+    .object({
+      reasonCode: z.enum(CANCELLATION_REASON_CODES, {
+        errorMap: () => ({ message: "Please select a cancellation reason" }),
+      }),
+      reasonDetails: z
+        .string()
+        .trim()
+        .max(
+          CANCELLATION_DETAILS_MAX,
+          `Keep it under ${CANCELLATION_DETAILS_MAX} characters`,
+        ),
+      refundMethod: z.enum(REFUND_METHODS).nullable(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.reasonCode === "other" && value.reasonDetails.length < 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["reasonDetails"],
+          message: "Please specify your reason",
+        });
+      }
+      if (requiresRefundMethod && !value.refundMethod) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["refundMethod"],
+          message: "Please select your preferred refund method",
+        });
+      }
+    });
+
+export type ClientCancelBookingValues = z.infer<
+  ReturnType<typeof clientCancelBookingSchemaFor>
+>;

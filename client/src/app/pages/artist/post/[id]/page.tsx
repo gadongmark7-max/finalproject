@@ -203,7 +203,7 @@ export default function Page() {
                         {session} {session !== 1 ? "hrs" : "hr"}
                       </p>
                       <p className="text-[9px] text-text-muted mt-1 uppercase tracking-[0.12em]">
-                        Estimated time
+                        Time
                       </p>
                     </div>
                   ))}

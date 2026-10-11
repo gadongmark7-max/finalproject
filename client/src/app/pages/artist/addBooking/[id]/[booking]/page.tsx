@@ -1,10 +1,4 @@
 "use client";
-import {
-  itemUsedQtySchemaFor,
-  sanitizeItemUsedQty,
-} from "@/lib/validation/schemas/inventory";
-import { quantityInputMode } from "@/app/types/inventory.type";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -43,9 +37,6 @@ import { inventoryInterface } from "@/app/types/inventory.type";
 import {
   apiErrorMessage,
   formatPeso,
-  getInventoryName,
-  getInventoryPrice,
-  getInventoryType,
 } from "@/app/utils/customFunction";
 import { TattooDataInterface } from "@/app/types/threejs.type";
 import { SetTattoo3DModal } from "@/app/3d/3dTattooModal";
@@ -68,14 +59,14 @@ import {
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 import {
   useArtistAiAnalysis,
-  useSyncAiItemsUsed,
-  itemsUsedFromMaterials,
-  type AiItemUsed,
+  type MaterialOverride,
   distributeSessionHours,
   aiSizeWidthSchema,
   aiSizeHeightSchema,
 } from "@/app/hooks/artistAiAnalysisHooks";
 import { useArtistSettings } from "@/app/hooks/artistSettingsHooks";
+import { usePlannedSessionMaterials } from "@/app/hooks/plannedMaterialsHooks";
+import { SessionMaterialsPlanner } from "@/components/ui/session-materials-planner";
 import {
   AiAnalysisCard,
   profitAtPrice,
@@ -192,7 +183,6 @@ export default function Page() {
 
   const [bussiness, setBussiness] = useState("none");
 
-  useEffect(() => setItemUsed([]), [bussiness]);
 
   const { data: artistInfoData } = useQuery({
     queryKey: ["artist_profile"],
@@ -226,7 +216,7 @@ export default function Page() {
   }, [bussiness, artistInfoData, bussinessInfoData]);
 
   // ── Items used (from the booking's inventory owner) ────────────────────
-  const { data: inventoryData } = useQuery({
+  const { data: inventoryData, isLoading: inventoryLoading } = useQuery({
     queryKey: ["inventoryData", bussiness],
     queryFn: async (): Promise<inventoryInterface[]> => {
       const response = await axiosInstance.get(
@@ -235,53 +225,6 @@ export default function Page() {
       return response.data;
     },
   });
-
-  const [itemUsed, setItemUsed] = useState<AiItemUsed[]>([]);
-  const [itemId, setItemId] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [itemType, setItemType] = useState("Quantity");
-  const [itemQty, setItemQty] = useState("1");
-  const itemQtyNum = Number(itemQty) || 0;
-  const [itemPrice, setItemPrice] = useState(0);
-
-  const selectItemHanlder = (value: string) => {
-    setItemId(value);
-    setItemType(getInventoryType(value, inventoryData || []));
-    setItemName(getInventoryName(value, inventoryData || []));
-    setItemPrice(getInventoryPrice(value, inventoryData || []));
-  };
-
-  const addInventoryItem = () => {
-    if (!itemId) return errorAlert("no selected item");
-    if (!itemUsedQtySchemaFor(itemType).safeParse(itemQty).success)
-      return errorAlert("Enter a valid quantity");
-    setItemUsed((prev) => {
-      const existingItem = prev.find((item) => item.itemId === itemId);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.itemId === itemId
-            ? {
-                ...item,
-                qty: Math.round((item.qty + itemQtyNum) * 10000) / 10000,
-                item: itemName,
-                price: itemPrice,
-              }
-            : item,
-        );
-      }
-
-      return [
-        ...prev,
-        { itemId: itemId, qty: itemQtyNum, item: itemName, price: itemPrice },
-      ];
-    });
-    setItemQty("1");
-    setItemPrice(0);
-  };
-
-  const removeInventoryItem = (id: string) => {
-    setItemUsed((prev) => prev.filter((item) => item.itemId != id));
-  };
 
   // ── Client ─────────────────────────────────────────────────────────────
   const [client, setClient] = useState("");
@@ -330,6 +273,10 @@ export default function Page() {
   // applied when the booking uses that inventory (no business selected).
   const usesOwnInventory = bussiness === "none";
 
+  const [materialOverrides, setMaterialOverrides] = useState<
+    MaterialOverride[] | null
+  >(null);
+
   const applyAiEstimate = (result: aiAnalysisResultInterface) => {
     setSessions(
       distributeSessionHours(
@@ -337,9 +284,7 @@ export default function Page() {
         result.analysis.estimatedSessions,
       ),
     );
-    if (usesOwnInventory) {
-      setItemUsed(itemsUsedFromMaterials(result.materials));
-    }
+    if (usesOwnInventory) materials.applyAiEstimate();
     setPrice(String(Math.round(result.pricing.suggestedPrice)));
   };
 
@@ -353,18 +298,31 @@ export default function Page() {
       category,
       complexity,
       isColored,
+      materialOverrides: usesOwnInventory ? materialOverrides : null,
     },
     {
       onAnalyzed: (result) => {
         setCategory(result.analysis.category);
         setComplexity(result.analysis.complexity);
         setIsColored(result.analysis.isColored);
-        applyAiEstimate(result);
+        if (!materials.managed) applyAiEstimate(result);
       },
     },
   );
 
-  useSyncAiItemsUsed(ai.result, setItemUsed, usesOwnInventory);
+  const materials = usePlannedSessionMaterials({
+    sessionHours: sessions,
+    inventory: inventoryData,
+    aiMaterials: usesOwnInventory ? ai.aiMaterials : null,
+  });
+
+  useEffect(() => {
+    setMaterialOverrides(materials.overrides);
+  }, [materials.overridesKey]);
+
+  useEffect(() => {
+    materials.reset();
+  }, [bussiness]);
 
   const updateSession = (index: number, value: number) => {
     const updated = [...sessions];
@@ -378,6 +336,7 @@ export default function Page() {
 
   const removeSession = (index: number) => {
     if (sessions.length === 1) return;
+    materials.removeSessionAt(index);
     setSessions(sessions.filter((_, i) => i !== index));
   };
 
@@ -493,7 +452,8 @@ export default function Page() {
       !clientIsValid() ||
       !hasImage ||
       !parsedPrice.success ||
-      !sessionsSchema.safeParse(sessions).success
+      !sessionsSchema.safeParse(sessions).success ||
+      !materials.isValid
     ) {
       setTriedSubmit(true);
       if (isNoClientAccount && accountFieldsBlocking)
@@ -510,7 +470,13 @@ export default function Page() {
     formData.append("selectedTime", JSON.stringify(data.time));
     formData.append("date", data.date);
 
-    formData.append("itemUsed", JSON.stringify(itemUsed));
+    formData.append(
+      "itemUsed",
+      JSON.stringify(
+        materials.itemUsed.map(({ itemId, item, qty }) => ({ itemId, item, qty })),
+      ),
+    );
+    formData.append("sessionMaterials", JSON.stringify(materials.payload));
 
     formData.append("clientId", client);
     formData.append("artistId", user._id);
@@ -885,79 +851,21 @@ export default function Page() {
 
             {/* ── ITEMS USED ── */}
             <div className="bg-surface border border-border p-5 space-y-5">
-              <div>
-                <SectionLabel>Items Used</SectionLabel>
-                <p className="text-text-muted text-xs leading-relaxed mt-2">
-                  Deducted from{" "}
-                  <span className="text-text font-medium">
-                    {usesOwnInventory ? "your" : "the selected business'"}
-                  </span>{" "}
-                  inventory when the booking is completed.
-                  {!usesOwnInventory &&
-                    " AI material suggestions use your own inventory, so add the business items here yourself."}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Item</Label>
-                  <Select onValueChange={selectItemHanlder} key={bussiness}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {inventoryData?.map((item) => (
-                        <SelectItem key={item._id} value={item._id}>
-                          {item.item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{itemType}</Label>
-                  <Input
-                    inputMode={quantityInputMode(itemType)}
-                    value={itemQty}
-                    onChange={(e) =>
-                      setItemQty(sanitizeItemUsedQty(e.target.value, itemType))
-                    }
-                  />
-                </div>
-                <Button
-                  onClick={addInventoryItem}
-                  disabled={
-                    !itemId ||
-                    !itemUsedQtySchemaFor(itemType).safeParse(itemQty).success
-                  }
-                  className="w-full"
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Add
-                </Button>
-              </div>
-
-              {itemUsed.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {itemUsed.map((item) => (
-                    <div
-                      key={item.itemId}
-                      className="flex items-center gap-2 border border-border bg-surface-alt px-3 py-1.5 text-xs text-text"
-                    >
-                      <span className="font-medium">{item.item}</span>
-                      <span className="text-text-muted">
-                        × {item.qty}{" "}
-                        {getInventoryType(item.itemId, inventoryData || [])}
-                      </span>
-                      <button
-                        onClick={() => removeInventoryItem(item.itemId)}
-                        className="ml-1 text-text-muted hover:text-danger-light transition-colors"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SectionLabel>Materials by Session</SectionLabel>
+              <SessionMaterialsPlanner
+                state={materials}
+                inventory={inventoryData}
+                inventoryLoading={inventoryLoading}
+                sessionHours={sessions}
+                showErrors={triedSubmit}
+                ownerLabel={usesOwnInventory ? "your" : "the selected business'"}
+                isAnalyzing={usesOwnInventory && ai.isAnalyzing}
+                aiNote={
+                  usesOwnInventory
+                    ? undefined
+                    : "AI material suggestions use your own inventory, so add the business items here yourself."
+                }
+              />
             </div>
 
             {/* ── SESSIONS ── */}

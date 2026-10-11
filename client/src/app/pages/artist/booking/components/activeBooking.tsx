@@ -3,26 +3,21 @@ import { useQuery } from "@tanstack/react-query";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
 import { bookingInterface } from "@/app/types/booking.type";
-import { RotateCw } from "lucide-react";
 import { BookNextSession } from "./nextSessionBooking";
-import { Button } from "@/components/ui/button";
 import { CashPayment } from "./cashPayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import { bussinessInfoInterface } from "@/app/types/accounts.type";
 import { isBussinessApproveArtistPayment } from "@/app/utils/customFunction";
 import LoadingScreen from "@/components/ui/loadingScreen";
 import { ReschedModal } from "./reschedModal";
-import { CompleteBookingModal, canCloseBooking } from "./completeBookingModal";
-import { RecordSessionMaterialsModal } from "./recordSessionMaterialsModal";
-import { CancelBookingModal } from "./cancelBookingModal";
-import { useBookingRefund } from "./useBookingRefund";
+import { CompleteBookingModal } from "./completeBookingModal";
+import { RefundDialog } from "./refundDialog";
 import {
   BalanceRow,
   BookingCard,
   BookingCardBody,
   BookingEmptyState,
   BookingGrid,
-  isSessionRecorded,
   MaterialsRow,
   PaymentRow,
   ScheduleRows,
@@ -37,7 +32,6 @@ export default function ActiveBookings({
   setBookings: (data: bookingInterface[]) => void;
 }) {
   const { user } = useUserStore();
-  const { handleRefund, isRedirecting } = useBookingRefund(setBookings);
 
   const { data: bussinessInfos } = useQuery({
     queryKey: ["bussiness_Infos"],
@@ -49,7 +43,7 @@ export default function ActiveBookings({
     },
   });
 
-  if (!bussinessInfos || isRedirecting) return <LoadingScreen />;
+  if (!bussinessInfos) return <LoadingScreen />;
 
   if (bookings.length === 0) {
     return <BookingEmptyState hint="Approved bookings will appear here" />;
@@ -62,33 +56,23 @@ export default function ActiveBookings({
           booking.bussiness?._id,
           bussinessInfos,
         );
-        const currentRecorded = isSessionRecorded(booking, booking.session);
         return (
           <BookingCard
             key={booking._id}
             booking={booking}
             actions={
               <>
-                {!currentRecorded && (
-                  <RecordSessionMaterialsModal
+                {booking.session < booking.sessions.length && (
+                  <BookNextSession
                     booking={booking}
                     setBookings={setBookings}
                   />
                 )}
-                {booking.session < booking.sessions.length &&
-                  currentRecorded && (
-                    <BookNextSession
-                      booking={booking}
-                      setBookings={setBookings}
-                    />
-                  )}
-                {canCloseBooking(booking) && (
-                  <CompleteBookingModal
-                    key={booking._id + booking.session + currentRecorded}
-                    booking={booking}
-                    setBookings={setBookings}
-                  />
-                )}
+                <CompleteBookingModal
+                  key={`${booking._id}-${booking.session}-${booking.sessionUsage?.length ?? 0}`}
+                  booking={booking}
+                  setBookings={setBookings}
+                />
 
                 {booking.balance !== 0 && canHandlePayment && (
                   <CashPayment
@@ -108,21 +92,14 @@ export default function ActiveBookings({
 
                 {booking.originalPrice > booking.balance &&
                   canHandlePayment && (
-                    <Button
-                      hoverText={"Refund"}
-                      aria-label="Refund"
-                      onClick={() => handleRefund(booking)}
-                    >
-                      <RotateCw className="h-3.5 w-3.5" />
-                    </Button>
+                    <RefundDialog
+                      booking={booking}
+                      setBookings={setBookings}
+                      trigger="icon"
+                    />
                   )}
 
                 <ReschedModal booking={booking} setBookings={setBookings} />
-
-                <CancelBookingModal
-                  booking={booking}
-                  setBookings={setBookings}
-                />
               </>
             }
           >

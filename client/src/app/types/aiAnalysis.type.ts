@@ -66,6 +66,8 @@ export interface aiAnalysisResultInterface {
   baseMaterials: { inventoryItemId: string; quantity: number }[];
   ink: aiInkEstimateInterface | null;
   materials: aiAnalysisMaterialInterface[];
+  aiMaterials?: aiAnalysisMaterialInterface[];
+  materialSource?: "ai" | "artist";
   missingMaterialIds: string[];
   detected?: {
     bodyPart: string | null;

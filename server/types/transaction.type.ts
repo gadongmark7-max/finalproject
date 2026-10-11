@@ -11,6 +11,7 @@ export interface transactionInterfaceInput {
     paymentMethod? : "online" | "counter",
     type? : "payment" | "refund",
     refundedAt? : Date | null,
+    providerPaymentId? : string | null,
 }
 
 
