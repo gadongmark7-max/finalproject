@@ -5,13 +5,7 @@ import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
 import { bookingInterface } from "@/app/types/booking.type";
 import { convertToAmPm } from "@/app/utils/customFunction";
-import {
-  Calendar,
-  Clock,
-  Layers,
-  PhilippinePeso,
-  Wallet,
-} from "lucide-react";
+import { Calendar, Clock, Layers, PhilippinePeso, Wallet } from "lucide-react";
 import { ReviewModal } from "./components/reviews";
 import { Button } from "@/components/ui/button";
 import { OnlinePayment } from "./components/onlinePayment";
@@ -26,8 +20,13 @@ import {
   CLIENT_CANCELLABLE_STATUSES,
 } from "./components/cancelBookingDialog";
 
-
-const STATUS_TABS = ["active", "appointment", "pending", "completed", "cancelled"] as const;
+const STATUS_TABS = [
+  "active",
+  "appointment",
+  "pending",
+  "completed",
+  "cancelled",
+] as const;
 
 const CANCELLED_STATUSES = ["cancelled", "refund", "rejected"];
 
@@ -37,12 +36,12 @@ const matchesTab = (status: string, tab: string) =>
   tab === "cancelled" ? CANCELLED_STATUSES.includes(status) : status === tab;
 
 const statusStyle: Record<string, string> = {
-  pending:     "bg-warning-muted text-warning-light border border-warning-border",
-  completed:   "bg-success-muted text-success-light border border-success-border",
-  rejected:    "bg-danger-muted text-danger-light border border-danger-border",
-  cancelled:   "bg-danger-muted text-danger-light border border-danger-border",
-  refund:      "bg-warning-muted text-warning-light border border-warning-border",
-  active:      "bg-info-muted text-info-light border border-info-border",
+  pending: "bg-warning-muted text-warning-light border border-warning-border",
+  completed: "bg-success-muted text-success-light border border-success-border",
+  rejected: "bg-danger-muted text-danger-light border border-danger-border",
+  cancelled: "bg-danger-muted text-danger-light border border-danger-border",
+  refund: "bg-warning-muted text-warning-light border border-warning-border",
+  active: "bg-info-muted text-info-light border border-info-border",
   appointment: "border border-border text-text-muted bg-surface-alt",
 };
 
@@ -64,28 +63,34 @@ export default function Page() {
 
   useEffect(() => {
     if (data?.data) {
-      setBookings(data.data.filter((e: bookingInterface) => matchesTab(e.status, type)).reverse());
+      setBookings(
+        data.data
+          .filter((e: bookingInterface) => matchesTab(e.status, type))
+          .reverse(),
+      );
     }
   }, [data, type]);
 
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
-
       {/* Grain Overlay */}
       <div
         className="pointer-events-none fixed inset-0 z-50 opacity-[0.035]"
-        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")` }}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
       />
       {/* Ambient Gold Glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16 space-y-10">
-
         {/* Page Header */}
         <div>
           <div className="flex items-center gap-3 mb-2">
             <div className="h-px w-8 bg-gold" />
-            <span className="text-[10px] uppercase tracking-[0.28em] text-gold">My Bookings</span>
+            <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+              My Bookings
+            </span>
           </div>
           <h1
             className="text-5xl font-light text-text tracking-[-0.02em]"
@@ -131,8 +136,13 @@ export default function Page() {
                       className="h-9 w-9 object-cover border border-border flex-shrink-0"
                     />
                     <div className="min-w-0">
-                      <p className="text-[9px] uppercase tracking-[0.2em] text-gold">Artist</p>
-                      <p className="text-text text-sm font-light truncate" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                      <p className="text-[9px] uppercase tracking-[0.2em] text-gold">
+                        Artist
+                      </p>
+                      <p
+                        className="text-text text-sm font-light truncate"
+                        style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                      >
                         {booking.artist.name}
                       </p>
                     </div>
@@ -148,8 +158,15 @@ export default function Page() {
                           className="h-9 w-9 object-cover border border-border flex-shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="text-[9px] uppercase tracking-[0.2em] text-gold">Studio</p>
-                          <p className="text-text text-sm font-light truncate" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                          <p className="text-[9px] uppercase tracking-[0.2em] text-gold">
+                            Studio
+                          </p>
+                          <p
+                            className="text-text text-sm font-light truncate"
+                            style={{
+                              fontFamily: "'Cormorant Garamond', serif",
+                            }}
+                          >
                             {booking.bussiness.name}
                           </p>
                         </div>
@@ -159,7 +176,9 @@ export default function Page() {
                 </div>
 
                 {/* Status Badge */}
-                <span className={`flex-shrink-0 text-[9px] uppercase tracking-[0.15em] px-2.5 py-1 ${statusStyle[booking.status] ?? "border border-border text-text-muted"}`}>
+                <span
+                  className={`flex-shrink-0 text-[9px] uppercase tracking-[0.15em] px-2.5 py-1 ${statusStyle[booking.status] ?? "border border-border text-text-muted"}`}
+                >
                   {booking.status === "refund" ? "refunded" : booking.status}
                 </span>
               </div>
@@ -175,7 +194,6 @@ export default function Page() {
 
                   {/* Details */}
                   <div className="flex-1 space-y-3 min-w-0">
-
                     {/* Balance */}
                     <div className="flex justify-between">
                       <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-1">
@@ -186,7 +204,10 @@ export default function Page() {
                           Fully Paid
                         </span>
                       ) : (
-                        <p className="text-gold text-sm font-light" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                        <p
+                          className="text-gold text-sm font-light"
+                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                        >
                           ₱{booking.balance.toLocaleString()}
                         </p>
                       )}
@@ -216,7 +237,8 @@ export default function Page() {
                         <Clock className="w-3 h-3 text-gold" /> Duration
                       </p>
                       <p className="text-text-muted text-xs">
-                        {booking.duration} {booking.duration !== 1 ? "hrs" : "hr"}
+                        {booking.duration}{" "}
+                        {booking.duration !== 1 ? "hrs" : "hr"}
                       </p>
                     </div>
 
@@ -226,18 +248,20 @@ export default function Page() {
                         <Clock className="w-3 h-3 text-gold" /> Time Slot
                       </p>
                       <p className="text-text-muted text-xs">
-                        {convertToAmPm(booking.time[0])} – {convertToAmPm(booking.time[booking.time.length - 1])}
+                        {convertToAmPm(booking.time[0])} –{" "}
+                        {convertToAmPm(booking.time[booking.time.length - 1])}
                       </p>
                     </div>
 
                     {/* Session Progress */}
                     <div className="flex justify-between items-start gap-3">
                       <p className="flex-shrink-0 text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-0.5">
-                        <Layers className="w-3 h-3 text-gold" /> Session
+                        <Layers className="w-3 h-3 text-gold" /> Sessionff
                       </p>
                       <div className="flex min-w-0 flex-col items-end gap-1">
                         <span className="text-text-muted text-xs">
-                          {Math.min(booking.session, booking.sessions.length)} / {booking.sessions.length}
+                          {Math.min(booking.session, booking.sessions.length)} /{" "}
+                          {booking.sessions.length}
                         </span>
                         <div className="flex flex-wrap justify-end gap-1">
                           {booking.sessions.map((_, index) => (
@@ -249,7 +273,6 @@ export default function Page() {
                         </div>
                       </div>
                     </div>
-
                   </div>
                 </div>
               ) : (
@@ -259,7 +282,10 @@ export default function Page() {
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-1.5">
                       <Calendar className="w-3 h-3 text-gold" /> Date
                     </p>
-                    <p className="text-text text-sm font-light" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                    <p
+                      className="text-text text-sm font-light"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
                       {booking.date}
                     </p>
                   </div>
@@ -268,7 +294,10 @@ export default function Page() {
                     <p className="text-[9px] uppercase tracking-[0.18em] text-text-muted flex items-center gap-1.5 mb-1.5">
                       <Clock className="w-3 h-3 text-gold" /> Duration
                     </p>
-                    <p className="text-text text-sm font-light" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                    <p
+                      className="text-text text-sm font-light"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                    >
                       {booking.duration} {booking.duration !== 1 ? "hrs" : "hr"}
                     </p>
                   </div>
@@ -294,7 +323,11 @@ export default function Page() {
                     booking.cancellation?.requestedRefundMethod && (
                       <span className="mt-1 block text-text-dim">
                         Refund requested:{" "}
-                        {REFUND_METHOD_LABELS[booking.cancellation.requestedRefundMethod]}{" "}
+                        {
+                          REFUND_METHOD_LABELS[
+                            booking.cancellation.requestedRefundMethod
+                          ]
+                        }{" "}
                         · awaiting artist review
                       </span>
                     )}
@@ -302,19 +335,23 @@ export default function Page() {
               )}
 
               {/* Card Footer — Actions */}
-              {(
-                (booking.status === "completed" && !booking.isReviewed) ||
-                (booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status)) ||
+              {((booking.status === "completed" && !booking.isReviewed) ||
+                (booking.balance !== 0 &&
+                  PAYABLE_STATUSES.includes(booking.status)) ||
                 CLIENT_CANCELLABLE_STATUSES.includes(booking.status) ||
-                booking.tattooData
-              ) && (
+                booking.tattooData) && (
                 <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-border mt-auto">
                   {booking.status === "completed" && !booking.isReviewed && (
-                    <ReviewModal key={booking._id} booking={booking} setBookings={setBookings} />
+                    <ReviewModal
+                      key={booking._id}
+                      booking={booking}
+                      setBookings={setBookings}
+                    />
                   )}
-                  {booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status) && (
-                    <OnlinePayment key={booking._id} booking={booking} />
-                  )}
+                  {booking.balance !== 0 &&
+                    PAYABLE_STATUSES.includes(booking.status) && (
+                      <OnlinePayment key={booking._id} booking={booking} />
+                    )}
                   {CLIENT_CANCELLABLE_STATUSES.includes(booking.status) && (
                     <CancelBookingDialog
                       booking={booking}
@@ -322,11 +359,15 @@ export default function Page() {
                     />
                   )}
                   {booking.tattooData && (
-                    <ViewTattoo3DModal booking={booking} key={booking._id + crypto.randomBytes(8).toString("hex")} tattooData={booking.tattooData} img={booking.tattooImg} />
+                    <ViewTattoo3DModal
+                      booking={booking}
+                      key={booking._id + crypto.randomBytes(8).toString("hex")}
+                      tattooData={booking.tattooData}
+                      img={booking.tattooImg}
+                    />
                   )}
                 </div>
               )}
-
             </div>
           ))}
         </div>
@@ -344,10 +385,11 @@ export default function Page() {
             >
               No {type} bookings
             </p>
-            <p className="text-text-muted text-sm">Your {type} bookings will appear here</p>
+            <p className="text-text-muted text-sm">
+              Your {type} bookings will appear here
+            </p>
           </div>
         )}
-
       </div>
     </div>
   );
