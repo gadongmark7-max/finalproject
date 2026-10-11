@@ -84,11 +84,11 @@ export function EditSchedule({
   };
 
   const selectStartTime = (index: number) => {
-    const selectedTimes = times.slice(index, index + dutyHours);
+    const selectedTimes = times.slice(index, index + dutyHours + 1);
     setTime(selectedTimes);
   };
 
-  const isValidStart = (index: number) => index + dutyHours <= times.length;
+  const isValidStart = (index: number) => index + dutyHours + 1 <= times.length;
 
   const uploadMutation = useMutation({
     mutationFn: (data: {
