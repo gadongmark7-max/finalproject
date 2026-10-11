@@ -1,3 +1,4 @@
+import { PlannedSessionMaterials } from "./booking.type";
 import { accountInterface } from "./accounts.type"
 
 export interface aiMaterialInterface {
@@ -45,6 +46,7 @@ export interface postInterfaceInput {
         qty : number,
     }[],
     aiEstimate? : aiEstimateInterface | null,
+    sessionMaterials? : PlannedSessionMaterials[],
     imageHash? : string
 }
 

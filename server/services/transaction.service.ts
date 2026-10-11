@@ -29,6 +29,13 @@ export class TransactionService {
     return result?.total ?? 0;
   }
 
+  static async setProviderPaymentId(id: string, providerPaymentId: string) {
+    await TransactionModel.updateOne(
+      { _id: id, providerPaymentId: null },
+      { $set: { providerPaymentId } },
+    );
+  }
+
   static async deleteById(id: string) {
     await TransactionModel.findByIdAndDelete(id);
   }

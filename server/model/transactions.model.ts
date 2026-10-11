@@ -3,6 +3,9 @@ import mongoose, { Schema } from "mongoose";
 export const TRANSACTION_TYPES = ["payment", "refund"] as const;
 export type TransactionType = (typeof TRANSACTION_TYPES)[number];
 
+export const TRANSACTION_STATUSES = ["pending", "completed", "failed"] as const;
+export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
+
 const TransactionSchema = new Schema({
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -34,6 +37,20 @@ const TransactionSchema = new Schema({
     default: "payment",
   },
   refundedAt: { type: Date, default: null },
+  status: {
+    type: String,
+    enum: TRANSACTION_STATUSES,
+    default: "completed",
+  },
+  refundOf: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Transactions",
+    default: null,
+  },
+  providerPaymentId: { type: String, default: null },
+  providerRefundId: { type: String, default: null },
+  failureReason: { type: String, default: null },
+  checkedAt: { type: Date, default: null },
 });
 
 export default mongoose.model("Transactions", TransactionSchema);

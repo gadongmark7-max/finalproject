@@ -13,6 +13,10 @@ import {
   updatePostSchema,
 } from "../validation/post.schema";
 import { isValidObjectId } from "mongoose";
+import {
+  PlannedMaterialsError,
+  PlannedMaterialsService,
+} from "../services/plannedMaterials.service";
 
 const DUPLICATE_IMAGE_RESPONSE = {
   error: "This tattoo image already exists.",
@@ -54,6 +58,25 @@ export class PostController {
         return;
       }
       const parsedSesion = parsedSessions.data;
+
+      let planned: Awaited<
+        ReturnType<typeof PlannedMaterialsService.normalize>
+      > = null;
+      try {
+        planned = await PlannedMaterialsService.normalize(
+          request.body.sessionMaterials,
+          request.account!._id,
+          parsedSesion.length,
+        );
+      } catch (e) {
+        if (request.file && fs.existsSync(request.file.path))
+          fs.unlinkSync(request.file.path);
+        if (e instanceof PlannedMaterialsError) {
+          response.status(e.status).json({ error: e.message });
+          return;
+        }
+        throw e;
+      }
 
       const parsedBodyPart = bodyPartField.safeParse(bodyPart ?? "");
       if (!parsedBodyPart.success) {
@@ -108,7 +131,7 @@ export class PostController {
       const account = request.account;
 
       const parsedTags = JSON.parse(tags);
-      const parsedItemUsed = JSON.parse(itemUsed);
+      const parsedItemUsed = planned ? planned.itemUsed : JSON.parse(itemUsed);
       let parsedAiEstimate = null;
       if (aiEstimate) {
         try {
@@ -131,6 +154,7 @@ export class PostController {
         category,
         price: Number(price),
         itemUsed: parsedItemUsed,
+        sessionMaterials: planned?.sessionMaterials ?? [],
         downPercentage: Number(downPercentage),
         size: size,
         bodyPart: parsedBodyPart.data || undefined,

@@ -8,6 +8,8 @@ import { getDate, getTime } from "../utils/customFunction";
 import {
   getCheckoutSession,
   isCheckoutSessionId,
+  isPaymentId,
+  isRefundId,
   PaymentError,
   verifyWebhookSignature,
 } from "../utils/payMongo";
@@ -20,6 +22,7 @@ import { ClientDirectoryService } from "../services/clientDirectory.service";
 import { PostService } from "../services/post.service";
 import { isValidObjectId } from "mongoose";
 import { getBookingPaymentStatus } from "../model/booking.model";
+import { PlannedSessionMaterials } from "../types/booking.type";
 import {
   BOOKING_DURATION_ERROR_CODE,
   normalizeSessionHours,
@@ -38,20 +41,28 @@ import {
   BookingCancellationService,
 } from "../services/bookingCancellation.service";
 import {
-  cancelBookingSchema,
+  CANCELLATION_REASON_LABELS,
+  clientCancelBookingSchema,
   completeBookingSchema,
   recordSessionMaterialsSchema,
+  refundBookingSchema,
 } from "../validation/booking.schema";
+import {
+  PlannedMaterialsError,
+  PlannedMaterialsService,
+} from "../services/plannedMaterials.service";
 
 const CHECKOUT_RECHECK_MS = 15 * 1000;
 
-const STATUS_UPDATES = [
-  "active",
-  "rejected",
-  "completed",
-  "refund",
-  "cancelled",
-] as const;
+const STATUS_UPDATES = ["active", "rejected", "completed", "refund"] as const;
+
+const REFUND_METHOD_LABELS = {
+  cash: "Cash",
+  online: "Original online payment method (PayMongo)",
+} as const;
+
+const peso = (n: number) =>
+  `₱${Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const PENDING_DECISIONS = ["active", "rejected"];
 
@@ -80,6 +91,10 @@ export class BookingController {
       }
 
       let sessions = booking.sessions;
+      let postMaterials: {
+        itemUsed?: unknown;
+        sessionMaterials?: unknown;
+      } = {};
       if (postId !== undefined) {
         const post =
           typeof postId === "string" && isValidObjectId(postId)
@@ -90,6 +105,13 @@ export class BookingController {
           return;
         }
         sessions = post.sessions;
+        postMaterials = {
+          itemUsed: post.itemUsed,
+          sessionMaterials:
+            post.sessionMaterials?.length === post.sessions.length
+              ? post.sessionMaterials
+              : [],
+        };
       }
       sessions = normalizeSessionHours(sessions);
 
@@ -110,6 +132,7 @@ export class BookingController {
 
       const data = await BookingService.create({
         ...booking,
+        ...postMaterials,
         sessions,
         session: 1,
         duration: duration.selectedHours,
@@ -152,6 +175,7 @@ export class BookingController {
       const { id } = request.params;
       if (isValidObjectId(id)) {
         await BookingController.syncPendingCheckouts({ artist: id });
+        await BookingRefundService.syncForBookings({ artist: id });
       }
       const bookings = await BookingService.getByArtist(id);
       response.send(bookings);
@@ -197,6 +221,7 @@ export class BookingController {
       const { id } = request.params;
       if (isValidObjectId(id)) {
         await BookingController.syncPendingCheckouts({ client: id });
+        await BookingRefundService.syncForBookings({ client: id });
       }
       const bookings = await BookingService.getByClient(id);
       response.send(bookings);
@@ -260,16 +285,24 @@ export class BookingController {
       amount: number;
       refId: string;
       paymentMethod: "online" | "counter";
+      providerPaymentId?: string | null;
     },
     options: { requireSufficientBalance: boolean },
   ): Promise<"recorded" | "duplicate"> => {
     const { sender, receiver, bookingId, amount, refId, paymentMethod } =
       payment;
+    const providerPaymentId = payment.providerPaymentId ?? null;
 
     const existing = await TransactionService.checkIfRefIdExist(refId);
     if (existing) {
       if (existing.bookingId?.toString() !== bookingId) {
         throw new PaymentError(409, "payment reference already used");
+      }
+      if (providerPaymentId && !existing.providerPaymentId) {
+        await TransactionService.setProviderPaymentId(
+          existing._id.toString(),
+          providerPaymentId,
+        );
       }
       return "duplicate";
     }
@@ -289,6 +322,7 @@ export class BookingController {
         refId,
         bookingId,
         paymentMethod,
+        providerPaymentId,
       });
     } catch (e: any) {
       if (e?.code === 11000) return "duplicate";
@@ -371,6 +405,7 @@ export class BookingController {
         amount: paid.amount,
         refId: paid.refId,
         paymentMethod: "online",
+        providerPaymentId: paid.paymentId,
       },
       { requireSufficientBalance: false },
     );
@@ -551,7 +586,31 @@ export class BookingController {
     }
 
     const event = request.body?.data?.attributes;
-    if (event?.type !== "checkout_session.payment.paid") {
+    const eventType = typeof event?.type === "string" ? event.type : "";
+    if (eventType.startsWith("refund.") || eventType.startsWith("payment.refund")) {
+      const resourceId = event?.data?.id;
+      try {
+        if (isRefundId(resourceId)) {
+          const status = await BookingRefundService.syncProviderRefund(resourceId);
+          response.send({ received: true, status });
+          return;
+        }
+        if (isPaymentId(resourceId)) {
+          await BookingRefundService.syncByProviderPayment(resourceId);
+        }
+        response.send({ received: true });
+      } catch (e) {
+        if (e instanceof PaymentError && e.status < 500) {
+          console.error("PayMongo refund webhook rejected:", e.message);
+          response.send({ received: true, status: "ignored" });
+          return;
+        }
+        console.error("PayMongo refund webhook failed:", e);
+        response.status(500).send("error occur");
+      }
+      return;
+    }
+    if (eventType !== "checkout_session.payment.paid") {
       response.send({ received: true });
       return;
     }
@@ -703,6 +762,7 @@ export class BookingController {
       if (status == "completed") {
         const parsed = completeBookingSchema.safeParse({
           materials: request.body.materials,
+          sessions: request.body.sessions,
           closeEarly: request.body.closeEarly,
           reason: typeof reason === "string" && reason !== "none" ? reason : undefined,
         });
@@ -731,35 +791,6 @@ export class BookingController {
         return;
       }
 
-      if (status == "cancelled") {
-        const parsed = cancelBookingSchema.safeParse({ reason });
-        if (!parsed.success) {
-          response.status(400).json({ error: firstIssue(parsed.error) });
-          return;
-        }
-        const result = await BookingCancellationService.cancel(
-          id,
-          actor,
-          parsed.data.reason,
-        );
-        if (!result.alreadyCancelled) {
-          const client = await AccountService.get(clientId);
-          const message = `Your booking on ${existing.date} was cancelled. Reason: ${parsed.data.reason}`;
-          await NotificationService.create({
-            account: clientId,
-            date: getDate(),
-            time: getTime(),
-            message,
-            type: "error",
-            isSeen: false,
-          });
-          sendEmail(client?.email!, "Booking Cancelled", message);
-        }
-        const bookings = await BookingService.getByArtist(acccount._id);
-        response.send(bookings);
-        return;
-      }
-
       if (status == "refund") {
         const raw = await BookingService.getRaw(id);
         if (raw && raw.status !== "refund") {
@@ -769,24 +800,7 @@ export class BookingController {
             console.error("payment reconciliation failed for booking", id, e);
           }
         }
-        const result = await BookingRefundService.refund(id, {
-          id: acccount._id,
-        });
-        if (!result.alreadyRefunded) {
-          const refundClientId = result.booking.client.toString();
-          const refundClient = await AccountService.get(refundClientId);
-          const refundAmount = Number(result.transaction?.amount ?? 0);
-          const refundMessage = `Your booking payment of ₱${refundAmount.toLocaleString()} has been refunded.`;
-          await NotificationService.create({
-            account: refundClientId,
-            date: getDate(),
-            time: getTime(),
-            message: refundMessage,
-            type: "success",
-            isSeen: false,
-          });
-          sendEmail(refundClient?.email!, "Booking Refunded", refundMessage);
-        }
+        await BookingRefundService.refund(id, { id: acccount._id }, "cash");
         const bookings = await BookingService.getByArtist(acccount._id);
         response.send(bookings);
         return;
@@ -851,6 +865,183 @@ export class BookingController {
         e instanceof BookingRefundError ||
         e instanceof BookingCancellationError
       ) {
+        response.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static cancelBookingByClient = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const account = request.account;
+      if (!account) {
+        response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const parsed = clientCancelBookingSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        response.status(400).json({ error: firstIssue(parsed.error) });
+        return;
+      }
+      const id = String(request.params.id);
+      const result = await BookingCancellationService.cancelByClient(
+        id,
+        { id: account._id, name: account.name },
+        parsed.data,
+      );
+      if (!result.alreadyCancelled) {
+        BookingController.notifyArtistOfCancellation(
+          id,
+          parsed.data,
+          result.payments,
+        ).catch((e) =>
+          console.error("cancellation notification failed for booking", id, e),
+        );
+      }
+      const bookings = await BookingService.getByClient(account._id);
+      response.send({ alreadyCancelled: result.alreadyCancelled, bookings });
+    } catch (e) {
+      if (e instanceof BookingCancellationError) {
+        response.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  private static notifyArtistOfCancellation = async (
+    bookingId: string,
+    input: { reasonCode: keyof typeof CANCELLATION_REASON_LABELS; reasonDetails: string },
+    payments: { amount?: number | null; paymentMethod?: string | null }[],
+  ) => {
+    const booking = await BookingService.get(bookingId);
+    if (!booking || !booking.cancellation) return;
+    const artist: any = booking.artist;
+    const client: any = booking.client;
+    const business: any = booking.bussiness;
+    const cancellation = booking.cancellation;
+    const paid = Number(cancellation.paidAmount || 0);
+    const method = cancellation.requestedRefundMethod as
+      | keyof typeof REFUND_METHOD_LABELS
+      | null;
+    const firstTime = booking.time?.[0];
+    const lastTime = booking.time?.[booking.time.length - 1];
+    const paymentMethods = [
+      ...new Set(
+        payments.map((p) =>
+          p.paymentMethod === "counter" ? "Counter / cash" : "Online (PayMongo)",
+        ),
+      ),
+    ];
+
+    const lines = [
+      `${client?.name ?? "A client"} requested to cancel their booking.`,
+      "",
+      `Booking reference: ${booking._id.toString()}`,
+      `Client: ${client?.name ?? "Unknown"}${client?.email ? ` (${client.email})` : ""}`,
+      `Tattoo: ${booking.tattooImg && booking.tattooImg !== "none" ? booking.tattooImg : "No tattoo image"}`,
+      `Sessions: ${booking.session} of ${booking.sessions.length}`,
+      `Original appointment: ${booking.date ?? "Not set"}${firstTime ? ` · ${firstTime}${lastTime && lastTime !== firstTime ? ` – ${lastTime}` : ""}` : ""}`,
+      `Status before cancellation: ${cancellation.previousStatus}`,
+      "",
+      `Cancellation reason: ${CANCELLATION_REASON_LABELS[input.reasonCode]}`,
+      ...(input.reasonDetails ? [`Client explanation: ${input.reasonDetails}`] : []),
+      "",
+      `Price: ${peso(booking.originalPrice)}`,
+      `Amount paid (not yet refunded): ${peso(paid)}${paymentMethods.length ? ` · ${paymentMethods.join(", ")}` : ""}`,
+      `Remaining balance: ${peso(Number(booking.balance))}`,
+      paid > 0 && method
+        ? `Requested refund method: ${REFUND_METHOD_LABELS[method]}`
+        : "Requested refund method: none (no payment was recorded)",
+      "",
+      paid > 0
+        ? "No refund has been processed yet. The refund method above is the client's preference — review it in the Cancelled tab of your bookings and process the refund if it is eligible."
+        : "No payment was recorded for this booking, so there is nothing to refund.",
+    ];
+    const message = lines.join("\n");
+
+    const recipients = [artist, business].filter(Boolean);
+    for (const recipient of recipients) {
+      await NotificationService.create({
+        account: recipient._id.toString(),
+        date: getDate(),
+        time: getTime(),
+        message: `${client?.name ?? "A client"} cancelled the booking on ${booking.date}. Reason: ${cancellation.reason}${paid > 0 ? ` · Refund requested: ${method ? REFUND_METHOD_LABELS[method] : "—"}` : ""}`,
+        type: "error",
+        isSeen: false,
+      });
+    }
+    if (artist?.email) {
+      await sendEmail(artist.email, "Booking Cancellation Request", message);
+    }
+  };
+
+  static getRefundSummary = async (
+    request: AuthRequest,
+    response: Response,
+  ) => {
+    try {
+      const account = request.account;
+      if (!account) {
+        response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const summary = await BookingRefundService.summary(
+        String(request.params.id),
+        { id: account._id },
+      );
+      response.send(summary);
+    } catch (e) {
+      if (e instanceof BookingRefundError) {
+        response.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.log(e);
+      response.status(500).send("error occur");
+    }
+  };
+
+  static refundBooking = async (request: AuthRequest, response: Response) => {
+    try {
+      const account = request.account;
+      if (!account) {
+        response.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const parsed = refundBookingSchema.safeParse(request.body ?? {});
+      if (!parsed.success) {
+        response.status(400).json({ error: firstIssue(parsed.error) });
+        return;
+      }
+      const id = String(request.params.id);
+      const raw = isValidObjectId(id) ? await BookingService.getRaw(id) : null;
+      if (raw && raw.status !== "refund" && isBookingParty(raw, account._id)) {
+        try {
+          await BookingController.reconcileBookingPayment(raw);
+        } catch (e) {
+          console.error("payment reconciliation failed for booking", id, e);
+        }
+      }
+      const result = await BookingRefundService.refund(
+        id,
+        { id: account._id },
+        parsed.data.method,
+      );
+      const bookings = await BookingService.getByArtist(account._id);
+      response.send({
+        alreadyRefunded: result.alreadyRefunded,
+        outcomes: result.outcomes,
+        summary: result.summary,
+        bookings,
+      });
+    } catch (e) {
+      if (e instanceof BookingRefundError || e instanceof PaymentError) {
         response.status(e.status).json({ error: e.message });
         return;
       }
@@ -1074,7 +1265,31 @@ export class BookingController {
 
       const parsedSesion: number[] = JSON.parse(sessions);
       const parsedSelectedTime: string[] = JSON.parse(selectedTime);
-      const parsedItemUsed: any[] = JSON.parse(itemUsed);
+      let parsedItemUsed: any[] = JSON.parse(itemUsed);
+      const inventoryOwner =
+        bussinessId && bussinessId != "none" ? bussinessId : artistId;
+      if (inventoryOwner !== request.account?._id && bussinessId == "none") {
+        response.status(403).json({ error: "You can only book with your own inventory" });
+        return;
+      }
+      let plannedSessionMaterials: PlannedSessionMaterials[] = [];
+      try {
+        const planned = await PlannedMaterialsService.normalize(
+          request.body.sessionMaterials,
+          String(inventoryOwner),
+          Array.isArray(parsedSesion) ? parsedSesion.length : 0,
+        );
+        if (planned) {
+          plannedSessionMaterials = planned.sessionMaterials;
+          parsedItemUsed = planned.itemUsed;
+        }
+      } catch (e) {
+        if (e instanceof PlannedMaterialsError) {
+          response.status(e.status).json({ error: e.message });
+          return;
+        }
+        throw e;
+      }
       const tattooDataProcessed =
         tattooData != "none" ? JSON.parse(tattooData) : null;
 
@@ -1119,6 +1334,7 @@ export class BookingController {
           isReviewed: false,
           balance: price,
           itemUsed: parsedItemUsed,
+          sessionMaterials: plannedSessionMaterials,
           tattooData: tattooDataProcessed,
           originalPrice: price,
         });
@@ -1135,6 +1351,7 @@ export class BookingController {
           isReviewed: false,
           balance: price,
           itemUsed: parsedItemUsed,
+          sessionMaterials: plannedSessionMaterials,
           tattooData: tattooDataProcessed,
           originalPrice: price,
         });

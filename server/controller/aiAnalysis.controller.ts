@@ -124,6 +124,7 @@ function buildArtistEstimate(params: {
   baseMaterials: { inventoryItemId: string; quantity: number }[];
   inventory: InventoryDoc[];
   ink: { baseMl: number; selections: InkSelection[] | null } | null;
+  materialOverrides?: { inventoryItemId: string; quantity: number }[] | null;
 }) {
   const inventoryById = new Map(
     params.inventory.map((item) => [item._id.toString(), item]),
@@ -237,12 +238,47 @@ function buildArtistEstimate(params: {
     };
   }
 
+  let effectiveMaterials = materials;
+  let effectiveInkCost = inkCost;
+  const overrides = params.materialOverrides;
+  if (overrides) {
+    const totals = new Map<string, number>();
+    for (const o of overrides) {
+      totals.set(
+        o.inventoryItemId,
+        round2((totals.get(o.inventoryItemId) ?? 0) + o.quantity),
+      );
+    }
+    effectiveMaterials = [];
+    effectiveInkCost = 0;
+    for (const [inventoryItemId, quantity] of totals) {
+      const item = inventoryById.get(inventoryItemId);
+      if (!item) {
+        if (!missingMaterialIds.includes(inventoryItemId))
+          missingMaterialIds.push(inventoryItemId);
+        continue;
+      }
+      const line = PricingService.materialLine({
+        inventoryItemId,
+        name: item.item,
+        category: item.category,
+        unit: item.type,
+        unitCost: item.price,
+        estimatedQuantity: quantity,
+      });
+      effectiveMaterials.push(line);
+      if (isMeasuredInkItem(item)) {
+        effectiveInkCost = round2(effectiveInkCost + line.estimatedCost);
+      }
+    }
+  }
+
   const pricing = PricingService.artistPricing({
     estimatedHours: work.estimatedHours,
     hourlyRate: params.hourlyRate,
     complexity: params.complexity,
-    materials,
-    inkCost,
+    materials: effectiveMaterials,
+    inkCost: effectiveInkCost,
   });
 
   return {
@@ -262,7 +298,9 @@ function buildArtistEstimate(params: {
     calibration: params.calibration,
     baseMaterials: params.baseMaterials,
     ink,
-    materials,
+    materials: effectiveMaterials,
+    aiMaterials: materials,
+    materialSource: overrides ? ("artist" as const) : ("ai" as const),
     missingMaterialIds,
     pricing,
   };
@@ -417,6 +455,7 @@ export class AiAnalysisController {
                 selections: body.ink.selections,
               }
             : null,
+          materialOverrides: body.materialOverrides,
         }),
       );
     } catch (error) {

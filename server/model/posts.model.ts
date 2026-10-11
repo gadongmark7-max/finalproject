@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { PlannedSessionMaterialsSchema } from "./booking.model";
 
 const AiMaterialSchema = new Schema(
   {
@@ -66,6 +67,10 @@ const PostSchema = new Schema({
       qty: { type: Number, required: true },
     },
   ],
+  sessionMaterials: {
+    type: [PlannedSessionMaterialsSchema],
+    default: [],
+  },
   aiEstimate: { type: AiEstimateSchema, required: false, default: null },
   deletedAt: { type: Date, default: null },
   imageHash: { type: String, required: false },

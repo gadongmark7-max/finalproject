@@ -227,6 +227,7 @@ export class BookingService {
     isReviewed: boolean;
     balance: number;
     itemUsed: string[];
+    sessionMaterials?: unknown[];
     tattooData: TattooDataInterface;
     originalPrice: number;
   }) {
@@ -243,6 +244,7 @@ export class BookingService {
         isReviewed: data.isReviewed,
         balance: data.balance,
         itemUsed: data.itemUsed,
+        sessionMaterials: data.sessionMaterials ?? [],
         tattooData: data.tattooData,
         originalPrice: data.originalPrice,
       },

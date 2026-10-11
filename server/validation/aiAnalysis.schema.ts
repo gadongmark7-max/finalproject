@@ -123,6 +123,16 @@ export const aiRepriceRequestSchema = z.object({
     })
     .nullable()
     .default(null),
+  materialOverrides: z
+    .array(
+      z.object({
+        inventoryItemId: z.string().min(1).max(64),
+        quantity: z.number().positive().max(1_000_000),
+      }),
+    )
+    .max(60)
+    .nullable()
+    .default(null),
 });
 
 export type AiRepriceRequest = z.infer<typeof aiRepriceRequestSchema>;

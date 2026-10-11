@@ -98,14 +98,66 @@ const ClosureSchema = new Schema(
   { _id: false },
 );
 
+export const CANCELLATION_REASON_CODES = [
+  "change_of_plans",
+  "unable_to_attend",
+  "financial",
+  "health_personal",
+  "artist_schedule",
+  "other",
+] as const;
+export type CancellationReasonCode = (typeof CANCELLATION_REASON_CODES)[number];
+
+export const REFUND_METHODS = ["cash", "online"] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+
 const CancellationSchema = new Schema(
   {
     reason: { type: String, default: "" },
+    reasonCode: {
+      type: String,
+      enum: [...CANCELLATION_REASON_CODES, null],
+      default: null,
+    },
+    reasonDetails: { type: String, default: "" },
+    requestedRefundMethod: {
+      type: String,
+      enum: [...REFUND_METHODS, null],
+      default: null,
+    },
     previousStatus: { type: String, required: true },
     paidAmount: { type: Number, required: true },
     sessionsPerformed: { type: Number, required: true },
     cancelledAt: { type: Date, required: true },
     cancelledBy: { type: String, required: true },
+    cancelledByRole: {
+      type: String,
+      enum: ["client", "artist", "business", null],
+      default: null,
+    },
+    cancelledById: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Accounts",
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+const PlannedMaterialSchema = new Schema(
+  {
+    itemId: { type: String, required: true },
+    item: { type: String, required: true },
+    unit: { type: String, default: "" },
+    qty: { type: Number, required: true },
+  },
+  { _id: false },
+);
+
+export const PlannedSessionMaterialsSchema = new Schema(
+  {
+    session: { type: Number, required: true },
+    items: { type: [PlannedMaterialSchema], default: [] },
   },
   { _id: false },
 );
@@ -178,6 +230,10 @@ const BookingSchema = new Schema({
   inventoryConsumption: {
     type: InventoryConsumptionSchema,
     default: null,
+  },
+  sessionMaterials: {
+    type: [PlannedSessionMaterialsSchema],
+    default: [],
   },
   sessionUsage: {
     type: [SessionUsageSchema],

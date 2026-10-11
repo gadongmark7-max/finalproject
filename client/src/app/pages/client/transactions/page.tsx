@@ -6,6 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, Eye, Receipt } from "lucide-react";
 import {
   formatRefundDate,
   isRefundedPayment,
+  refundBadgeLabel,
   isRefundRecord,
   transactionReceiptInterface,
 } from "@/app/types/transaction.type";
@@ -104,7 +105,7 @@ export default function Page() {
                         </p>
                         {(isRefund || isRefunded) && (
                           <span className="text-[9px] uppercase tracking-[0.15em] px-2 py-0.5 border border-danger-border bg-danger-muted text-danger-light">
-                            Refunded
+                            {refundBadgeLabel(tx)}
                           </span>
                         )}
                       </div>

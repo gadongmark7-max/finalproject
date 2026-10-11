@@ -1,10 +1,4 @@
 "use client";
-import {
-  itemUsedQtySchemaFor,
-  sanitizeItemUsedQty,
-} from "@/lib/validation/schemas/inventory";
-import { quantityInputMode } from "@/app/types/inventory.type";
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,9 +13,7 @@ import {
 } from "@/lib/validation/fields";
 import {
   useArtistAiAnalysis,
-  useSyncAiItemsUsed,
-  itemsUsedFromMaterials,
-  type AiItemUsed,
+  type MaterialOverride,
   distributeSessionHours,
   aiSizeWidthSchema,
   aiSizeHeightSchema,
@@ -32,13 +24,6 @@ const categorySchema = selectField("an art style", [""]);
 const sizeWidthSchema = aiSizeWidthSchema;
 const sizeHeightSchema = aiSizeHeightSchema;
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   ImageIcon,
   Plus,
@@ -71,11 +56,6 @@ import {
   bussinessInfoInterface,
 } from "@/app/types/accounts.type";
 import { inventoryInterface } from "@/app/types/inventory.type";
-import {
-  getInventoryName,
-  getInventoryPrice,
-  getInventoryType,
-} from "@/app/utils/customFunction";
 import { TattooDataInterface } from "@/app/types/threejs.type";
 import { SetTattoo3DModal } from "@/app/3d/3dTattooModal";
 import { ArtStyleSelect } from "@/components/ui/artStyleSelect";
@@ -91,6 +71,8 @@ import {
 import { aiAnalysisResultInterface } from "@/app/types/aiAnalysis.type";
 import { AiAnalysisCard, profitAtPrice } from "@/components/ui/ai-analysis-card";
 import { useArtistSettings } from "@/app/hooks/artistSettingsHooks";
+import { usePlannedSessionMaterials } from "@/app/hooks/plannedMaterialsHooks";
+import { SessionMaterialsPlanner } from "@/components/ui/session-materials-planner";
 import Link from "next/link";
 
 export default function Page() {
@@ -159,60 +141,13 @@ export default function Page() {
 
   const [step, setStep] = useState(1);
 
-  const { data: inventoryData } = useQuery({
+  const { data: inventoryData, isLoading: inventoryLoading } = useQuery({
     queryKey: ["inventoryData"],
     queryFn: async (): Promise<inventoryInterface[]> => {
       const response = await axiosInstance.get(`/inventory/${user?._id}`);
       return response.data;
     },
   });
-
-  const [itemUsed, setItemUsed] = useState<AiItemUsed[]>([]);
-  const [itemId, setItemId] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [itemType, setItemType] = useState("Quantity");
-  const [itemQty, setItemQty] = useState("1");
-  const [itemPrice, setItemPrice] = useState(0);
-  const itemQtyNum = Number(itemQty) || 0;
-
-  const selectItemHanlder = (value: string) => {
-    setItemId(value);
-    setItemType(getInventoryType(value, inventoryData || []));
-    setItemName(getInventoryName(value, inventoryData || []));
-    setItemPrice(getInventoryPrice(value, inventoryData || []));
-  };
-
-  const addInventoryItem = () => {
-    if (!itemId) return errorAlert("no selected item");
-    if (!itemUsedQtySchemaFor(itemType).safeParse(itemQty).success)
-      return errorAlert("Enter a valid quantity");
-    setItemUsed((prev) => {
-      const existingItem = prev.find((item) => item.itemId === itemId);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.itemId === itemId
-            ? {
-                ...item,
-                qty: Math.round((item.qty + itemQtyNum) * 10000) / 10000,
-                item: itemName,
-                price: itemPrice,
-              }
-            : item,
-        );
-      }
-
-      return [
-        ...prev,
-        { itemId: itemId, qty: itemQtyNum, item: itemName, price: itemPrice },
-      ];
-    });
-    setItemQty("1");
-    setItemPrice(0);
-  };
-
-  const removeInventoryItem = (id: string) => {
-    setItemUsed((prev) => prev.filter((item) => item.itemId != id));
-  };
 
   const router = useRouter();
 
@@ -287,6 +222,10 @@ export default function Page() {
     },
   });
 
+  const [materialOverrides, setMaterialOverrides] = useState<
+    MaterialOverride[] | null
+  >(null);
+
   const applyAiEstimate = (result: aiAnalysisResultInterface) => {
     setSessions(
       distributeSessionHours(
@@ -294,7 +233,7 @@ export default function Page() {
         result.analysis.estimatedSessions,
       ),
     );
-    setItemUsed(itemsUsedFromMaterials(result.materials));
+    materials.applyAiEstimate();
     setPrice(String(Math.round(result.pricing.suggestedPrice)));
   };
 
@@ -308,18 +247,27 @@ export default function Page() {
       category,
       complexity,
       isColored,
+      materialOverrides,
     },
     {
       onAnalyzed: (result) => {
         setCategory(result.analysis.category);
         setComplexity(result.analysis.complexity);
         setIsColored(result.analysis.isColored);
-        applyAiEstimate(result);
+        if (!materials.managed) applyAiEstimate(result);
       },
     },
   );
 
-  useSyncAiItemsUsed(ai.result, setItemUsed);
+  const materials = usePlannedSessionMaterials({
+    sessionHours: sessions,
+    inventory: inventoryData,
+    aiMaterials: ai.aiMaterials,
+  });
+
+  useEffect(() => {
+    setMaterialOverrides(materials.overrides);
+  }, [materials.overridesKey]);
 
   const addTag = () => {
     if (tags.length >= 5) return errorAlert("the maximum tags is 5");
@@ -346,6 +294,7 @@ export default function Page() {
   // Remove a session
   const removeSession = (index: number) => {
     if (sessions.length === 1) return;
+    materials.removeSessionAt(index);
     setSessions(sessions.filter((_, i) => i !== index));
   };
 
@@ -474,6 +423,7 @@ export default function Page() {
       !parsedHeight.success ||
       !parsedBodyPart.success ||
       !sessionsSchema.safeParse(sessions).success ||
+      !materials.isValid ||
       !hasTags ||
       !hasImage
     ) {
@@ -488,7 +438,13 @@ export default function Page() {
     formData.append("category", category);
     formData.append("price", String(parsedPrice.data));
     formData.append("sessions", JSON.stringify(sessions));
-    formData.append("itemUsed", JSON.stringify(itemUsed));
+    formData.append(
+      "itemUsed",
+      JSON.stringify(
+        materials.itemUsed.map(({ itemId, item, qty }) => ({ itemId, item, qty })),
+      ),
+    );
+    formData.append("sessionMaterials", JSON.stringify(materials.payload));
     formData.append("downPercentage", String(parsedDown.data));
 
     formData.append("size", tattooData?.size.toString() || (0.3).toString());
@@ -808,79 +764,21 @@ export default function Page() {
 
             {/* ── ITEMS USED ── */}
             <div className="bg-surface border border-border p-5 space-y-5">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="h-px w-6 bg-gold" />
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
-                    Items Used
-                  </span>
-                </div>
-                <p className="text-text-muted text-xs leading-relaxed mt-1">
-                  Items will automatically deduct from{" "}
-                  <span className="text-text font-medium">your</span> inventory.
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="h-px w-6 bg-gold" />
+                <span className="text-[10px] uppercase tracking-[0.28em] text-gold">
+                  Materials by Session
+                </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Item</Label>
-                  <Select onValueChange={selectItemHanlder}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {inventoryData?.map((item) => (
-                        <SelectItem key={item._id} value={item._id}>
-                          {item.item}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>{itemType}</Label>
-                  <Input
-                    inputMode={quantityInputMode(itemType)}
-                    value={itemQty}
-                    onChange={(e) =>
-                      setItemQty(sanitizeItemUsedQty(e.target.value, itemType))
-                    }
-                  />
-                </div>
-                <Button
-                  onClick={addInventoryItem}
-                  disabled={
-                    !itemId ||
-                    !itemUsedQtySchemaFor(itemType).safeParse(itemQty).success
-                  }
-                  className="w-full"
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Add
-                </Button>
-              </div>
-
-              {itemUsed.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {itemUsed.map((item) => (
-                    <div
-                      key={item.itemId}
-                      className="flex items-center gap-2 border border-border bg-surface-alt px-3 py-1.5 text-xs text-text"
-                    >
-                      <span className="font-medium">{item.item}</span>
-                      <span className="text-text-muted">
-                        × {item.qty}{" "}
-                        {getInventoryType(item.itemId, inventoryData || [])}
-                      </span>
-                      <button
-                        onClick={() => removeInventoryItem(item.itemId)}
-                        className="ml-1 text-text-muted hover:text-danger-light transition-colors"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SessionMaterialsPlanner
+                state={materials}
+                inventory={inventoryData}
+                inventoryLoading={inventoryLoading}
+                sessionHours={sessions}
+                showErrors={triedSubmit}
+                ownerLabel="your"
+                isAnalyzing={ai.isAnalyzing}
+              />
             </div>
 
             {/* ── SESSIONS ── */}

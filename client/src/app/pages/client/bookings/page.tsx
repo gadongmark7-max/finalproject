@@ -1,5 +1,5 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import axiosInstance from "@/app/utils/axios";
 import useUserStore from "@/app/store/useUserStore";
@@ -17,7 +17,14 @@ import { Button } from "@/components/ui/button";
 import { OnlinePayment } from "./components/onlinePayment";
 import { ViewTattoo3DModal } from "@/app/3d/3dTattooView";
 import crypto from "crypto";
-import { bookingPaymentLabel } from "@/lib/validation/schemas/booking";
+import {
+  bookingPaymentLabel,
+  REFUND_METHOD_LABELS,
+} from "@/lib/validation/schemas/booking";
+import {
+  CancelBookingDialog,
+  CLIENT_CANCELLABLE_STATUSES,
+} from "./components/cancelBookingDialog";
 
 
 const STATUS_TABS = ["active", "appointment", "pending", "completed", "cancelled"] as const;
@@ -44,10 +51,16 @@ export default function Page() {
   const [bookings, setBookings] = useState<bookingInterface[]>([]);
   const [type, setType] = useState("active");
 
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ["client_booking"],
     queryFn: () => axiosInstance.get(`/booking/client/${user?._id}`),
   });
+
+  const replaceBookings = (next: bookingInterface[]) =>
+    queryClient.setQueryData(["client_booking"], (old: typeof data) =>
+      old ? { ...old, data: next } : old,
+    );
 
   useEffect(() => {
     if (data?.data) {
@@ -277,6 +290,14 @@ export default function Page() {
                   {booking.closure
                     ? `Closed after ${booking.closure.sessionsPerformed} of ${booking.closure.plannedSessions} sessions${booking.closure.reason ? ` · ${booking.closure.reason}` : ""}`
                     : `Cancelled · ${booking.cancellation!.reason}`}
+                  {booking.status === "cancelled" &&
+                    booking.cancellation?.requestedRefundMethod && (
+                      <span className="mt-1 block text-text-dim">
+                        Refund requested:{" "}
+                        {REFUND_METHOD_LABELS[booking.cancellation.requestedRefundMethod]}{" "}
+                        · awaiting artist review
+                      </span>
+                    )}
                 </p>
               )}
 
@@ -284,6 +305,7 @@ export default function Page() {
               {(
                 (booking.status === "completed" && !booking.isReviewed) ||
                 (booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status)) ||
+                CLIENT_CANCELLABLE_STATUSES.includes(booking.status) ||
                 booking.tattooData
               ) && (
                 <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-border mt-auto">
@@ -292,6 +314,12 @@ export default function Page() {
                   )}
                   {booking.balance !== 0 && PAYABLE_STATUSES.includes(booking.status) && (
                     <OnlinePayment key={booking._id} booking={booking} />
+                  )}
+                  {CLIENT_CANCELLABLE_STATUSES.includes(booking.status) && (
+                    <CancelBookingDialog
+                      booking={booking}
+                      onCancelled={replaceBookings}
+                    />
                   )}
                   {booking.tattooData && (
                     <ViewTattoo3DModal booking={booking} key={booking._id + crypto.randomBytes(8).toString("hex")} tattooData={booking.tattooData} img={booking.tattooImg} />
