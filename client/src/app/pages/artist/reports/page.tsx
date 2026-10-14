@@ -32,7 +32,8 @@ import {
   Inbox,
 } from "lucide-react";
 
-const toDateInputValue = (d: Date) => d.toISOString().slice(0, 10);
+const toDateInputValue = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const defaultFrom = () => {
   const d = new Date();
@@ -128,7 +129,7 @@ export default function Page() {
                 value={from}
                 max={to}
                 onChange={(e) => setFrom(e.target.value)}
-                className="bg-surface border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-border-gold transition-colors duration-200"
+                className="scheme-dark in-[.light]:scheme-light bg-surface border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-border-gold transition-colors duration-200"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -140,7 +141,7 @@ export default function Page() {
                 value={to}
                 min={from}
                 onChange={(e) => setTo(e.target.value)}
-                className="bg-surface border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-border-gold transition-colors duration-200"
+                className="scheme-dark in-[.light]:scheme-light bg-surface border border-border px-3 py-2 text-sm text-text focus:outline-none focus:border-border-gold transition-colors duration-200"
               />
             </div>
             <Button
@@ -293,6 +294,10 @@ export default function Page() {
                       </div>
                     ))}
                   </div>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.15em] text-text-muted">
+                    Booking counts use each booking&apos;s appointment date ·{" "}
+                    {data.range.from ?? "All time"} to {data.range.to ?? "Present"}
+                  </p>
                 </div>
 
                 {/* Transactions table */}

@@ -798,7 +798,7 @@ export function SetTattoo3DModal({
           </Button>
 
           {/* Tattoo Preview — desktop position/size unchanged; mobile is smaller and sits below Save */}
-          <div className="absolute right-3 top-16 w-16 h-16 lg:top-5 lg:right-[335px] lg:w-[150px] lg:h-[150px] z-[100] bg-surface border border-border overflow-hidden">
+          <div className="absolute right-3 top-16 w-16 h-16 lg:top-5 lg:right-[335px] lg:w-[150px] lg:h-[150px] z-[100] bg-white border border-border overflow-hidden">
             <img
               src={jpgUrl!}
               alt="Tattoo preview"

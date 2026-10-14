@@ -104,7 +104,7 @@ export function MaterialRowsEditor({
                       disabled={disabled}
                     >
                       <SelectTrigger
-                        className="h-9 w-full"
+                        className="min-h-11 w-full whitespace-normal text-left data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-2"
                         aria-label="Inventory item"
                         aria-invalid={showErrors && !row.itemId}
                       >

@@ -9,23 +9,35 @@ const parseDate = (value?: string | null): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-const startOfDay = (d: Date) => {
-  const c = new Date(d);
-  c.setHours(0, 0, 0, 0);
-  return c;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+const validDayKey = (y: number, m: number, d: number): string | null => {
+  const c = new Date(y, m - 1, d);
+  if (c.getFullYear() !== y || c.getMonth() !== m - 1 || c.getDate() !== d)
+    return null;
+  return `${y}-${pad2(m)}-${pad2(d)}`;
 };
 
-const endOfDay = (d: Date) => {
-  const c = new Date(d);
-  c.setHours(23, 59, 59, 999);
-  return c;
+const toDayKey = (value?: string | null): string | null => {
+  if (!value) return null;
+  const text = value.trim();
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|T)/.exec(text);
+  if (iso) return validDayKey(+iso[1], +iso[2], +iso[3]);
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
+  if (us) return validDayKey(+us[3], +us[1], +us[2]);
+  const d = parseDate(text);
+  return d ? dayKey(d) : null;
 };
 
-const inRange = (dateStr: string, from: Date | null, to: Date | null) => {
-  const d = parseDate(dateStr);
-  if (!d) return false;
-  if (from && d < from) return false;
-  if (to && d > to) return false;
+const inRange = (
+  dateStr: string,
+  from: string | null,
+  to: string | null,
+) => {
+  const key = toDayKey(dateStr);
+  if (!key) return false;
+  if (from && key < from) return false;
+  if (to && key > to) return false;
   return true;
 };
 
@@ -67,9 +79,25 @@ const sumAmounts = (items: TransactionLike[]) =>
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export interface ReportRange {
-  from: Date | null;
-  to: Date | null;
+  from: string | null;
+  to: string | null;
 }
+
+const bookingStatusCounts = (bookings: { status: string }[]) => {
+  const counts: Record<string, number> = {};
+  for (const status of BOOKING_STATUSES) counts[status] = 0;
+  for (const b of bookings) counts[b.status] = (counts[b.status] || 0) + 1;
+  return counts;
+};
+
+const bookingMetrics = (counts: Record<string, number>, total: number) => ({
+  totalBookings: total,
+  pendingBookings: counts["pending"] || 0,
+  activeBookings: counts["active"] || 0,
+  completedBookings: counts["completed"] || 0,
+  rejectedBookings: counts["rejected"] || 0,
+  cancelledBookings: counts["cancelled"] || 0,
+});
 
 export class ArtistAnalyticsService {
   private static async loadArtistData(artistId: string) {
@@ -95,11 +123,7 @@ export class ArtistAnalyticsService {
       0,
     );
 
-    const statusCounts: Record<string, number> = {};
-    for (const status of BOOKING_STATUSES) statusCounts[status] = 0;
-    for (const b of bookings) {
-      statusCounts[b.status] = (statusCounts[b.status] || 0) + 1;
-    }
+    const statusCounts = bookingStatusCounts(bookings);
 
     const pendingPayments = bookings
       .filter(
@@ -122,9 +146,8 @@ export class ArtistAnalyticsService {
     );
 
     for (const t of transactions) {
-      const d = parseDate(t.date);
-      if (!d) continue;
-      const key = monthKey(d);
+      const key = toDayKey(t.date)?.slice(0, 7);
+      if (!key) continue;
       if (revenueByMonth.has(key)) {
         revenueByMonth.set(
           key,
@@ -134,9 +157,8 @@ export class ArtistAnalyticsService {
     }
 
     for (const b of bookings) {
-      const d = parseDate(b.date);
-      if (!d) continue;
-      const key = monthKey(d);
+      const key = toDayKey(b.date)?.slice(0, 7);
+      if (!key) continue;
       if (bookingsByMonth.has(key)) {
         bookingsByMonth.set(key, bookingsByMonth.get(key)! + 1);
       }
@@ -157,12 +179,7 @@ export class ArtistAnalyticsService {
     return {
       stats: {
         totalClients: clientIds.size,
-        totalBookings: bookings.length,
-        pendingBookings: statusCounts["pending"] || 0,
-        activeBookings: statusCounts["active"] || 0,
-        completedBookings: statusCounts["completed"] || 0,
-        rejectedBookings: statusCounts["rejected"] || 0,
-        cancelledBookings: statusCounts["cancelled"] || 0,
+        ...bookingMetrics(statusCounts, bookings.length),
         totalRevenue: round2(totalRevenue),
         grossRevenue: round2(grossRevenue),
         totalRefunds: round2(totalRefunds),
@@ -218,14 +235,11 @@ export class ArtistAnalyticsService {
       0,
     );
 
-    const statusCounts: Record<string, number> = {};
-    for (const b of bookingsInRange) {
-      statusCounts[b.status] = (statusCounts[b.status] || 0) + 1;
-    }
+    const statusCounts = bookingStatusCounts(bookingsInRange);
 
-    const clientFirstBooking = new Map<string, Date>();
+    const clientFirstBooking = new Map<string, string>();
     for (const b of bookings) {
-      const d = parseDate(b.date);
+      const d = toDayKey(b.date);
       const cid = b.client?._id?.toString();
       if (!d || !cid) continue;
       const existing = clientFirstBooking.get(cid);
@@ -249,9 +263,8 @@ export class ArtistAnalyticsService {
 
     const revenueByDateMap = new Map<string, number>();
     for (const t of transactionsInRange) {
-      const d = parseDate(t.date);
-      if (!d) continue;
-      const key = dayKey(d);
+      const key = toDayKey(t.date);
+      if (!key) continue;
       revenueByDateMap.set(
         key,
         (revenueByDateMap.get(key) || 0) + Number(t.amount || 0),
@@ -286,10 +299,7 @@ export class ArtistAnalyticsService {
     }
 
     return {
-      range: {
-        from: from ? dayKey(from) : null,
-        to: to ? dayKey(to) : null,
-      },
+      range: { from, to },
       summary: {
         totalRevenue: round2(totalRevenue),
         grossRevenue: round2(grossRevenue),
@@ -298,12 +308,7 @@ export class ArtistAnalyticsService {
         totalTransactions: paymentsInRange.length,
         totalExpenses: Math.round(totalExpenses * 100) / 100,
         netRevenue: Math.round((totalRevenue - totalExpenses) * 100) / 100,
-        totalBookings: bookingsInRange.length,
-        pendingBookings: statusCounts["pending"] || 0,
-        activeBookings: statusCounts["active"] || 0,
-        completedBookings: statusCounts["completed"] || 0,
-        rejectedBookings: statusCounts["rejected"] || 0,
-        cancelledBookings: statusCounts["cancelled"] || 0,
+        ...bookingMetrics(statusCounts, bookingsInRange.length),
         totalClients: clientsInRange.size,
         newClients,
         returningClients,
@@ -316,10 +321,12 @@ export class ArtistAnalyticsService {
           amount: Math.round(v.amount * 100) / 100,
         }),
       ),
-      bookingsByStatus: Object.entries(statusCounts).map(([status, count]) => ({
-        status,
-        count,
-      })),
+      bookingsByStatus: Object.entries(statusCounts)
+        .filter(([, count]) => count > 0)
+        .map(([status, count]) => ({
+          status,
+          count,
+        })),
       expensesByCategory: Array.from(expensesByCategoryMap.entries()).map(
         ([category, amount]) => ({
           category,
@@ -378,12 +385,7 @@ export class ArtistAnalyticsService {
   }
 }
 
-export const parseRangeDate = (
-  value: unknown,
-  boundary: "start" | "end",
-): Date | null => {
+export const parseRangeDate = (value: unknown): string | null => {
   if (typeof value !== "string" || !value.trim()) return null;
-  const d = parseDate(value);
-  if (!d) return null;
-  return boundary === "start" ? startOfDay(d) : endOfDay(d);
+  return toDayKey(value);
 };

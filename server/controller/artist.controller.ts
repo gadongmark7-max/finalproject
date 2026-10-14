@@ -123,8 +123,8 @@ export class ArtistController {
       const artistId = requireArtist(request, response);
       if (!artistId) return;
 
-      const from = parseRangeDate(request.query.from, "start");
-      const to = parseRangeDate(request.query.to, "end");
+      const from = parseRangeDate(request.query.from);
+      const to = parseRangeDate(request.query.to);
 
       if (from && to && from > to) {
         response
