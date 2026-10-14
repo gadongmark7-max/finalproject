@@ -612,7 +612,7 @@ export function ViewTattoo3DModal({
 
             <div className="flex flex-col gap-5 p-6 flex-1">
               {/* Tattoo Image */}
-              <div className="relative w-full h-[220px] border border-border overflow-hidden group">
+              <div className="relative w-full h-[220px] bg-white border border-border overflow-hidden group">
                 <img
                   src={img}
                   alt="tattoo"

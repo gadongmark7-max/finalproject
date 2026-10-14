@@ -226,8 +226,8 @@ export function CompleteBookingModal({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem)] sm:max-w-2xl">
+        <DialogHeader className="shrink-0 px-4 pt-5 pr-14 text-left sm:px-6 sm:pt-6 sm:pr-14">
           <DialogTitle>
             {closeEarly ? "Close booking early" : "Complete booking"}
           </DialogTitle>
@@ -238,6 +238,7 @@ export function CompleteBookingModal({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
         {inventoryQuery.isLoading ? (
           <p className="flex items-center gap-2 text-sm text-text-muted">
             <LoaderCircle className="h-4 w-4 animate-spin" /> Loading inventory…
@@ -261,7 +262,7 @@ export function CompleteBookingModal({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <label
-                      className={`flex items-center gap-2.5 text-sm ${recorded ? "cursor-default" : "cursor-pointer"}`}
+                      className={`flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-sm ${recorded ? "cursor-default" : "cursor-pointer"}`}
                     >
                       <input
                         type="checkbox"
@@ -270,7 +271,7 @@ export function CompleteBookingModal({
                         onChange={(e) =>
                           update(d.session, { selected: e.target.checked })
                         }
-                        className="h-4 w-4 accent-[#C6A55C]"
+                        className="h-4 w-4 shrink-0 accent-[#C6A55C]"
                       />
                       <span className="text-text">Session {d.session}</span>
                       <span className="text-[10px] uppercase tracking-[0.14em] text-text-dim">
@@ -282,7 +283,7 @@ export function CompleteBookingModal({
                             : ""}
                       </span>
                     </label>
-                    <span className="text-sm text-text">
+                    <span className="shrink-0 text-sm text-text">
                       {recorded
                         ? formatPesoCents(
                             recordedUsage.reduce((s, u) => s + u.totalCost, 0),
@@ -332,7 +333,7 @@ export function CompleteBookingModal({
                             onChange={(e) =>
                               update(d.session, { noneUsed: e.target.checked })
                             }
-                            className="mt-0.5 accent-[#C6A55C]"
+                            className="mt-0.5 shrink-0 accent-[#C6A55C]"
                           />
                           No inventory materials were used in this session
                         </label>
@@ -432,8 +433,9 @@ export function CompleteBookingModal({
             sessions that weren&apos;t performed.
           </p>
         )}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 px-4 pb-4 sm:px-6 sm:pb-6">
           <Button
             variant="outline"
             onClick={() => setOpen(false)}

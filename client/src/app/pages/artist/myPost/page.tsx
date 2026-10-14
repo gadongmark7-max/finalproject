@@ -65,11 +65,11 @@ export default function Page() {
       {/* Ambient gold glow */}
       <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[360px] rounded-full opacity-[0.07] blur-[120px] bg-gold" />
       {/* Page Header */}{" "}
-      <div className="bg-secondary border-b border-border px-6 lg:px-8 py-10">
+      <div className="bg-secondary border-b border-border px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {" "}
-        <div className="max-w-7xl mx-auto flex items-end justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           {" "}
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             {" "}
             <div className="flex items-center gap-3">
               {" "}
@@ -80,7 +80,7 @@ export default function Page() {
               </span>{" "}
             </div>{" "}
             <h1
-              className="text-4xl font-light text-text tracking-[-0.02em]"
+              className="text-4xl font-light text-text tracking-[-0.02em] break-words"
               style={{ fontFamily: "'Cormorant Garamond', serif" }}
             >
               {" "}
@@ -92,25 +92,25 @@ export default function Page() {
             </p>{" "}
           </div>{" "}
           {isBussinessApproveArtistPost(artistBussinesses) && (
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:items-center sm:shrink-0">
               {" "}
               {/* Trash Posts */}{" "}
-              <Link href="/pages/artist/trash-posts">
+              <Link href="/pages/artist/trash-posts" className="min-w-0">
                 {" "}
                 <Button
                   type="button"
                   variant="outline"
                   size="lg"
-                  className="gap-2"
+                  className="gap-2 w-full"
                 >
                   {" "}
                   <Trash2 className="w-4 h-4" /> Trash Posts{" "}
                 </Button>{" "}
               </Link>{" "}
               {/* Add Post */}{" "}
-              <Link href="/pages/artist/addPost/new">
+              <Link href="/pages/artist/addPost/new" className="min-w-0">
                 {" "}
-                <Button type="button" size="lg" className="gap-2">
+                <Button type="button" size="lg" className="gap-2 w-full">
                   {" "}
                   <Plus className="w-4 h-4" /> Add Post{" "}
                 </Button>{" "}
@@ -132,7 +132,7 @@ export default function Page() {
         )}{" "}
       </div>
       {/* Posts Grid */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         {posts.length === 0 ? (
           <div className="border border-dashed border-border flex flex-col items-center justify-center py-28 gap-4 bg-surface">
             <div className="bg-surface-alt border border-border p-4">

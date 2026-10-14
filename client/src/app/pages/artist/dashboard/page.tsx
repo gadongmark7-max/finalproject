@@ -153,6 +153,9 @@ export default function Page() {
               Studio Metrics
             </span>
             <div className="h-px flex-1 bg-border" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-text-muted">
+              All time
+            </span>
           </div>
           <div className="grid md:grid-cols-5 grid-cols-2 gap-px bg-border">
             <StatCard title="Total Clients" value={stats.totalClients} icon={Users} />
