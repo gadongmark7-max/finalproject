@@ -71,6 +71,10 @@ export default function Page() {
     }
   }, [data, type]);
 
+  const completedCount = (data?.data ?? []).filter((e: bookingInterface) =>
+    matchesTab(e.status, "completed"),
+  ).length;
+
   return (
     <div className="w-full min-h-dvh bg-primary overflow-auto">
       {/* Grain Overlay */}
@@ -106,13 +110,24 @@ export default function Page() {
             <button
               key={tab}
               onClick={() => setType(tab)}
-              className={`text-[10px] uppercase tracking-[0.2em] px-5 py-2.5 border transition-all duration-200 ${
+              className={`flex items-center gap-2 sm:gap-2.5 text-[10px] uppercase tracking-[0.2em] px-5 py-2.5 border transition-all duration-200 ${
                 type === tab
                   ? "border-gold text-gold bg-surface-alt"
                   : "border-border text-text-muted hover:border-border-gold hover:text-text"
               }`}
             >
               {tab}
+              {tab === "completed" && (
+                <span
+                  className={`text-[9px] min-w-[18px] text-center px-1 py-0.5 border transition-all duration-200 ${
+                    type === tab
+                      ? "border-gold text-gold"
+                      : "border-border text-text-muted"
+                  }`}
+                >
+                  {completedCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
