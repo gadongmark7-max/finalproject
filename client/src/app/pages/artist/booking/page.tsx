@@ -121,7 +121,7 @@ export default function Page() {
             className="flex flex-wrap gap-2 border-b border-border pb-6"
           >
             {STATUS_TABS.map((tab) => {
-              const count = tab !== "completed" ? countOf(tab) : null;
+              const count = countOf(tab);
               const isActive = type === tab;
               return (
                 <button
@@ -136,17 +136,15 @@ export default function Page() {
                   }`}
                 >
                   {tab}
-                  {count !== null && (
-                    <span
-                      className={`text-[9px] min-w-[18px] text-center px-1 py-0.5 border transition-all duration-200 ${
-                        isActive
-                          ? "border-gold text-gold"
-                          : "border-border text-text-muted"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  )}
+                  <span
+                    className={`text-[9px] min-w-[18px] text-center px-1 py-0.5 border transition-all duration-200 ${
+                      isActive
+                        ? "border-gold text-gold"
+                        : "border-border text-text-muted"
+                    }`}
+                  >
+                    {count}
+                  </span>
                 </button>
               );
             })}
